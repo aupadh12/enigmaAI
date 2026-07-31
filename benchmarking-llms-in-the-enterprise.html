@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Every Public Benchmark Is Useless to You: Building an Internal LLM Evaluation Suite</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8;
+            color: #1a1a2e;
+            background: #fafbfc;
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 12px;
+            color: #1a1a2e;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 32px;
+            font-style: italic;
+        }
+        .author-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4338ca, #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 40px 0 16px;
+            color: #1a1a2e;
+            border-left: 4px solid #6366f1;
+            padding-left: 16px;
+        }
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 28px 0 12px;
+            color: #333;
+        }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+            border-left: 4px solid #4f46e5;
+            padding: 20px 24px;
+            border-radius: 0 8px 8px 0;
+            margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 20px 24px;
+            border-radius: 0 8px 8px 0;
+            margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 32px 0;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 12px;
+            font-style: italic;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px 24px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 14px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th {
+            background: #f1f5f9;
+            text-align: left;
+            padding: 12px 14px;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #475569;
+            vertical-align: top;
+        }
+        tr:last-child td { border-bottom: none; }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .metric-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        .metric-value { font-size: 28px; font-weight: 700; color: #4f46e5; }
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 32px 0;
+        }
+        .takeaway h3 { color: #166534; margin-top: 0; }
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid #e8e8e8;
+        }
+        .tag {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+        }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+
+        /* Cover hero styles */
+        .cover-hero {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 52.25%;
+            background: linear-gradient(155deg, #0f172a 0%, #1e1b4b 35%, #0f172a 100%);
+            overflow: hidden;
+            border-radius: 12px;
+            margin-bottom: 40px;
+        }
+        .cover-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(99, 102, 241, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.035) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+        .cover-hero .corb { position: absolute; border-radius: 50%; filter: blur(80px); }
+        .cover-hero .corb-1 { width: 320px; height: 320px; background: #6366f1; top: -120px; right: 200px; opacity: 0.18; }
+        .cover-hero .corb-2 { width: 240px; height: 240px; background: #06b6d4; bottom: -60px; left: 300px; opacity: 0.12; }
+        .cover-hero .corb-3 { width: 160px; height: 160px; background: #f59e0b; top: 200px; left: -40px; opacity: 0.1; }
+        .cover-hero .cover-text {
+            position: absolute;
+            left: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            max-width: 34%;
+        }
+        .cover-hero .cover-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #4338ca 0%, #06b6d4 100%);
+            color: white;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+        .cover-hero .cover-title {
+            font-size: 26px;
+            font-weight: 800;
+            line-height: 1.15;
+            color: white;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+        .cover-hero .cover-title .chighlight {
+            background: linear-gradient(135deg, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .cover-hero .cover-sub {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        .cover-hero .cover-stats { display: flex; gap: 16px; }
+        .cover-hero .cover-stat-val { font-size: 18px; font-weight: 800; color: #a5b4fc; text-align: center; }
+        .cover-hero .cover-stat-lbl {
+            font-size: 8px;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+        .cover-hero .cover-diagram { position: absolute; right: 0; top: 0; width: 65%; height: 100%; }
+        .cover-hero .cover-diagram svg { width: 100%; height: 100%; }
+        .cover-hero .cover-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 36px;
+            background: rgba(0,0,0,0.35);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            padding: 0 5%;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            z-index: 20;
+        }
+        .cover-hero .cb-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4338ca, #06b6d4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 8px;
+            margin-right: 8px;
+        }
+        .cover-hero .cb-name { color: rgba(255,255,255,0.9); font-size: 11px; font-weight: 600; }
+        .cover-hero .cb-role { color: rgba(255,255,255,0.4); font-size: 10px; margin-left: 4px; }
+        .cover-hero .cb-tags { margin-left: auto; display: flex; gap: 6px; }
+        .cover-hero .cb-tag {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 9px;
+            color: rgba(255,255,255,0.5);
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Cover Hero Banner -->
+<div class="cover-hero">
+    <div class="corb corb-1"></div>
+    <div class="corb corb-2"></div>
+    <div class="corb corb-3"></div>
+
+    <div class="cover-text">
+        <div class="cover-badge">LLM Evaluation</div>
+        <div class="cover-title">Every Public<br><span class="chighlight">Benchmark Is</span><br>Useless to You</div>
+        <p class="cover-sub">A new model tops the leaderboards. Should you migrate? Nothing on that leaderboard tests the work your organisation actually does.</p>
+        <div class="cover-stats">
+            <div><div class="cover-stat-val">33</div><div class="cover-stat-lbl">Challenges</div></div>
+            <div><div class="cover-stat-val">3</div><div class="cover-stat-lbl">Honeypots</div></div>
+            <div><div class="cover-stat-val">59%</div><div class="cover-stat-lbl">First-Run Truncation</div></div>
+        </div>
+    </div>
+
+    <div class="cover-diagram">
+        <svg viewBox="0 0 720 627" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="eG1" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#4338ca"/><stop offset="100%" style="stop-color:#6366f1"/>
+                </linearGradient>
+                <linearGradient id="eG2" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#0891b2"/><stop offset="100%" style="stop-color:#06b6d4"/>
+                </linearGradient>
+                <linearGradient id="eG3" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#059669"/><stop offset="100%" style="stop-color:#10b981"/>
+                </linearGradient>
+                <marker id="eArrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="rgba(165,180,252,0.7)"/>
+                </marker>
+                <filter id="eGlow">
+                    <feGaussianBlur stdDeviation="3" result="cb"/>
+                    <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+            </defs>
+
+            <text x="360" y="44" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(255,255,255,0.35)" letter-spacing="2">THE EVALUATION PIPELINE</text>
+
+            <!-- Challenge bank -->
+            <rect x="55" y="66" width="180" height="180" rx="10" fill="rgba(67,56,202,0.06)" stroke="rgba(99,102,241,0.35)" stroke-width="1"/>
+            <rect x="55" y="66" width="180" height="20" rx="10" fill="url(#eG1)" opacity="0.9"/>
+            <rect x="55" y="80" width="180" height="6" fill="url(#eG1)" opacity="0.9"/>
+            <text x="145" y="81" text-anchor="middle" font-size="8" font-weight="700" fill="white">CHALLENGE BANK</text>
+            <text x="70" y="106" font-size="8.5" fill="rgba(255,255,255,0.55)">10 real domains × 3</text>
+            <text x="70" y="124" font-size="8.5" fill="rgba(255,255,255,0.55)">+ 3 honeypots</text>
+            <rect x="70" y="134" width="150" height="1" fill="rgba(255,255,255,0.1)"/>
+            <text x="70" y="152" font-size="8" fill="rgba(255,255,255,0.4)">prompt</text>
+            <text x="70" y="168" font-size="8" fill="rgba(255,255,255,0.4)">ground truth</text>
+            <text x="70" y="184" font-size="8" fill="rgba(255,255,255,0.4)">assertion specs</text>
+            <text x="70" y="200" font-size="8" fill="rgba(255,255,255,0.4)">rubric</text>
+            <rect x="70" y="210" width="150" height="26" rx="5" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.4)"/>
+            <text x="145" y="227" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(251,191,36,0.9)">content hash → sign-off</text>
+
+            <line x1="235" y1="156" x2="285" y2="156" stroke="rgba(165,180,252,0.6)" stroke-width="1.5" marker-end="url(#eArrow)"/>
+
+            <!-- Candidate call -->
+            <rect x="290" y="90" width="175" height="132" rx="10" fill="rgba(8,145,178,0.06)" stroke="rgba(6,182,212,0.35)" stroke-width="1"/>
+            <rect x="290" y="90" width="175" height="20" rx="10" fill="url(#eG2)" opacity="0.9"/>
+            <rect x="290" y="104" width="175" height="6" fill="url(#eG2)" opacity="0.9"/>
+            <text x="377" y="105" text-anchor="middle" font-size="8" font-weight="700" fill="white">CANDIDATE MODEL</text>
+            <text x="303" y="130" font-size="8.5" fill="rgba(255,255,255,0.55)">effort: bounded</text>
+            <text x="303" y="147" font-size="8.5" fill="rgba(255,255,255,0.55)">max_tokens: floored</text>
+            <text x="303" y="164" font-size="8.5" fill="rgba(255,255,255,0.55)">repeats: 3</text>
+            <rect x="303" y="176" width="149" height="34" rx="5" fill="rgba(239,68,68,0.1)" stroke="rgba(248,113,113,0.4)"/>
+            <text x="377" y="190" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fca5a5">check stop_reason</text>
+            <text x="377" y="203" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,0.45)">truncated ≠ wrong answer</text>
+
+            <line x1="465" y1="156" x2="515" y2="156" stroke="rgba(165,180,252,0.6)" stroke-width="1.5" marker-end="url(#eArrow)"/>
+
+            <!-- Grading -->
+            <rect x="520" y="66" width="150" height="180" rx="10" fill="rgba(5,150,105,0.06)" stroke="rgba(16,185,129,0.35)" stroke-width="1"/>
+            <rect x="520" y="66" width="150" height="20" rx="10" fill="url(#eG3)" opacity="0.9"/>
+            <rect x="520" y="80" width="150" height="6" fill="url(#eG3)" opacity="0.9"/>
+            <text x="595" y="81" text-anchor="middle" font-size="8" font-weight="700" fill="white">GRADING</text>
+            <rect x="533" y="98" width="124" height="30" rx="5" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.35)"/>
+            <text x="595" y="110" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(255,255,255,0.7)">deterministic</text>
+            <text x="595" y="122" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,0.4)">assertions — cheap, exact</text>
+            <rect x="533" y="136" width="124" height="30" rx="5" fill="rgba(99,102,241,0.12)" stroke="rgba(129,140,248,0.4)"/>
+            <text x="595" y="148" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(255,255,255,0.7)">judge model</text>
+            <text x="595" y="160" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,0.4)">rubric — for judgement only</text>
+            <rect x="533" y="174" width="124" height="30" rx="5" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.4)"/>
+            <text x="595" y="186" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(251,191,36,0.9)">2nd judge, other family</text>
+            <text x="595" y="198" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,0.4)">same-family = conflict</text>
+            <rect x="533" y="212" width="124" height="24" rx="5" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.15)"/>
+            <text x="595" y="228" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,0.5)">no judge → grading_failure</text>
+
+            <!-- Publication gates -->
+            <rect x="55" y="272" width="615" height="112" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <text x="362" y="293" text-anchor="middle" font-size="9" font-weight="700" fill="rgba(255,255,255,0.55)" letter-spacing="1.5">PUBLICATION GATES — ANY ONE BLOCKS THE NUMBER</text>
+
+            <rect x="72" y="304" width="140" height="30" rx="5" fill="rgba(239,68,68,0.1)" stroke="rgba(248,113,113,0.4)"/>
+            <text x="142" y="317" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(255,255,255,0.7)">truncation share</text>
+            <text x="142" y="329" text-anchor="middle" font-size="7.5" fill="#fca5a5">≥ 10% → block</text>
+
+            <rect x="222" y="304" width="140" height="30" rx="5" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.4)"/>
+            <text x="292" y="317" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(255,255,255,0.7)">expert sign-off</text>
+            <text x="292" y="329" text-anchor="middle" font-size="7.5" fill="rgba(251,191,36,0.9)">stale hash → re-review</text>
+
+            <rect x="372" y="304" width="140" height="30" rx="5" fill="rgba(99,102,241,0.12)" stroke="rgba(129,140,248,0.4)"/>
+            <text x="442" y="317" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(255,255,255,0.7)">honeypot score</text>
+            <text x="442" y="329" text-anchor="middle" font-size="7.5" fill="#a5b4fc">high → contamination</text>
+
+            <rect x="522" y="304" width="132" height="30" rx="5" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.4)"/>
+            <text x="588" y="317" text-anchor="middle" font-size="8" font-weight="600" fill="rgba(255,255,255,0.7)">weak control</text>
+            <text x="588" y="329" text-anchor="middle" font-size="7.5" fill="#6ee7b7">must score lowest</text>
+
+            <text x="362" y="360" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.4)">A run that cannot pass its own sanity checks does not produce a number —</text>
+            <text x="362" y="374" text-anchor="middle" font-size="8.5" font-weight="600" fill="rgba(165,180,252,0.8)">it produces a bug report about the harness.</text>
+
+            <!-- Bottom line -->
+            <rect x="55" y="402" width="615" height="56" rx="8" fill="rgba(67,56,202,0.08)" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+            <text x="362" y="424" text-anchor="middle" font-size="10" font-weight="700" fill="rgba(255,255,255,0.6)" letter-spacing="1">RECORD THE HARNESS CONFIG WITH EVERY SCORE</text>
+            <text x="362" y="444" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.45)">Two runs at different reasoning settings are not comparable. The settings are part of what you measured.</text>
+
+            <circle r="2.5" fill="#6366f1" opacity="0.85" filter="url(#eGlow)">
+                <animateMotion dur="2.4s" repeatCount="indefinite" path="M235,156 L285,156"/>
+            </circle>
+            <circle r="2.5" fill="#06b6d4" opacity="0.85" filter="url(#eGlow)">
+                <animateMotion dur="2.4s" begin="0.5s" repeatCount="indefinite" path="M465,156 L515,156"/>
+            </circle>
+        </svg>
+    </div>
+
+    <div class="cover-bottom">
+        <span class="cb-avatar">AP</span>
+        <span class="cb-name">Ashutosh Upadhyay</span>
+        <span class="cb-role">Platform Engineering | AI/ML Infrastructure</span>
+        <div class="cb-tags">
+            <span class="cb-tag">Evaluation</span>
+            <span class="cb-tag">LLM-as-Judge</span>
+            <span class="cb-tag">Benchmarking</span>
+        </div>
+    </div>
+</div>
+<!-- End Cover Hero -->
+
+<span class="header-badge">LLM Evaluation</span>
+
+<h1>Every Public Benchmark Is Useless to You</h1>
+<p class="subtitle">Building a standing internal evaluation suite — and the four ways my harness broke before it produced a single trustworthy number.</p>
+
+<div class="author-block">
+    <div class="author-avatar">AP</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
+    </div>
+</div>
+
+<h2>The Question That Started It</h2>
+
+<p>A frontier model ships. It's better on every published benchmark. Leadership asks whether we should move our production agents to it.</p>
+
+<p>I had no defensible way to answer. Public benchmarks measure general capability on tasks that are, by construction, <em>not</em> our tasks. Whether a model can solve competition mathematics tells me nothing about whether it can correctly reason about our regulatory constraints, our data schemas, or our domain's failure modes. Meanwhile the strongest signal I had was vibes: a few engineers trying prompts and reporting that it "felt sharper."</p>
+
+<p>So I built a standing internal benchmark — a fixed set of challenges drawn from real work across our actual domains, run against every new model release, producing a comparable number over time.</p>
+
+<p>This post is mostly about the parts I got wrong, because the harness turns out to be much harder than the challenges, and every failure in it produces <em>plausible numbers</em> rather than errors. That's the whole danger.</p>
+
+<h2>Design: What Goes in the Challenge Bank</h2>
+
+<p>Thirty-three challenges: ten domains drawn from real work across the organisation, three challenges each, plus three honeypots. Around a hundred assertions total.</p>
+
+<p>Each challenge is a bundle of four things, and treating them as one unit matters later:</p>
+
+<table>
+    <thead>
+        <tr><th>Component</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><strong>Prompt</strong></td><td>The task, phrased the way a real practitioner would phrase it — including the ambiguity they'd leave in</td></tr>
+        <tr><td><strong>Ground truth</strong></td><td>The correct answer, authored against source material and — for the domains that need it — reviewed by a practitioner</td></tr>
+        <tr><td><strong>Assertion specs</strong></td><td>Deterministic checks — required facts present, wrong facts absent, format valid</td></tr>
+        <tr><td><strong>Rubric</strong></td><td>Qualitative criteria for the parts a string match can't capture</td></tr>
+    </tbody>
+</table>
+
+<h3>Honeypots: your contamination detector</h3>
+
+<p>Three challenges are built to catch memorisation rather than test knowledge. The design I settled on is <em>conflict</em>, not fiction: the prompt states a fact that contradicts what the model has almost certainly memorised — a configuration field renamed from the name upstream actually uses, a threshold given explicitly in the prompt that differs from the published default, an option the prompt rules out that is the popular answer everywhere else. The correct behaviour is to follow the prompt. A model that answers from memory instead of from the text in front of it fails.</p>
+
+<p>The idea is sound and these are still the highest-signal items in the bank &mdash; they're a leakage tripwire, because if a future model starts confidently overriding the prompt with the memorised value, your benchmark has met that value in training and every other number is suspect.</p>
+
+<div class="warn-box">
+    <p><strong>My first three honeypots were badly authored, in a way worth describing because it is easy to repeat.</strong> Each one asserted that the memorised alternative must not <em>appear</em> in the answer. That sounds right and is wrong. It means a model that follows the prompt correctly <em>and then transparently notes the discrepancy</em> &mdash; "using the value you gave, though note the upstream default differs" &mdash; gets penalised for the transparency. That is the single most desirable behaviour available to a model in this situation, and I had built a trap that punished it.</p>
+    <p>The assertion has to distinguish <em>using</em> the memorised value from <em>mentioning</em> it. Mine couldn't, which means the contamination signal they produced is not trustworthy and I'm not publishing a contamination verdict from them until they're rewritten. A badly-authored honeypot doesn't fail loudly; it returns a clean-looking number, which is the same disease as every other item in this post.</p>
+</div>
+
+<h3>Prefer deterministic assertions; use the judge sparingly</h3>
+
+<p><em>Every</em> assertion in the current suite is deterministic — exact facts required, wrong facts forbidden, structural validity, set overlap. All of them free, instant, and perfectly reproducible. I had originally planned a mix and described it as roughly ninety percent; when I actually counted, no challenge in the bank declares a rubric assertion at all.</p>
+
+<p>That happened by attrition rather than design, and I've come to think the attrition was right. Each time I reached for a rubric I found a deterministic form of the same question that was sharper and didn't need a second model's opinion. The judge is still wired in, but the only thing that invokes it today is a nightly drift check on fixed transcripts — not scoring. Which means one whole category of instability is currently absent from my numbers, and I'd rather keep it that way for as long as possible.</p>
+
+<div class="highlight-box">
+    <p><strong>Design detail worth copying:</strong> a missing or failed judge must be recorded as <code>grading_failure</code> — never as a score of zero. These are completely different events. A zero says the model answered badly. A grading failure says your harness didn't work. Collapsing them means your infrastructure problems show up as model regressions, and you'll spend a week investigating the wrong system.</p>
+</div>
+
+<h2>Failure #1: The Model Spent the Entire Budget Thinking</h2>
+
+<p>First real run against a frontier reasoning model. Aborted at 36 of 99 attempts, with <strong>59% of completed attempts truncated</strong>.</p>
+
+<p>The cause: my candidate calls sent no reasoning configuration at all. On a model with adaptive thinking, reasoning tokens bill against the same output ceiling as the answer — so the model spent the whole budget reasoning and returned nothing. Billed in full.</p>
+
+<p>Here's what I measured once I isolated the two knobs:</p>
+
+<table>
+    <thead>
+        <tr><th>Configuration</th><th>Stop reason</th><th>Output</th><th>Text returned</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>No effort setting, cap 1024</td><td><code>max_tokens</code></td><td>1024</td><td><strong>0 chars</strong></td></tr>
+        <tr><td>Effort <code>low</code>, cap 1024</td><td><code>max_tokens</code></td><td>1024</td><td>2,800 chars, cut mid-sentence</td></tr>
+        <tr><td>Cap 8000, no effort setting</td><td>—</td><td>—</td><td>Read timeout, thinking unbounded</td></tr>
+        <tr><td>Effort <code>low</code> + cap 8000</td><td><code>end_turn</code></td><td>2,693</td><td>7,780 chars, clean</td></tr>
+    </tbody>
+</table>
+
+<div class="warn-box">
+    <p><strong>In an evaluation harness, row two is catastrophic — worse than row one.</strong> An empty response is obviously broken. A response cut off mid-sentence <em>grades as a wrong answer.</em> The model gets a low score for my configuration mistake, and nothing anywhere indicates the score is invalid. I nearly shipped exactly that, because I had changed both knobs together, seen it work, and moved on.</p>
+    <p>When diagnosing a harness, always isolate the variables. Fixing two things simultaneously hides which one mattered, and the half-fix is often the dangerous one.</p>
+</div>
+
+<p>The rules I now consider non-negotiable for any evaluation harness:</p>
+
+<ul>
+    <li><strong>A truncated attempt is not a zero.</strong> Recording it as one defames the model with your own bug. In practice I ended up with two cases rather than one rule: an <em>empty</em> answer is <code>error_kind</code> and is excluded from scoring entirely, while a substantial-but-cut-off answer is flagged incomplete and scored as a floor — because a nearly-complete answer still carries real signal, and throwing it away discards measurement you legitimately have. What matters is that neither is ever silently indistinguishable from a model that genuinely got it wrong.</li>
+    <li><strong>Generalise that to every terminal state that isn't "the model finished."</strong> Truncation is the one everybody hits, but it isn't the only one. Two of my challenges tripped a platform content filter and were recorded as <em>wrong answers to questions the model was never permitted to answer</em>. The stop reason field has around six possible values; a harness that special-cases only the token-limit one will convert the others into fake capability findings.</li>
+    <li><strong>Reasoning settings go in the run metadata,</strong> because they define what was measured. Two runs at different effort levels are not comparable, and six months later nobody remembers which was which.</li>
+    <li><strong>Above a small truncation share, block publication entirely.</strong> Don't just exclude the bad rows — see below.</li>
+    <li><strong>Adaptive reasoning varies per call.</strong> A prompt near the boundary flips between attempts: repeat 0 fails, repeats 1 and 2 pass. Do <em>not</em> read that as model flakiness. It's your cap.</li>
+</ul>
+
+<h3>Why exclusion isn't enough</h3>
+
+<p>My instinct was to drop truncated rows and average the rest. That's wrong in a specific way worth understanding, because it's the kind of error that produces a confident, inverted conclusion.</p>
+
+<p>Truncation is not random with respect to difficulty — it hits the <em>hardest</em> prompts, the ones that induce the most reasoning. So the surviving subset is systematically the easy half, and the average over it is biased upward.</p>
+
+<p>Worse, it breaks your sanity checks by inverting them:</p>
+
+<ul>
+    <li><strong>A truncated honeypot scores zero</strong> — which in a hallucination test looks like a <em>pass</em>. Your contamination detector now reports "clean" precisely because it failed.</li>
+    <li><strong>A truncated frontier model can score below your deliberately-weak control model</strong> — which fails your grading-sanity check, and reads as "the benchmark is broken" rather than "the harness truncated."</li>
+</ul>
+
+<p>So above a threshold — I use ten percent — the run publishes nothing. It produces a bug report about the harness instead.</p>
+
+<h3>Two more ways to get an empty answer and a full invoice</h3>
+
+<p>Truncation was the first mechanism I found that produced a blank answer at full price. It was not the last, and both of the others are worth knowing before you go looking, because a reader who fixes only the token budget will still hit them.</p>
+
+<p><strong>Don't index the first content block.</strong> Responses from reasoning-capable models are a list of blocks, and the thinking block can come first. Reaching for element zero and calling it the answer yields an empty string on exactly the prompts that reasoned hardest — silently, with the full bill, and with a plausible-looking zero in your results. Filter the list by block type and concatenate what you actually asked for; never index by position.</p>
+
+<p><strong>Check that the field you're reporting exists.</strong> I built a scorecard column for reasoning-token share, and it read zero for every row. Not "sometimes zero" — structurally zero, because the API surface I was calling returns input, output and total tokens and does not break out a reasoning count at all. The column would have printed "0% of the budget went to reasoning" for a run that spent essentially all of it thinking. This is the entire thesis of this post in one field: it didn't error, it didn't warn, it produced a confident number that was wrong. Assert that a metric is non-zero somewhere in your test suite, or you will publish an artifact of your own plumbing.</p>
+
+<h2>Failure #2: I Couldn't Pin the Judge's Version</h2>
+
+<p>An LLM judge needs to be reproducible. If the judge silently changes between March and September, your longitudinal comparison is measuring judge drift and calling it model improvement.</p>
+
+<p>So I went to pin the judge to a dated model snapshot, and found I couldn't. On the platform I'm using, the globally-routed model endpoints — the ones with the throughput I needed — <strong>reject dated snapshot identifiers entirely.</strong> They accept only the bare alias. It isn't solely a global-routing constraint either; I have at least one regional endpoint that rejects a dated snapshot the same way, so test the exact identifier you intend to pin rather than reasoning from the routing tier. The one model whose dated snapshot did resolve was a small fast model, too weak to judge expert-domain answers.</p>
+
+<p>That leaves three honest options: accept an unpinnable alias, accept a weaker but pinnable judge, or don't have a judge. I took the first, behind an explicit configuration flag so it's a visible decision rather than an accident, plus a nightly drift check as the compensating control.</p>
+
+<p>With one caveat I should state now rather than let you discover in the next section: that drift check is not yet a control I've demonstrated works. Its golden baselines were authored before a single live judge call had succeeded and have never been calibrated against one, and the global tolerance it was supposed to enforce was dead code until quite recently. So the honest position is that I accepted an unpinnable judge on the strength of a compensating control that is itself unproven. Given the next thing I'm about to describe is a compensating control that had never once run, I'd rather flag the pattern than repeat it silently.</p>
+
+<div class="warn-box">
+    <p><strong>Do not write a plausible-looking version identifier into config as a placeholder.</strong> I nearly did. A hand-constructed dated identifier <em>looks</em> right, passes a regex-based validity check because it has the right shape, and then fails at the API with a validation error — which reads as "model unavailable" and sends you to debug access permissions rather than the string. When a platform cannot supply something, record null with the reason. Never a placeholder that will be mistaken for a fact.</p>
+</div>
+
+<p>A related honesty problem: the API response echoes back the identifier you sent, so when you call an alias, <strong>nothing downstream can record which underlying version actually served the request.</strong> Any score built on an alias is attributable to a <em>name</em>, not a <em>version</em>. State that limitation in the report rather than implying a provenance the platform can't give you.</p>
+
+<h2>Failure #3: The Compensating Control Had Never Run</h2>
+
+<p>This is the one that should worry you most, because it's not about models at all.</p>
+
+<p>Remember the nightly drift check — the control that made the unpinnable judge acceptable? Weeks later I discovered it had <strong>failed on every single run since the day it shipped.</strong></p>
+
+<p>The mechanics were mundane. The config flag was correct in the deployed configuration. The parser read it into the config object correctly. The judge constructor accepted the parameter correctly. And the one production call site — the nightly job — constructed the judge without passing it.</p>
+
+<p>Several hundred tests passed the entire time. The overwhelming majority never touch the judge at all — and crucially, <em>every test that did exercise it constructed it directly</em>, so not one of them ever crossed the seam that was broken.</p>
+
+<div class="highlight-box">
+    <p><strong>The general lesson:</strong> a correctly-set config value is not evidence that the behaviour it controls is active. You have to test the <em>seam</em> between config and the object it configures, by driving the real entry point with real deployed values — not by hand-constructing the object the way every unit test does.</p>
+</div>
+
+<p>Concretely, what I changed:</p>
+
+<ul>
+    <li><strong>Replace per-call-site opt-ins with a single construction path.</strong> A keyword argument defaulting to the unsafe value is a defect generator — every new call site is a fresh chance to forget. A <code>from_config(cfg)</code> classmethod becomes the only production path, and a grep asserts the raw constructor has zero production callers.</li>
+    <li><strong>At least one test drives the entry point</strong> — the CLI, the job's <code>main()</code>, the request handler — with the deployed config values, not a fixture.</li>
+    <li><strong>Prove the regression test catches the bug.</strong> Revert the fix, watch the test fail with the production traceback, restore. A test that passes both ways tests nothing.</li>
+    <li><strong>Annotate the config file itself</strong> — "this only takes effect via X" — because the next person reads the ConfigMap, not the constructor.</li>
+</ul>
+
+<p>A related smell surfaced in the same pass: a same-family cross-check compared the candidate's model family to the judge's, but the judge was constructed with an <em>empty string</em> family. The comparison was therefore always false and the check could never fire. <strong>When an unknown value would skip a safety check, raise instead of defaulting.</strong> Assuming "different" is the unsafe direction.</p>
+
+<h2>Failure #4: Grading Claude With Claude</h2>
+
+<p>A subtler validity problem. If your candidate model and your judge model come from the same family, you have a conflict of interest baked into the measurement — shared training lineage means shared blind spots and a plausible same-family preference.</p>
+
+<p>My harness detects this and records <code>judge_conflict = true</code>, which means <em>no rubric score is publishable for that pairing</em>. Correct behaviour, and it also means I currently can't publish rubric scores for the models I most want to evaluate. The fix is a secondary judge from a different vendor family, and there's a useful practical note: several non-Anthropic model families were reachable through the same private network path with no firewall change, which made cross-vendor judging an afternoon's work rather than a security review.</p>
+
+<p>One gotcha I'd flag before anyone builds this: my code sends the reasoning-effort parameter unconditionally, and the check for whether effort is supported introspects the <em>client adapter</em>, not the model. A non-Anthropic model that rejects that parameter would make every secondary judge call raise. Day-zero verification item, not a day-thirty one.</p>
+
+<h2>The People Problem Is the Real Blocker</h2>
+
+<p>Everything above is engineering. The actual critical path is human: <strong>who says the ground truth is correct?</strong></p>
+
+<p>Of my 33 challenges, 23 need sign-off from someone qualified in that domain. I can author a plausible answer key for domains I know well; for the rest, an unreviewed answer key means the benchmark measures <em>my</em> misconceptions and reports them as model errors.</p>
+
+<p>Two things made this tractable.</p>
+
+<h3>Bind approval to a content hash</h3>
+
+<p>Record the approval against a hash of the exact text the reviewer read — prompt, ground truth, rubric and assertion specs together — not against the challenge's ID.</p>
+
+<p>An ID-keyed approval survives later edits. Someone can get sign-off on benign wording and then change the substance underneath, and the gate still reports the item as reviewed. Hash-binding makes the approval lapse automatically when the text moves; nobody has to remember to revoke it. Because the hash covers the assertions too, changing a grader invalidates the approval as well — not just changing the prose.</p>
+
+<p>Four details that make the difference between a real gate and a decorative one:</p>
+
+<ul>
+    <li><strong>Approval at a different hash is <em>stale</em>, and stale is distinct from <em>never reviewed</em>.</strong> Stale needs a quick re-read; telling a scarce expert they're starting from scratch wastes the resource you least want to waste.</li>
+    <li><strong>Append-only.</strong> A reviewer changing their mind adds a record. Editing in place erases the audit trail that is the entire point.</li>
+    <li><strong>A corrupt or missing store reads as empty</strong> — which approves nothing and keeps the gate closed. Failing open here silently publishes unreviewed material.</li>
+    <li><strong><code>changes_requested</code> must not satisfy the gate.</strong> Counting a request for fixes as sign-off is the worst available misreading of a reviewer's intent.</li>
+</ul>
+
+<h3>Remove the friction, because friction is what actually stalls reviews</h3>
+
+<p>My first design had reviewers approve by editing a file in the repository and triggering a deploy. Zero reviews happened. Not because anyone disagreed — because a domain expert with a day job will not learn your git workflow to leave a comment.</p>
+
+<p>Capture the decision as data through a simple web page and have the gate read that. Same for granting reviewer access: if adding a reviewer requires a config change and a rebuild, you become the bottleneck for your own review process. Make it self-service.</p>
+
+<p>And scope reviewer rights <em>per domain</em>, separately from admin rights. Reviewing content and spending a budget are different authorities, and an admin is not automatically a domain expert.</p>
+
+<h3>Publishing without sign-off — the honest version</h3>
+
+<p>I was asked whether we could just run everything without waiting for reviewers. The answer is yes, and the distinction matters: there's a flag that bypasses the <em>refusal</em>, emitting watermarked artifacts with every blocking reason printed on them. A run that says "nobody has checked these answer keys" is honest and useful.</p>
+
+<p>What must never happen is writing approval records on a reviewer's behalf. The record stores a reviewer's email and role, so a fabricated entry attributes a professional judgement to a named person who never made it. Bypassing a gate is a decision. Forging the gate's output is something else entirely.</p>
+
+<h2>What Thirty-Three Challenges Can and Cannot Tell You</h2>
+
+<p>Everything above is about not fooling yourself with a broken harness. This section is about not fooling yourself with a working one, and I put it late because it's the part I'd most want a sceptical reader to hold me to.</p>
+
+<p><strong>Run every challenge more than once.</strong> I use three repeats and report mean, standard deviation, and the share of challenges that passed on every attempt. Single-shot evaluation of a non-deterministic system is not measurement, and the failure is subtle: if you run once and average, per-challenge consistency computes to a flawless-looking 1.000 from the least possible evidence. My harness now refuses to report consistency at all when repeats equal one, because a fabricated perfect score is worse than a blank.</p>
+
+<p><strong>Then state the interval, not just the number.</strong> Thirty-three challenges, of which thirty are scored, at three repeats each. I compute a bootstrap ninety-five percent confidence interval per model and suppress any difficulty or capability flag whose interval is wider than 0.3 — because at that width the flag is describing noise. Which leads to the sentence that belongs in every internal benchmark write-up and is missing from most of them:</p>
+
+<div class="warn-box">
+    <p><strong>At this sample size, small differences between models are not resolvable.</strong> Thirty scored challenges cannot distinguish a model that is three points better from one that is three points worse. It can distinguish "this model can follow our house conventions" from "this model cannot," and it can catch a regression that matters. If two candidates land close together, the honest output is <em>"indistinguishable on this evidence"</em> — not a ranking. A benchmark that always produces a winner is a benchmark that is lying at least some of the time.</p>
+    <p>Related discipline: don't flag a challenge as "hard" until several distinct model <em>families</em> have failed it. One family failing is at least as likely to be an idiosyncrasy of that family, or of my prompt, as a property of the task.</p>
+</div>
+
+<p>And the framing that keeps the whole thing honest in a governance conversation: thirty-three challenges cannot represent an organisation. This is a signal, not a certification. It is enormously more useful than a public leaderboard for our purposes, and it is still a narrow instrument.</p>
+
+<h2>What This Cost, and What It's Worth</h2>
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <div class="metric-value">14</div>
+        <div class="metric-label">Harness Bugs, No Saved Score Yet</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value">~1h</div>
+        <div class="metric-label">Expert Time Per Domain</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value">10%</div>
+        <div class="metric-label">Truncation Publish Block</div>
+    </div>
+</div>
+
+<p>The failures came in a chain, and this is the part I'd most want to convey: <strong>each one only became visible after the previous was fixed.</strong> A judge configuration bug hid a storage-permissions problem, which hid a filesystem-semantics problem — a storage layer that doesn't implement atomic rename, so the write-to-temp-then-rename idiom throws instead of working — which in turn hid the truncation problem. Every failure masked the next, and none of them announced itself.</p>
+
+<p>I have to be straight about where that leaves the project, because it's the most useful number in this post. <strong>I do not yet have a saved score for any model.</strong> Two full sweeps ran every challenge to completion and then lost one hundred percent of their results at the final write, on a permissions fault that only existed on the real output path. Every figure I've produced so far is fixture replay: it proves the harness works and says nothing whatsoever about any model.</p>
+
+<p>And "four failures" was me being kind to myself. Counting honestly across five versions of the harness it's closer to fourteen — four in the chain above, four more in the sweep that lost its results, and six found in review of the version after that. If you are budgeting for this work, budget for fourteen. A first evaluation run is not "does the model score well." It is "does my harness work at all," and you will find out considerably more than once.</p>
+
+<p>The good news on the human side: 24 challenges need external sign-off, at roughly twenty to thirty minutes each. That's three challenges per reviewer across eight domains — about <em>an hour to ninety minutes each, once</em>. Framed that way, people say yes. Framed as "help me review the benchmark," they don't. (The total is eight to twelve person-hours; the thing that makes it tractable is that no individual is asked for more than an afternoon's fraction.)</p>
+
+<p>One sequencing tip: start with the highest-risk domains, the ones where a wrong answer key does the most damage. If you made a systematic authoring mistake, it shows up in the first three challenges rather than after seven more people have spent their hour.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Public benchmarks measure general capability; you need to measure your work.</strong> Ten real domains beats a thousand synthetic questions.</li>
+        <li><strong>Honeypots are your best items.</strong> They measure hallucination under pressure and detect benchmark leakage into training data.</li>
+        <li><strong>Truncation is a harness error, never a score.</strong> And above a threshold, it blocks publication — excluding rows biases the average and inverts your sanity checks.</li>
+        <li><strong>Record the harness configuration with every score.</strong> Two runs at different reasoning settings are not comparable.</li>
+        <li><strong>Verify that compensating controls actually run.</strong> Test the seam between config and call site by driving the real entry point.</li>
+        <li><strong>Never grade a model with a judge from its own family</strong> — and treat an unknown family as a conflict, not as "fine."</li>
+        <li><strong>Bind expert sign-off to a content hash</strong> so edits invalidate it automatically. Distinguish stale from never-reviewed.</li>
+        <li><strong>Friction, not disagreement, is what stalls review gates.</strong> Capture decisions as data through a UI.</li>
+        <li><strong>Bypassing a gate is a decision; forging its output is not.</strong> Watermark unreviewed runs, never fabricate approvals.</li>
+    </ul>
+</div>
+
+<div class="separator"></div>
+
+<p>The purpose of an internal benchmark isn't to beat a leaderboard. It's to make a migration decision defensible — to be able to say "on the tasks our practitioners reviewed as representative, here's the difference, measured under these exact conditions, at this sample size, with these known limitations — and here is where the difference is too small to call." That's a sentence you can take to a governance review. "It felt sharper" is not.</p>
+
+<div class="tag-list">
+    <span class="tag">#LLMEvaluation</span>
+    <span class="tag">#AIEngineering</span>
+    <span class="tag">#Benchmarking</span>
+    <span class="tag">#MLOps</span>
+    <span class="tag">#AIGovernance</span>
+    <span class="tag">#AgenticAI</span>
+    <span class="tag">#PlatformEngineering</span>
+    <span class="tag">#DataQuality</span>
+</div>
+
+</body>
+</html>
