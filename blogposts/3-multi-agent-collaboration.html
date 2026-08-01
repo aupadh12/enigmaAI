@@ -10,7 +10,7 @@
     <meta property="og:title" content="Multi-Agent AI Collaboration">
     <meta property="og:description"
         content="Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.">
-    <meta property="og:image"
+    <meta property="og:image" name="image"
         content="https://aupadh12.github.io/enigmaAI/blogposts/covers/3-multi-agent-collaboration.png">
     <meta property="og:image:width" content="1280">
     <meta property="og:image:height" content="720">
@@ -404,7 +404,8 @@
     <div class="highlight-box">
         <p><strong>The fundamental insight:</strong> Multi-agent systems aren't about splitting work — they're about
             <em>introducing cognitive diversity</em>. Different agents with different prompts, different model tiers,
-            and different objectives produce better outcomes than one agent thinking harder.</p>
+            and different objectives produce better outcomes than one agent thinking harder.
+        </p>
     </div>
 
     <h2>The Multi-Agent Architecture</h2>
@@ -803,7 +804,8 @@ async def research(query: str):
     <ol>
         <li><strong>The Critic saved money.</strong> Counter-intuitively, adding an expensive Opus critic
             <em>reduced</em> total cost because it caught errors that would have required users to re-run queries. Fewer
-            retries = less total spend.</li>
+            retries = less total spend.
+        </li>
         <li><strong>Scout parallelism was bottlenecked.</strong> The "fast" scout phase was actually the slowest because
             one scout was making 4 tool calls sequentially. Langfuse waterfall made this obvious.</li>
         <li><strong>Per-role token tracking revealed waste.</strong> The Analyst was receiving the full scout output

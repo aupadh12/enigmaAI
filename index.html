@@ -1,381 +1,481 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Field Notes — Ashutosh Upadhyay</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Field Notes — Ashutosh Upadhyay</title>
 
-<meta property="og:type" content="website">
-<meta property="og:title" content="Field Notes — Ashutosh Upadhyay">
-<meta property="og:description" content="Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works, not slideware.">
-<meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
-<meta property="og:url" content="https://aupadh12.github.io/enigmaAI/">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Field Notes — Ashutosh Upadhyay">
-<meta name="twitter:description" content="Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works, not slideware.">
-<meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --bg: #fdfcfa;
-    --paper: #ffffff;
-    --line: #e9e3dd;
-    --fg: #201c1a;
-    --fg-dim: #706a64;
-    --red: #d71600;
-    --red-soft: #fbeae7;
-  }
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Field Notes — Ashutosh Upadhyay">
+  <meta property="og:description"
+    content="Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works, not slideware.">
+  <meta property="og:image"
+    content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
+  <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Field Notes — Ashutosh Upadhyay">
+  <meta name="twitter:description"
+    content="Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works, not slideware.">
+  <meta name="twitter:image"
+    content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fdfcfa;
+      --paper: #ffffff;
+      --line: #e9e3dd;
+      --fg: #201c1a;
+      --fg-dim: #706a64;
+      --red: #d71600;
+      --red-soft: #fbeae7;
+    }
 
-  *{ box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
-  h1, h2, h3, .about-mark, .post-idx{
-    font-variant-ligatures: none;
-    font-feature-settings: "liga" 0, "dlig" 0, "calt" 0;
-  }
+    h1,
+    h2,
+    h3,
+    .about-mark,
+    .post-idx {
+      font-variant-ligatures: none;
+      font-feature-settings: "liga" 0, "dlig" 0, "calt" 0;
+    }
 
-  body{
-    margin: 0;
-    background: var(--bg);
-    color: var(--fg);
-    font-family: 'Lora', Georgia, serif;
-    line-height: 1.7;
-    -webkit-font-smoothing: antialiased;
-  }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Lora', Georgia, serif;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
 
-  a{ color: inherit; }
+    a {
+      color: inherit;
+    }
 
-  .wrap{
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 0 24px;
-  }
+    .wrap {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
 
-  /* ---------- Header ---------- */
+    /* ---------- Header ---------- */
 
-  header{
-    padding: 72px 0 40px;
-  }
+    header {
+      padding: 72px 0 40px;
+    }
 
-  .eyebrow{
-    font-family: 'Inter', sans-serif;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--red);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin: 0 0 18px;
-  }
+    .eyebrow {
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--red);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0 0 18px;
+    }
 
-  h1{
-    font-family: 'Lora', Georgia, serif;
-    font-weight: 700;
-    font-size: clamp(34px, 6vw, 46px);
-    line-height: 1.12;
-    margin: 0 0 18px;
-    letter-spacing: -0.01em;
-  }
+    h1 {
+      font-family: 'Lora', Georgia, serif;
+      font-weight: 700;
+      font-size: clamp(34px, 6vw, 46px);
+      line-height: 1.12;
+      margin: 0 0 18px;
+      letter-spacing: -0.01em;
+    }
 
-  header > .wrap > p{
-    font-family: 'Lora', Georgia, serif;
-    font-style: italic;
-    color: var(--fg-dim);
-    font-size: 18px;
-    max-width: 48ch;
-    margin: 0;
-  }
+    header>.wrap>p {
+      font-family: 'Lora', Georgia, serif;
+      font-style: italic;
+      color: var(--fg-dim);
+      font-size: 18px;
+      max-width: 48ch;
+      margin: 0;
+    }
 
-  .rule{
-    height: 3px;
-    width: 56px;
-    background: var(--red);
-    border: none;
-    margin: 28px 0 0;
-  }
+    .rule {
+      height: 3px;
+      width: 56px;
+      background: var(--red);
+      border: none;
+      margin: 28px 0 0;
+    }
 
-  /* ---------- About ---------- */
+    /* ---------- About ---------- */
 
-  .about{
-    display: flex;
-    gap: 24px;
-    padding: 40px 0;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    align-items: flex-start;
-  }
+    .about {
+      display: flex;
+      gap: 24px;
+      padding: 40px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      align-items: flex-start;
+    }
 
-  .about-mark{
-    flex: 0 0 auto;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: var(--red);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Lora', Georgia, serif;
-    font-weight: 700;
-    font-size: 19px;
-  }
+    .about-mark {
+      flex: 0 0 auto;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--red);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Lora', Georgia, serif;
+      font-weight: 700;
+      font-size: 19px;
+      overflow: hidden;
+      border: 3px solid var(--line);
+      flex-shrink: 0;
+    }
 
-  .about h2{
-    font-family: 'Lora', Georgia, serif;
-    font-weight: 700;
-    font-size: 21px;
-    margin: 0 0 4px;
-  }
+    .about-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
 
-  .about h2 a{
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.15s ease, color 0.15s ease;
-  }
-  .about h2 a:hover{
-    color: var(--red);
-    border-color: var(--red);
-  }
+    .linkedin-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #0a66c2;
+      text-decoration: none;
+      margin-top: 14px;
+      padding: 6px 12px;
+      border: 1px solid #0a66c2;
+      border-radius: 100px;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
 
-  .about-role{
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    color: var(--fg-dim);
-    line-height: 1.5;
-    margin: 0 0 16px;
-    max-width: 56ch;
-  }
+    .linkedin-link:hover {
+      background: #0a66c2;
+      color: #fff;
+    }
 
-  .about p.bio{
-    font-size: 16px;
-    color: var(--fg);
-    margin: 0 0 14px;
-    max-width: 58ch;
-  }
-  .about p.bio:last-of-type{ margin-bottom: 0; }
-  .about p.bio em{ color: var(--fg-dim); }
+    .linkedin-link svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+      flex-shrink: 0;
+    }
 
-  .about-tags{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 18px;
-  }
+    .about h2 {
+      font-family: 'Lora', Georgia, serif;
+      font-weight: 700;
+      font-size: 21px;
+      margin: 0 0 4px;
+    }
 
-  .about-tags span{
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--red);
-    background: var(--red-soft);
-    border-radius: 100px;
-    padding: 5px 12px;
-  }
+    .about h2 a {
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
 
-  @media (max-width: 480px){
-    .about{ flex-direction: column; }
-  }
+    .about h2 a:hover {
+      color: var(--red);
+      border-color: var(--red);
+    }
 
-  /* ---------- Post list ---------- */
+    .about-role {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--fg-dim);
+      line-height: 1.5;
+      margin: 0 0 16px;
+      max-width: 56ch;
+    }
 
-  main{ padding: 8px 0 80px; }
+    .about p.bio {
+      font-size: 16px;
+      color: var(--fg);
+      margin: 0 0 14px;
+      max-width: 58ch;
+    }
 
-  .list-head{
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--fg-dim);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 32px 0 8px;
-  }
+    .about p.bio:last-of-type {
+      margin-bottom: 0;
+    }
 
-  .post{
-    display: flex;
-    gap: 20px;
-    text-decoration: none;
-    border-bottom: 1px solid var(--line);
-    padding: 26px 0;
-    transition: opacity 0.15s ease;
-  }
+    .about p.bio em {
+      color: var(--fg-dim);
+    }
 
-  .post:hover{ opacity: 0.72; }
+    .about-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
 
-  .post-idx{
-    flex: 0 0 auto;
-    font-family: 'Lora', Georgia, serif;
-    font-size: 15px;
-    color: var(--red);
-    padding-top: 3px;
-    width: 24px;
-  }
+    .about-tags span {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--red);
+      background: var(--red-soft);
+      border-radius: 100px;
+      padding: 5px 12px;
+    }
 
-  .post-body{ flex: 1; min-width: 0; }
+    @media (max-width: 480px) {
+      .about {
+        flex-direction: column;
+      }
+    }
 
-  .post-meta{
-    font-family: 'Inter', sans-serif;
-    font-size: 11.5px;
-    font-weight: 500;
-    color: var(--fg-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 8px;
-  }
+    /* ---------- Post list ---------- */
 
-  .post h3{
-    font-family: 'Lora', Georgia, serif;
-    font-weight: 700;
-    font-size: 21px;
-    line-height: 1.3;
-    margin: 0 0 8px;
-    color: var(--fg);
-  }
+    main {
+      padding: 8px 0 80px;
+    }
 
-  .post p{
-    font-size: 15.5px;
-    color: var(--fg-dim);
-    margin: 0 0 10px;
-    max-width: 58ch;
-  }
+    .list-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--fg-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 32px 0 8px;
+    }
 
-  .read-more{
-    font-family: 'Inter', sans-serif;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--red);
-  }
+    .post {
+      display: flex;
+      gap: 20px;
+      text-decoration: none;
+      border-bottom: 1px solid var(--line);
+      padding: 26px 0;
+      transition: opacity 0.15s ease;
+    }
 
-  footer{
-    border-top: 1px solid var(--line);
-    padding: 32px 0 64px;
-    font-family: 'Inter', sans-serif;
-    font-size: 12.5px;
-    color: var(--fg-dim);
-  }
-</style>
+    .post:hover {
+      opacity: 0.72;
+    }
+
+    .post-idx {
+      flex: 0 0 auto;
+      font-family: 'Lora', Georgia, serif;
+      font-size: 15px;
+      color: var(--red);
+      padding-top: 3px;
+      width: 24px;
+    }
+
+    .post-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .post-meta {
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .post h3 {
+      font-family: 'Lora', Georgia, serif;
+      font-weight: 700;
+      font-size: 21px;
+      line-height: 1.3;
+      margin: 0 0 8px;
+      color: var(--fg);
+    }
+
+    .post p {
+      font-size: 15.5px;
+      color: var(--fg-dim);
+      margin: 0 0 10px;
+      max-width: 58ch;
+    }
+
+    .read-more {
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--red);
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 32px 0 64px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      color: var(--fg-dim);
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="wrap">
-  <header>
-    <p class="eyebrow">Field Notes</p>
-    <h1>Platform engineering, Agentic AI, Cloud Computing, and many more...</h1>
-    <p>Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works, not slideware.</p>
-    <hr class="rule">
-  </header>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Field Notes</p>
+      <h1>Platform engineering, Agentic AI, Cloud Computing, and many more...</h1>
+      <p>Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what
+        actually works, not slideware.</p>
+      <hr class="rule">
+    </header>
 
-  <section class="about">
-    <div class="about-mark">A</div>
-    <div>
-      <h2><a href="https://www.linkedin.com/in/ashutosh2206/?skipRedirect=true" target="_blank" rel="noopener">Ashutosh Upadhyay</a></h2>
-      <p class="about-role">Principal Engineer @ Johnson &amp; Johnson Innovative Medicine — Building Agentic AI for Drug Discovery | Imaging, Omics, AWS, GitOps, Kubernetes, Multi-LLM Agentic Systems (Bedrock, Claude, OpenAI)</p>
-      <p class="bio">I build the platforms that let scientists focus on curing disease instead of fighting infrastructure.</p>
-      <p class="bio">As a Principal Engineer with 12 years in enterprise cloud, I specialize in implementing Agentic AI and production-grade platform engineering for pharmaceutical R&amp;D on AWS. My current focus is on embedding AI agents and LLM-assisted workflows, including Claude Code, into drug discovery pipelines, compressing development cycles and unlocking capabilities that were previously out of reach for science teams.</p>
-      <p class="bio">I've architected bioinformatics and MLOps platforms on AWS EKS, and migrated critical research pipelines to production-grade Argo Workflows. I work closely with scientists, biologists, data engineers, and R&amp;D leadership, bridging the gap between infrastructure and scientific outcomes.</p>
-      <p class="bio"><em>My edge: I don't just build platforms. I make them disappear so the science can move faster.</em></p>
-      <div class="about-tags">
-        <span>AWS</span>
-        <span>Kubernetes / EKS</span>
-        <span>GitOps</span>
-        <span>Agentic AI</span>
-        <span>Bioinformatics / Omics</span>
-        <span>Imaging</span>
-        <span>Multi-LLM Systems</span>
+    <section class="about">
+      <div class="about-mark">
+        <img src="profile.jpeg" alt="Ashutosh Upadhyay"
+          onerror="this.style.display='none';this.parentElement.textContent='A'">
       </div>
-    </div>
-  </section>
+      <div>
+        <h2><a href="https://www.linkedin.com/in/ashutosh2206/" target="_blank" rel="noopener">Ashutosh Upadhyay</a>
+        </h2>
+        <p class="about-role">Principal Engineer @ Johnson &amp; Johnson Innovative Medicine — Building Agentic AI for
+          Drug Discovery | Imaging, Omics, AWS, GitOps, Kubernetes, Multi-LLM Agentic Systems (Bedrock, Claude, OpenAI)
+        </p>
+        <p class="bio">I build the platforms that let scientists focus on curing disease instead of fighting
+          infrastructure.</p>
+        <p class="bio">As a Principal Engineer with 12 years in enterprise cloud, I specialize in implementing Agentic
+          AI and production-grade platform engineering for pharmaceutical R&amp;D on AWS. My current focus is on
+          embedding AI agents and LLM-assisted workflows, including Claude Code, into drug discovery pipelines,
+          compressing development cycles and unlocking capabilities that were previously out of reach for science teams.
+        </p>
+        <p class="bio">I've architected bioinformatics and MLOps platforms on AWS EKS, and migrated critical research
+          pipelines to production-grade Argo Workflows. I work closely with scientists, biologists, data engineers, and
+          R&amp;D leadership, bridging the gap between infrastructure and scientific outcomes.</p>
+        <p class="bio"><em>My edge: I don't just build platforms. I make them disappear so the science can move
+            faster.</em></p>
+        <div class="about-tags">
+          <span>AWS</span>
+          <span>Kubernetes / EKS</span>
+          <span>GitOps</span>
+          <span>Agentic AI</span>
+          <span>Bioinformatics / Omics</span>
+          <span>Imaging</span>
+          <span>Multi-LLM Systems</span>
+        </div>
+        <a class="linkedin-link" href="https://www.linkedin.com/in/ashutosh2206/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+          </svg>
+          Connect on LinkedIn
+        </a>
+      </div>
+    </section>
 
-  <main>
-    <div class="list-head">
-      <span>Posts</span>
-      <span id="post-count">07 entries</span>
-    </div>
+    <main>
+      <div class="list-head">
+        <span>Posts</span>
+        <span id="post-count">07 entries</span>
+      </div>
 
-    <!-- ============================================================
+      <!-- ============================================================
          EDIT ME: descriptions below are placeholders — swap in your
          real summary for each post. Duplicate a <a class="post">
          block if you add more articles later.
          ============================================================ -->
 
-    <a class="post" href="blogposts/1-claude-code-for-agentic-development.html">
-      <span class="post-idx">01</span>
-      <div class="post-body">
-        <div class="post-meta">AI-Assisted Development</div>
-        <h3>Building AI With AI on Claude Code</h3>
-        <p>How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.</p>
-        <span class="read-more">Read →</span>
-      </div>
-    </a>
+      <a class="post" href="blogposts/1-claude-code-for-agentic-development.html">
+        <span class="post-idx">01</span>
+        <div class="post-body">
+          <div class="post-meta">AI-Assisted Development</div>
+          <h3>Building AI With AI on Claude Code</h3>
+          <p>How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production
+            bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
 
-    <a class="post" href="blogposts/2-agentic-ai-systems.html">
-      <span class="post-idx">02</span>
-      <div class="post-body">
-        <div class="post-meta">Agentic AI</div>
-        <h3>From Chatbot to Autonomous Research System</h3>
-        <p>How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.</p>
-        <span class="read-more">Read →</span>
-      </div>
-    </a>
+      <a class="post" href="blogposts/2-agentic-ai-systems.html">
+        <span class="post-idx">02</span>
+        <div class="post-body">
+          <div class="post-meta">Agentic AI</div>
+          <h3>From Chatbot to Autonomous Research System</h3>
+          <p>How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates
+            research reports — running on Kubernetes.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
 
-    <a class="post" href="blogposts/3-multi-agent-collaboration.html">
-      <span class="post-idx">03</span>
-      <div class="post-body">
-        <div class="post-meta">Multi-Agent AI</div>
-        <h3>Multi-Agent AI Collaboration</h3>
-        <p>Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work, with full observability via Langfuse.</p>
-        <span class="read-more">Read →</span>
-      </div>
-    </a>
+      <a class="post" href="blogposts/3-multi-agent-collaboration.html">
+        <span class="post-idx">03</span>
+        <div class="post-body">
+          <div class="post-meta">Multi-Agent AI</div>
+          <h3>Multi-Agent AI Collaboration</h3>
+          <p>Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize,
+            and critique each other's work, with full observability via Langfuse.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
 
-    <a class="post" href="blogposts/4-finops-for-agentic-ai.html">
-      <span class="post-idx">04</span>
-      <div class="post-body">
-        <div class="post-meta">FinOps for AI</div>
-        <h3>What Your AI Agent Actually Costs</h3>
-        <p>Your invoice tells you the total. It never tells you who spent it, which tokens were wasted, or whether the last model upgrade paid for itself.</p>
-        <span class="read-more">Read →</span>
-      </div>
-    </a>
+      <a class="post" href="blogposts/4-finops-for-agentic-ai.html">
+        <span class="post-idx">04</span>
+        <div class="post-body">
+          <div class="post-meta">FinOps for AI</div>
+          <h3>What Your AI Agent Actually Costs</h3>
+          <p>Your invoice tells you the total. It never tells you who spent it, which tokens were wasted, or whether the
+            last model upgrade paid for itself.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
 
-    <a class="post" href="blogposts/5-benchmarking-llms-in-the-enterprise.html">
-      <span class="post-idx">05</span>
-      <div class="post-body">
-        <div class="post-meta">LLM Evaluation</div>
-        <h3>Every Public Benchmark Is Useless to You</h3>
-        <p>Building a standing internal evaluation suite — and the four ways my harness broke before it produced a single trustworthy number.</p>
-        <span class="read-more">Read →</span>
-      </div>
-    </a>
+      <a class="post" href="blogposts/5-benchmarking-llms-in-the-enterprise.html">
+        <span class="post-idx">05</span>
+        <div class="post-body">
+          <div class="post-meta">LLM Evaluation</div>
+          <h3>Every Public Benchmark Is Useless to You</h3>
+          <p>Building a standing internal evaluation suite — and the four ways my harness broke before it produced a
+            single trustworthy number.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
 
-    <a class="post" href="blogposts/6-securing-agentic-ai.html">
-      <span class="post-idx">06</span>
-      <div class="post-body">
-        <div class="post-meta">AI Security</div>
-        <h3>Your Agent Is a Confused Deputy</h3>
-        <p>Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data — including a cross-tenant vulnerability I shipped, found, and closed.</p>
-        <span class="read-more">Read →</span>
-      </div>
-    </a>
+      <a class="post" href="blogposts/6-securing-agentic-ai.html">
+        <span class="post-idx">06</span>
+        <div class="post-body">
+          <div class="post-meta">AI Security</div>
+          <h3>Your Agent Is a Confused Deputy</h3>
+          <p>Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data —
+            including a cross-tenant vulnerability I shipped, found, and closed.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
 
-    <a class="post" href="blogposts/7-kubernetes-to-managed-agent-runtime.html">
-      <span class="post-idx">07</span>
-      <div class="post-body">
-        <div class="post-meta">Platform Migration</div>
-        <h3>Managed Agent Runtimes: Read the Fine Print</h3>
-        <p>I run agents on Kubernetes and evaluated moving them to a managed agent platform. Here's what genuinely improves, what quietly becomes your problem, and why a hybrid split was the honest answer.</p>
-        <span class="read-more">Read →</span>
-      </div>
-    </a>
+      <a class="post" href="blogposts/7-kubernetes-to-managed-agent-runtime.html">
+        <span class="post-idx">07</span>
+        <div class="post-body">
+          <div class="post-meta">Platform Migration</div>
+          <h3>Managed Agent Runtimes: Read the Fine Print</h3>
+          <p>I run agents on Kubernetes and evaluated moving them to a managed agent platform. Here's what genuinely
+            improves, what quietly becomes your problem, and why a hybrid split was the honest answer.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
 
-  </main>
+    </main>
 
-  <footer>
-    Built with GitHub Pages · updated manually
-  </footer>
-</div>
+    <footer>
+      Built with GitHub Pages · updated manually
+    </footer>
+  </div>
 
 </body>
+
 </html>
