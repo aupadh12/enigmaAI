@@ -11,6 +11,9 @@
         content="Token bills lie. The invoice tells you the total; it never tells you who spent it, on what, or how much of it you threw away. Here's how to build the visibility that does.">
     <meta property="og:image"
         content="https://aupadh12.github.io/enigmaAI/blogposts/covers/4-finops-for-agentic-ai.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/4-finops-for-agentic-ai.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="What Your AI Agent Actually Costs: FinOps for Agentic AI">
@@ -322,7 +325,8 @@
 
     <p>Six months into running an agentic platform in production, a finance partner asked me a reasonable question:
         <em>"Which teams are driving the AI spend, and is it going up because we have more users or because each
-            question got more expensive?"</em></p>
+            question got more expensive?"</em>
+    </p>
 
     <p>I could not answer it. I had a monthly total from the cloud bill and a vague sense that things were fine. That's
         not FinOps — that's hoping.</p>
@@ -338,11 +342,13 @@
 
     <p>Modern reasoning models think before they answer. On several current frontier models that thinking is
         <strong>adaptive</strong> — the model decides per request whether to reason and for how long. And critically:
-        <strong>reasoning tokens bill against the same output ceiling as the answer.</strong></p>
+        <strong>reasoning tokens bill against the same output ceiling as the answer.</strong>
+    </p>
 
     <p>Put those two facts together and you get a failure mode that is invisible in your logs. If you set a modest
         <code>max_tokens</code> and send a hard prompt, the model can spend the entire budget thinking and return
-        <em>zero characters of answer</em> — billed in full.</p>
+        <em>zero characters of answer</em> — billed in full.
+    </p>
 
     <p>Here are four measurements from the same prompt against the same model, isolating each knob:</p>
 
@@ -427,7 +433,8 @@ text = "".join(
         block shape differs between API surfaces. On the native messages body above, blocks carry an explicit
         <code>type</code> discriminator. On the cloud provider's unified conversation API there is <em>no</em>
         <code>type</code> field — a content block is a union whose member key <em>is</em> the type, so you test for key
-        presence instead:</p>
+        presence instead:
+    </p>
 
     <pre><code># Same idea, unified conversation API shape
 blocks = response["output"]["message"]["content"]
@@ -446,7 +453,8 @@ text = "".join(b["text"] for b in blocks if "text" in b).strip()
     <p>What makes this genuinely nasty is that adaptive thinking means the block layout <em>varies by prompt</em>.
         <code>"What is 2+2"</code> returns <code>['text']</code> and works fine. A complex planning prompt returns
         <code>['thinking', 'text']</code> and fails. So position-based indexing breaks <em>intermittently</em>, which is
-        the hardest kind of bug to attribute to cost.</p>
+        the hardest kind of bug to attribute to cost.
+    </p>
 
     <div class="highlight-box">
         <p><strong>Pattern worth adopting:</strong> put text extraction in one shared helper and ban direct indexing of
@@ -480,7 +488,8 @@ text = "".join(b["text"] for b in blocks if "text" in b).strip()
         <strong>the request succeeds and simply isn't cached.</strong> No error, no warning, no log line. If your system
         prompt is modest and you've only registered a handful of tools, you may be under the floor and never know. Check
         the reported cache-read tokens on a repeat call; if they're zero and you were expecting a hit, measure your
-        prefix length before debugging anything else.</p>
+        prefix length before debugging anything else.
+    </p>
 
     <h3>Your system prompt isn't actually static</h3>
 
@@ -546,7 +555,8 @@ first_turn   = f"[User: {user_email}]\n{query}"
             quietly wreck the pipeline, so it's worth being blunt about. An invocation log record identifies the
             <em>cloud principal</em> that made the call — the IAM role. If your agent is a service, every user's traffic
             arrives under the same service role, and grouping those logs by identity gives you exactly one row: the
-            robot. Per-user attribution from invocation logs alone is zero.</p>
+            robot. Per-user attribution from invocation logs alone is zero.
+        </p>
         <p>The fix is to stamp the identity yourself. The invocation APIs accept a caller-supplied metadata object — a
             small set of key-value pairs that lands in the log record alongside the token counts — and that is the
             documented place to put your authenticated user, tenant, trace ID and cost-centre tag. Set it on every call.

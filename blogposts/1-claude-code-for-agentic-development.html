@@ -1,21 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Using Claude Code as an Agentic Development System: Advisor Agents, Memory, and Production Deployment on EKS</title>
+    <title>Using Claude Code as an Agentic Development System: Advisor Agents, Memory, and Production Deployment on EKS
+    </title>
 
     <meta property="og:type" content="article">
     <meta property="og:title" content="Building AI With AI on Claude Code">
-    <meta property="og:description" content="How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.">
-    <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
-    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/1-claude-code-for-agentic-development.html">
+    <meta property="og:description"
+        content="How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.">
+    <meta property="og:image"
+        content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url"
+        content="https://aupadh12.github.io/enigmaAI/blogposts/1-claude-code-for-agentic-development.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Building AI With AI on Claude Code">
-    <meta name="twitter:description" content="How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.">
-    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
+    <meta name="twitter:description"
+        content="How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.">
+    <meta name="twitter:image"
+        content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
             line-height: 1.8;
@@ -25,6 +40,7 @@
             margin: 0 auto;
             padding: 40px 24px;
         }
+
         .header-badge {
             display: inline-block;
             background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
@@ -37,6 +53,7 @@
             text-transform: uppercase;
             margin-bottom: 16px;
         }
+
         h1 {
             font-size: 30px;
             font-weight: 700;
@@ -44,12 +61,14 @@
             margin-bottom: 12px;
             color: #1a1a2e;
         }
+
         .subtitle {
             font-size: 18px;
             color: #555;
             margin-bottom: 32px;
             font-style: italic;
         }
+
         .author-block {
             display: flex;
             align-items: center;
@@ -58,6 +77,7 @@
             padding-bottom: 24px;
             border-bottom: 1px solid #e8e8e8;
         }
+
         .author-avatar {
             width: 48px;
             height: 48px;
@@ -70,9 +90,20 @@
             font-weight: 700;
             font-size: 18px;
         }
-        .author-info { font-size: 14px; }
-        .author-name { font-weight: 600; color: #1a1a2e; }
-        .author-title { color: #666; }
+
+        .author-info {
+            font-size: 14px;
+        }
+
+        .author-name {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .author-title {
+            color: #666;
+        }
+
         h2 {
             font-size: 24px;
             font-weight: 700;
@@ -81,13 +112,19 @@
             border-left: 4px solid #059669;
             padding-left: 16px;
         }
+
         h3 {
             font-size: 18px;
             font-weight: 600;
             margin: 28px 0 12px;
             color: #333;
         }
-        p { margin-bottom: 16px; font-size: 16px; }
+
+        p {
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
         .highlight-box {
             background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
             border-left: 4px solid #059669;
@@ -95,15 +132,20 @@
             border-radius: 0 8px 8px 0;
             margin: 24px 0;
         }
-        .highlight-box p { margin-bottom: 0; }
+
+        .highlight-box p {
+            margin-bottom: 0;
+        }
+
         .diagram-container {
             background: white;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
             padding: 24px;
             margin: 32px 0;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
+
         .diagram-caption {
             text-align: center;
             font-size: 13px;
@@ -111,6 +153,7 @@
             margin-top: 12px;
             font-style: italic;
         }
+
         code {
             background: #f1f5f9;
             padding: 2px 8px;
@@ -118,6 +161,7 @@
             font-size: 14px;
             font-family: 'SF Mono', 'Fira Code', monospace;
         }
+
         pre {
             background: #1e293b;
             color: #e2e8f0;
@@ -128,7 +172,13 @@
             font-size: 13px;
             line-height: 1.6;
         }
-        pre code { background: none; padding: 0; color: inherit; }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
         .warning-box {
             background: #fef2f2;
             border-left: 4px solid #ef4444;
@@ -136,7 +186,11 @@
             border-radius: 0 8px 8px 0;
             margin: 24px 0;
         }
-        .warning-box p { margin-bottom: 0; }
+
+        .warning-box p {
+            margin-bottom: 0;
+        }
+
         .success-box {
             background: #f0fdf4;
             border: 1px solid #bbf7d0;
@@ -144,15 +198,29 @@
             padding: 20px 24px;
             margin: 24px 0;
         }
-        .success-box h3 { color: #166534; margin-top: 0; }
-        ul, ol { margin: 12px 0 20px 24px; }
-        li { margin-bottom: 8px; font-size: 16px; }
+
+        .success-box h3 {
+            color: #166534;
+            margin-top: 0;
+        }
+
+        ul,
+        ol {
+            margin: 12px 0 20px 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
         .comparison-table {
             width: 100%;
             border-collapse: collapse;
             margin: 24px 0;
             font-size: 14px;
         }
+
         .comparison-table th {
             background: #f8fafc;
             padding: 12px 16px;
@@ -160,11 +228,16 @@
             font-weight: 600;
             border-bottom: 2px solid #e2e8f0;
         }
+
         .comparison-table td {
             padding: 12px 16px;
             border-bottom: 1px solid #f1f5f9;
         }
-        .comparison-table tr:hover { background: #fafbfc; }
+
+        .comparison-table tr:hover {
+            background: #fafbfc;
+        }
+
         .takeaway {
             background: #ecfdf5;
             border: 1px solid #a7f3d0;
@@ -172,7 +245,12 @@
             padding: 20px 24px;
             margin: 32px 0;
         }
-        .takeaway h3 { color: #065f46; margin-top: 0; }
+
+        .takeaway h3 {
+            color: #065f46;
+            margin-top: 0;
+        }
+
         .tag-list {
             display: flex;
             flex-wrap: wrap;
@@ -181,6 +259,7 @@
             padding-top: 24px;
             border-top: 1px solid #e8e8e8;
         }
+
         .tag {
             background: #f1f5f9;
             color: #475569;
@@ -188,13 +267,20 @@
             border-radius: 16px;
             font-size: 13px;
         }
-        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+
+        .separator {
+            height: 1px;
+            background: #e8e8e8;
+            margin: 40px 0;
+        }
+
         .flow-step {
             display: flex;
             gap: 16px;
             margin: 16px 0;
             align-items: flex-start;
         }
+
         .flow-number {
             width: 32px;
             height: 32px;
@@ -208,8 +294,15 @@
             font-weight: 700;
             font-size: 14px;
         }
-        .flow-content { flex: 1; }
-        .flow-content strong { color: #065f46; }
+
+        .flow-content {
+            flex: 1;
+        }
+
+        .flow-content strong {
+            color: #065f46;
+        }
+
         .file-tree {
             background: #1e293b;
             color: #e2e8f0;
@@ -220,15 +313,26 @@
             line-height: 1.8;
             margin: 20px 0;
         }
-        .file-tree .dir { color: #67e8f9; }
-        .file-tree .file { color: #a5b4fc; }
-        .file-tree .comment { color: #64748b; }
+
+        .file-tree .dir {
+            color: #67e8f9;
+        }
+
+        .file-tree .file {
+            color: #a5b4fc;
+        }
+
+        .file-tree .comment {
+            color: #64748b;
+        }
+
         .metric-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             margin: 24px 0;
         }
+
         .metric-card {
             background: white;
             border: 1px solid #e2e8f0;
@@ -236,11 +340,13 @@
             padding: 20px;
             text-align: center;
         }
+
         .metric-value {
             font-size: 28px;
             font-weight: 700;
             color: #059669;
         }
+
         .metric-label {
             font-size: 12px;
             color: #666;
@@ -248,56 +354,65 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
         .cover-image {
             width: 100%;
             height: auto;
             display: block;
             border-radius: 12px;
             margin-bottom: 32px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        </style>
+    </style>
 </head>
+
 <body>
 
-<img class="cover-image" src="covers/1-claude-code-for-agentic-development.png" alt="Blog cover">
+    <img class="cover-image" src="covers/1-claude-code-for-agentic-development.png" alt="Blog cover">
 
-<span class="header-badge">AI-Assisted Development</span>
+    <span class="header-badge">AI-Assisted Development</span>
 
-<h1>Using Claude Code as an Agentic Development System: Advisor Agents, Memory, and Deploying to EKS</h1>
-<p class="subtitle">How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.</p>
+    <h1>Using Claude Code as an Agentic Development System: Advisor Agents, Memory, and Deploying to EKS</h1>
+    <p class="subtitle">How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches
+        production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.</p>
 
-<div class="author-block">
-    <div class="author-avatar">AP</div>
-    <div class="author-info">
-        <div class="author-name">Ashutosh Upadhyay</div>
-        <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS & Kubernetes</div>
+    <div class="author-block">
+        <div class="author-avatar">AP</div>
+        <div class="author-info">
+            <div class="author-name">Ashutosh Upadhyay</div>
+            <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS & Kubernetes</div>
+        </div>
     </div>
-</div>
 
-<h2>The Meta-Problem: Building AI With AI</h2>
+    <h2>The Meta-Problem: Building AI With AI</h2>
 
-<p>I've built and deployed a production multi-agent AI system — 33 tools, 4 specialized agent roles, running on EKS with full Langfuse observability. But here's the meta question: <strong>how do you actually build and deploy these systems efficiently?</strong></p>
+    <p>I've built and deployed a production multi-agent AI system — 33 tools, 4 specialized agent roles, running on EKS
+        with full Langfuse observability. But here's the meta question: <strong>how do you actually build and deploy
+            these systems efficiently?</strong></p>
 
-<p>My answer: treat your development environment itself as an agentic system. I use Claude Code — not as a simple autocomplete, but as a <strong>multi-agent development platform</strong> with:</p>
+    <p>My answer: treat your development environment itself as an agentic system. I use Claude Code — not as a simple
+        autocomplete, but as a <strong>multi-agent development platform</strong> with:</p>
 
-<ul>
-    <li>A mandatory <strong>Advisor agent</strong> that reviews every architectural decision</li>
-    <li><strong>Persistent memory</strong> that carries context across development sessions</li>
-    <li>Specialized <strong>subagents</strong> for parallel research and implementation</li>
-    <li>A structured <strong>planning workflow</strong> that prevents premature implementation</li>
-    <li><strong>Langfuse integration</strong> for tracing agent behavior in production</li>
-</ul>
+    <ul>
+        <li>A mandatory <strong>Advisor agent</strong> that reviews every architectural decision</li>
+        <li><strong>Persistent memory</strong> that carries context across development sessions</li>
+        <li>Specialized <strong>subagents</strong> for parallel research and implementation</li>
+        <li>A structured <strong>planning workflow</strong> that prevents premature implementation</li>
+        <li><strong>Langfuse integration</strong> for tracing agent behavior in production</li>
+    </ul>
 
-<div class="highlight-box">
-    <p><strong>Key insight:</strong> The same patterns that make your AI system better (adversarial review, specialization, memory) also make your <em>development process</em> better when you apply them to how you use AI coding tools.</p>
-</div>
+    <div class="highlight-box">
+        <p><strong>Key insight:</strong> The same patterns that make your AI system better (adversarial review,
+            specialization, memory) also make your <em>development process</em> better when you apply them to how you
+            use AI coding tools.</p>
+    </div>
 
-<h2>The Advisor Agent: Mandatory Architecture Review</h2>
+    <h2>The Advisor Agent: Mandatory Architecture Review</h2>
 
-<p>The most impactful pattern in my setup is a mandatory Advisor agent — a senior reviewer that runs on the most capable model (Opus) and must be consulted before every significant decision.</p>
+    <p>The most impactful pattern in my setup is a mandatory Advisor agent — a senior reviewer that runs on the most
+        capable model (Opus) and must be consulted before every significant decision.</p>
 
-<pre><code># .claude/agents/advisor.md (simplified)
+    <pre><code># .claude/agents/advisor.md (simplified)
 ---
 name: advisor
 description: Senior architecture reviewer. Must be invoked before
@@ -318,337 +433,385 @@ Rules:
 - Give a CONCRETE recommendation, not just pros/cons.
 - Point out anything missing that would change your answer.</code></pre>
 
-<h3>When the Advisor Must Be Invoked</h3>
+    <h3>When the Advisor Must Be Invoked</h3>
 
-<p>This isn't optional or "nice to have." I've configured it as a <strong>hard rule</strong>:</p>
+    <p>This isn't optional or "nice to have." I've configured it as a <strong>hard rule</strong>:</p>
 
-<div class="flow-step">
-    <div class="flow-number">1</div>
-    <div class="flow-content"><strong>Before starting work</strong> — before committing to any architecture or implementation approach</div>
-</div>
-<div class="flow-step">
-    <div class="flow-number">2</div>
-    <div class="flow-content"><strong>During work</strong> — when encountering recurring errors, unfamiliar APIs, or when changing approach</div>
-</div>
-<div class="flow-step">
-    <div class="flow-number">3</div>
-    <div class="flow-content"><strong>After every code change</strong> — before bumping versions or declaring something ready to deploy</div>
-</div>
-<div class="flow-step">
-    <div class="flow-number">4</div>
-    <div class="flow-content"><strong>Before declaring done</strong> — the final sanity check before shipping</div>
-</div>
+    <div class="flow-step">
+        <div class="flow-number">1</div>
+        <div class="flow-content"><strong>Before starting work</strong> — before committing to any architecture or
+            implementation approach</div>
+    </div>
+    <div class="flow-step">
+        <div class="flow-number">2</div>
+        <div class="flow-content"><strong>During work</strong> — when encountering recurring errors, unfamiliar APIs, or
+            when changing approach</div>
+    </div>
+    <div class="flow-step">
+        <div class="flow-number">3</div>
+        <div class="flow-content"><strong>After every code change</strong> — before bumping versions or declaring
+            something ready to deploy</div>
+    </div>
+    <div class="flow-step">
+        <div class="flow-number">4</div>
+        <div class="flow-content"><strong>Before declaring done</strong> — the final sanity check before shipping</div>
+    </div>
 
-<div class="warning-box">
-    <p><strong>Why this matters:</strong> The Advisor has caught production bugs in changes I considered "trivial" — wrong data types silently corrupting outputs, URL encoding issues that would expire after 7 days, iframe security headers that would block rendering in production. Every single one of these would have been a production incident.</p>
-</div>
+    <div class="warning-box">
+        <p><strong>Why this matters:</strong> The Advisor has caught production bugs in changes I considered "trivial" —
+            wrong data types silently corrupting outputs, URL encoding issues that would expire after 7 days, iframe
+            security headers that would block rendering in production. Every single one of these would have been a
+            production incident.</p>
+    </div>
 
-<h2>The Development Workflow: Plan → Question → Implement → Review</h2>
+    <h2>The Development Workflow: Plan → Question → Implement → Review</h2>
 
-<div class="diagram-container">
-    <svg viewBox="0 0 720 450" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-        <defs>
-            <linearGradient id="planGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:#059669"/>
-                <stop offset="100%" style="stop-color:#0d9488"/>
-            </linearGradient>
-            <marker id="arrowG" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#059669"/>
-            </marker>
-            <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
-            </marker>
-        </defs>
+    <div class="diagram-container">
+        <svg viewBox="0 0 720 450" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+            <defs>
+                <linearGradient id="planGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#059669" />
+                    <stop offset="100%" style="stop-color:#0d9488" />
+                </linearGradient>
+                <marker id="arrowG" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#059669" />
+                </marker>
+                <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                </marker>
+            </defs>
 
-        <!-- Title -->
-        <text x="360" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a2e">Agentic Development Workflow with Advisor</text>
+            <!-- Title -->
+            <text x="360" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a2e">Agentic
+                Development Workflow with Advisor</text>
 
-        <!-- Phase 1: Plan -->
-        <rect x="40" y="50" width="300" height="80" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
-        <rect x="40" y="50" width="300" height="24" rx="8" fill="url(#planGrad)"/>
-        <rect x="40" y="66" width="300" height="8" fill="url(#planGrad)"/>
-        <text x="190" y="68" text-anchor="middle" font-size="11" font-weight="600" fill="white">Phase 1: PLAN</text>
-        <text x="190" y="95" text-anchor="middle" font-size="10" fill="#065f46">Ask clarifying questions</text>
-        <text x="190" y="112" text-anchor="middle" font-size="10" fill="#065f46">Document approach in markdown</text>
+            <!-- Phase 1: Plan -->
+            <rect x="40" y="50" width="300" height="80" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2" />
+            <rect x="40" y="50" width="300" height="24" rx="8" fill="url(#planGrad)" />
+            <rect x="40" y="66" width="300" height="8" fill="url(#planGrad)" />
+            <text x="190" y="68" text-anchor="middle" font-size="11" font-weight="600" fill="white">Phase 1: PLAN</text>
+            <text x="190" y="95" text-anchor="middle" font-size="10" fill="#065f46">Ask clarifying questions</text>
+            <text x="190" y="112" text-anchor="middle" font-size="10" fill="#065f46">Document approach in
+                markdown</text>
 
-        <!-- Phase 2: Question -->
-        <rect x="380" y="50" width="300" height="80" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
-        <rect x="380" y="50" width="300" height="24" rx="8" fill="#3b82f6"/>
-        <rect x="380" y="66" width="300" height="8" fill="#3b82f6"/>
-        <text x="530" y="68" text-anchor="middle" font-size="11" font-weight="600" fill="white">Phase 2: QUESTION</text>
-        <text x="530" y="95" text-anchor="middle" font-size="10" fill="#1e40af">Second round of questions</text>
-        <text x="530" y="112" text-anchor="middle" font-size="10" fill="#1e40af">Refine plan based on answers</text>
+            <!-- Phase 2: Question -->
+            <rect x="380" y="50" width="300" height="80" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" />
+            <rect x="380" y="50" width="300" height="24" rx="8" fill="#3b82f6" />
+            <rect x="380" y="66" width="300" height="8" fill="#3b82f6" />
+            <text x="530" y="68" text-anchor="middle" font-size="11" font-weight="600" fill="white">Phase 2:
+                QUESTION</text>
+            <text x="530" y="95" text-anchor="middle" font-size="10" fill="#1e40af">Second round of questions</text>
+            <text x="530" y="112" text-anchor="middle" font-size="10" fill="#1e40af">Refine plan based on answers</text>
 
-        <!-- Arrow -->
-        <path d="M340 90 L380 90" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)"/>
+            <!-- Arrow -->
+            <path d="M340 90 L380 90" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)" />
 
-        <!-- Advisor check 1 -->
-        <rect x="550" y="145" width="130" height="35" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
-        <text x="615" y="167" text-anchor="middle" font-size="10" font-weight="700" fill="#dc2626">ADVISOR REVIEW</text>
+            <!-- Advisor check 1 -->
+            <rect x="550" y="145" width="130" height="35" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="2" />
+            <text x="615" y="167" text-anchor="middle" font-size="10" font-weight="700" fill="#dc2626">ADVISOR
+                REVIEW</text>
 
-        <!-- Arrow from Question to Advisor -->
-        <path d="M580 130 L600 145" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrowGray)"/>
+            <!-- Arrow from Question to Advisor -->
+            <path d="M580 130 L600 145" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"
+                marker-end="url(#arrowGray)" />
 
-        <!-- Phase 3: Implement -->
-        <rect x="40" y="200" width="640" height="100" rx="8" fill="#faf5ff" stroke="#7c3aed" stroke-width="2"/>
-        <rect x="40" y="200" width="640" height="24" rx="8" fill="#7c3aed"/>
-        <rect x="40" y="216" width="640" height="8" fill="#7c3aed"/>
-        <text x="360" y="218" text-anchor="middle" font-size="11" font-weight="600" fill="white">Phase 3: IMPLEMENT (Parallel Subagents)</text>
+            <!-- Phase 3: Implement -->
+            <rect x="40" y="200" width="640" height="100" rx="8" fill="#faf5ff" stroke="#7c3aed" stroke-width="2" />
+            <rect x="40" y="200" width="640" height="24" rx="8" fill="#7c3aed" />
+            <rect x="40" y="216" width="640" height="8" fill="#7c3aed" />
+            <text x="360" y="218" text-anchor="middle" font-size="11" font-weight="600" fill="white">Phase 3: IMPLEMENT
+                (Parallel Subagents)</text>
 
-        <!-- Subagent boxes -->
-        <rect x="60" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5"/>
-        <text x="130" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task A</text>
-        <text x="130" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">Backend changes</text>
+            <!-- Subagent boxes -->
+            <rect x="60" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5" />
+            <text x="130" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task
+                A</text>
+            <text x="130" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">Backend changes</text>
 
-        <rect x="220" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5"/>
-        <text x="290" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task B</text>
-        <text x="290" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">Frontend changes</text>
+            <rect x="220" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5" />
+            <text x="290" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task
+                B</text>
+            <text x="290" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">Frontend changes</text>
 
-        <rect x="380" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5"/>
-        <text x="450" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task C</text>
-        <text x="450" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">K8s manifests</text>
+            <rect x="380" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5" />
+            <text x="450" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task
+                C</text>
+            <text x="450" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">K8s manifests</text>
 
-        <rect x="540" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5"/>
-        <text x="610" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task D</text>
-        <text x="610" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">Tests / Docs</text>
+            <rect x="540" y="240" width="140" height="45" rx="6" fill="white" stroke="#a78bfa" stroke-width="1.5" />
+            <text x="610" y="258" text-anchor="middle" font-size="9" font-weight="600" fill="#5b21b6">Agent: Task
+                D</text>
+            <text x="610" y="275" text-anchor="middle" font-size="8" fill="#7c3aed">Tests / Docs</text>
 
-        <!-- Arrow down -->
-        <path d="M360 300 L360 325" stroke="#64748b" stroke-width="2" marker-end="url(#arrowGray)"/>
+            <!-- Arrow down -->
+            <path d="M360 300 L360 325" stroke="#64748b" stroke-width="2" marker-end="url(#arrowGray)" />
 
-        <!-- Phase 4: Review -->
-        <rect x="140" y="325" width="200" height="50" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2.5"/>
-        <text x="240" y="347" text-anchor="middle" font-size="12" font-weight="700" fill="#dc2626">ADVISOR REVIEW</text>
-        <text x="240" y="365" text-anchor="middle" font-size="10" fill="#991b1b">Catches bugs in "trivial" changes</text>
+            <!-- Phase 4: Review -->
+            <rect x="140" y="325" width="200" height="50" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="2.5" />
+            <text x="240" y="347" text-anchor="middle" font-size="12" font-weight="700" fill="#dc2626">ADVISOR
+                REVIEW</text>
+            <text x="240" y="365" text-anchor="middle" font-size="10" fill="#991b1b">Catches bugs in "trivial"
+                changes</text>
 
-        <!-- Phase 5: Deploy -->
-        <rect x="400" y="325" width="200" height="50" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
-        <text x="500" y="347" text-anchor="middle" font-size="11" font-weight="600" fill="#065f46">Version Bump</text>
-        <text x="500" y="365" text-anchor="middle" font-size="10" fill="#065f46">14-file checklist</text>
+            <!-- Phase 5: Deploy -->
+            <rect x="400" y="325" width="200" height="50" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2" />
+            <text x="500" y="347" text-anchor="middle" font-size="11" font-weight="600" fill="#065f46">Version
+                Bump</text>
+            <text x="500" y="365" text-anchor="middle" font-size="10" fill="#065f46">14-file checklist</text>
 
-        <!-- Arrow between -->
-        <path d="M340 350 L400 350" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)"/>
+            <!-- Arrow between -->
+            <path d="M340 350 L400 350" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)" />
 
-        <!-- Deploy -->
-        <path d="M500 375 L500 400" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)"/>
-        <rect x="400" y="400" width="200" height="40" rx="20" fill="url(#planGrad)"/>
-        <text x="500" y="425" text-anchor="middle" font-size="12" font-weight="700" fill="white">Jenkins Build → EKS</text>
+            <!-- Deploy -->
+            <path d="M500 375 L500 400" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)" />
+            <rect x="400" y="400" width="200" height="40" rx="20" fill="url(#planGrad)" />
+            <text x="500" y="425" text-anchor="middle" font-size="12" font-weight="700" fill="white">Jenkins Build →
+                EKS</text>
 
-        <!-- Memory sidebar -->
-        <rect x="40" y="330" width="80" height="110" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="1" stroke-dasharray="4"/>
-        <text x="80" y="350" text-anchor="middle" font-size="9" font-weight="600" fill="#166534">Memory</text>
-        <text x="80" y="368" text-anchor="middle" font-size="8" fill="#15803d">Persists</text>
-        <text x="80" y="384" text-anchor="middle" font-size="8" fill="#15803d">across</text>
-        <text x="80" y="400" text-anchor="middle" font-size="8" fill="#15803d">sessions</text>
-        <text x="80" y="420" text-anchor="middle" font-size="8" fill="#15803d">feedback</text>
-        <text x="80" y="436" text-anchor="middle" font-size="8" fill="#15803d">+ context</text>
-    </svg>
-    <div class="diagram-caption">Figure 1: The full development workflow — plan, question, implement with parallel agents, mandatory advisor review, then deploy</div>
-</div>
+            <!-- Memory sidebar -->
+            <rect x="40" y="330" width="80" height="110" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="1"
+                stroke-dasharray="4" />
+            <text x="80" y="350" text-anchor="middle" font-size="9" font-weight="600" fill="#166534">Memory</text>
+            <text x="80" y="368" text-anchor="middle" font-size="8" fill="#15803d">Persists</text>
+            <text x="80" y="384" text-anchor="middle" font-size="8" fill="#15803d">across</text>
+            <text x="80" y="400" text-anchor="middle" font-size="8" fill="#15803d">sessions</text>
+            <text x="80" y="420" text-anchor="middle" font-size="8" fill="#15803d">feedback</text>
+            <text x="80" y="436" text-anchor="middle" font-size="8" fill="#15803d">+ context</text>
+        </svg>
+        <div class="diagram-caption">Figure 1: The full development workflow — plan, question, implement with parallel
+            agents, mandatory advisor review, then deploy</div>
+    </div>
 
-<h2>Persistent Memory: Context That Compounds</h2>
+    <h2>Persistent Memory: Context That Compounds</h2>
 
-<p>One of the most underused features of Claude Code is its persistent memory system. I maintain a structured memory index that carries hard-won knowledge across sessions:</p>
+    <p>One of the most underused features of Claude Code is its persistent memory system. I maintain a structured memory
+        index that carries hard-won knowledge across sessions:</p>
 
-<div class="file-tree">
-<span class="dir">.claude/memory/</span>
-├── <span class="file">MEMORY.md</span>                  <span class="comment"># Index — loaded every session</span>
-├── <span class="file">user_role.md</span>               <span class="comment"># Who I am, what I work on</span>
-├── <span class="file">feedback_planning.md</span>       <span class="comment"># "Always ask questions before implementing"</span>
-├── <span class="file">feedback_no_auto_commit.md</span> <span class="comment"># "Never git push without asking"</span>
-├── <span class="file">feedback_image_bump.md</span>     <span class="comment"># "14 files to update on every version bump"</span>
-├── <span class="file">project_current.md</span>         <span class="comment"># What version is live, what's pending</span>
-├── <span class="file">reference_pricing.md</span>       <span class="comment"># Claude API pricing (verified, not guessed)</span>
-└── <span class="file">feedback_conciseness.md</span>    <span class="comment"># "No verbose output, lead with the answer"</span>
-</div>
+    <div class="file-tree">
+        <span class="dir">.claude/memory/</span>
+        ├── <span class="file">MEMORY.md</span> <span class="comment"># Index — loaded every session</span>
+        ├── <span class="file">user_role.md</span> <span class="comment"># Who I am, what I work on</span>
+        ├── <span class="file">feedback_planning.md</span> <span class="comment"># "Always ask questions before
+            implementing"</span>
+        ├── <span class="file">feedback_no_auto_commit.md</span> <span class="comment"># "Never git push without
+            asking"</span>
+        ├── <span class="file">feedback_image_bump.md</span> <span class="comment"># "14 files to update on every
+            version bump"</span>
+        ├── <span class="file">project_current.md</span> <span class="comment"># What version is live, what's
+            pending</span>
+        ├── <span class="file">reference_pricing.md</span> <span class="comment"># Claude API pricing (verified, not
+            guessed)</span>
+        └── <span class="file">feedback_conciseness.md</span> <span class="comment"># "No verbose output, lead with the
+            answer"</span>
+    </div>
 
-<p>Key memory types and their purpose:</p>
+    <p>Key memory types and their purpose:</p>
 
-<table class="comparison-table">
-    <thead>
-        <tr>
-            <th>Type</th>
-            <th>What It Stores</th>
-            <th>Why It Matters</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td><strong>Feedback</strong></td>
-            <td>Corrections + confirmed approaches</td>
-            <td>The AI never repeats the same mistake twice</td>
-        </tr>
-        <tr>
-            <td><strong>Project</strong></td>
-            <td>Current state, versions, blockers</td>
-            <td>New sessions start with full context</td>
-        </tr>
-        <tr>
-            <td><strong>Reference</strong></td>
-            <td>External resources, API versions, pricing</td>
-            <td>Facts verified once, never hallucinated again</td>
-        </tr>
-        <tr>
-            <td><strong>User</strong></td>
-            <td>Role, expertise level, preferences</td>
-            <td>Explanations tailored to your level</td>
-        </tr>
-    </tbody>
-</table>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>What It Stores</th>
+                <th>Why It Matters</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Feedback</strong></td>
+                <td>Corrections + confirmed approaches</td>
+                <td>The AI never repeats the same mistake twice</td>
+            </tr>
+            <tr>
+                <td><strong>Project</strong></td>
+                <td>Current state, versions, blockers</td>
+                <td>New sessions start with full context</td>
+            </tr>
+            <tr>
+                <td><strong>Reference</strong></td>
+                <td>External resources, API versions, pricing</td>
+                <td>Facts verified once, never hallucinated again</td>
+            </tr>
+            <tr>
+                <td><strong>User</strong></td>
+                <td>Role, expertise level, preferences</td>
+                <td>Explanations tailored to your level</td>
+            </tr>
+        </tbody>
+    </table>
 
-<div class="highlight-box">
-    <p><strong>Example:</strong> After I got burned 3 times forgetting to update one of 14 files during a version bump, that became a feedback memory. Now Claude Code <em>always</em> checks all 14 files on every version bump — because the memory carries that lesson forward permanently.</p>
-</div>
+    <div class="highlight-box">
+        <p><strong>Example:</strong> After I got burned 3 times forgetting to update one of 14 files during a version
+            bump, that became a feedback memory. Now Claude Code <em>always</em> checks all 14 files on every version
+            bump — because the memory carries that lesson forward permanently.</p>
+    </div>
 
-<h2>The Full EKS Deployment Architecture</h2>
+    <h2>The Full EKS Deployment Architecture</h2>
 
-<p>Here's how the complete agentic AI system deploys to production on Amazon EKS:</p>
+    <p>Here's how the complete agentic AI system deploys to production on Amazon EKS:</p>
 
-<div class="diagram-container">
-    <svg viewBox="0 0 760 650" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-        <defs>
-            <linearGradient id="eksGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:#f59e0b"/>
-                <stop offset="100%" style="stop-color:#ea580c"/>
-            </linearGradient>
-            <linearGradient id="awsGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:#232f3e"/>
-                <stop offset="100%" style="stop-color:#37475a"/>
-            </linearGradient>
-            <marker id="arrowDark" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                <polygon points="0 0, 8 3, 0 6" fill="#475569"/>
-            </marker>
-        </defs>
+    <div class="diagram-container">
+        <svg viewBox="0 0 760 650" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+            <defs>
+                <linearGradient id="eksGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#f59e0b" />
+                    <stop offset="100%" style="stop-color:#ea580c" />
+                </linearGradient>
+                <linearGradient id="awsGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#232f3e" />
+                    <stop offset="100%" style="stop-color:#37475a" />
+                </linearGradient>
+                <marker id="arrowDark" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" fill="#475569" />
+                </marker>
+            </defs>
 
-        <!-- Title -->
-        <text x="380" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#1a1a2e">Production EKS Deployment Architecture</text>
+            <!-- Title -->
+            <text x="380" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#1a1a2e">Production EKS
+                Deployment Architecture</text>
 
-        <!-- Internet/User -->
-        <rect x="300" y="45" width="160" height="35" rx="17" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
-        <text x="380" y="67" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">Users (Browser)</text>
+            <!-- Internet/User -->
+            <rect x="300" y="45" width="160" height="35" rx="17" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
+            <text x="380" y="67" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">Users
+                (Browser)</text>
 
-        <!-- Arrow -->
-        <path d="M380 80 L380 105" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowDark)"/>
+            <!-- Arrow -->
+            <path d="M380 80 L380 105" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowDark)" />
 
-        <!-- Ingress -->
-        <rect x="280" y="105" width="200" height="35" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
-        <text x="380" y="127" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">NGINX Ingress + OAuth2 Proxy</text>
+            <!-- Ingress -->
+            <rect x="280" y="105" width="200" height="35" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5" />
+            <text x="380" y="127" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">NGINX Ingress +
+                OAuth2 Proxy</text>
 
-        <!-- Arrow -->
-        <path d="M380 140 L380 165" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowDark)"/>
+            <!-- Arrow -->
+            <path d="M380 140 L380 165" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowDark)" />
 
-        <!-- EKS Cluster boundary -->
-        <rect x="30" y="165" width="700" height="430" rx="10" fill="#fff7ed" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6"/>
-        <text x="60" y="185" font-size="11" font-weight="700" fill="#ea580c">EKS Cluster (Namespace: ai-agent)</text>
+            <!-- EKS Cluster boundary -->
+            <rect x="30" y="165" width="700" height="430" rx="10" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"
+                stroke-dasharray="6" />
+            <text x="60" y="185" font-size="11" font-weight="700" fill="#ea580c">EKS Cluster (Namespace:
+                ai-agent)</text>
 
-        <!-- UI Service -->
-        <rect x="280" y="200" width="200" height="50" rx="6" fill="white" stroke="#3b82f6" stroke-width="1.5"/>
-        <text x="380" y="222" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">SvelteKit UI</text>
-        <text x="380" y="238" text-anchor="middle" font-size="9" fill="#64748b">deployment-ui.yaml | Service</text>
+            <!-- UI Service -->
+            <rect x="280" y="200" width="200" height="50" rx="6" fill="white" stroke="#3b82f6" stroke-width="1.5" />
+            <text x="380" y="222" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">SvelteKit
+                UI</text>
+            <text x="380" y="238" text-anchor="middle" font-size="9" fill="#64748b">deployment-ui.yaml | Service</text>
 
-        <!-- Arrow to API -->
-        <path d="M380 250 L380 275" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowDark)"/>
+            <!-- Arrow to API -->
+            <path d="M380 250 L380 275" stroke="#475569" stroke-width="1.5" marker-end="url(#arrowDark)" />
 
-        <!-- API Gateway -->
-        <rect x="240" y="275" width="280" height="50" rx="6" fill="white" stroke="#059669" stroke-width="2"/>
-        <text x="380" y="297" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">FastAPI Orchestrator</text>
-        <text x="380" y="313" text-anchor="middle" font-size="9" fill="#64748b">deployment.yaml | Routes queries to agents</text>
+            <!-- API Gateway -->
+            <rect x="240" y="275" width="280" height="50" rx="6" fill="white" stroke="#059669" stroke-width="2" />
+            <text x="380" y="297" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">FastAPI
+                Orchestrator</text>
+            <text x="380" y="313" text-anchor="middle" font-size="9" fill="#64748b">deployment.yaml | Routes queries to
+                agents</text>
 
-        <!-- Fan out to agents -->
-        <path d="M290 325 L160 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)"/>
-        <path d="M350 325 L310 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)"/>
-        <path d="M410 325 L450 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)"/>
-        <path d="M470 325 L590 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)"/>
+            <!-- Fan out to agents -->
+            <path d="M290 325 L160 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)" />
+            <path d="M350 325 L310 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)" />
+            <path d="M410 325 L450 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)" />
+            <path d="M470 325 L590 360" stroke="#475569" stroke-width="1.2" marker-end="url(#arrowDark)" />
 
-        <!-- Agent Deployments -->
-        <rect x="60" y="360" width="130" height="55" rx="6" fill="white" stroke="#3b82f6" stroke-width="1.5"/>
-        <rect x="60" y="360" width="130" height="18" rx="6" fill="#3b82f6"/>
-        <rect x="60" y="372" width="130" height="6" fill="#3b82f6"/>
-        <text x="125" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Data Scout</text>
-        <text x="125" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 2</text>
-        <text x="125" y="408" text-anchor="middle" font-size="8" fill="#64748b">Sonnet model</text>
+            <!-- Agent Deployments -->
+            <rect x="60" y="360" width="130" height="55" rx="6" fill="white" stroke="#3b82f6" stroke-width="1.5" />
+            <rect x="60" y="360" width="130" height="18" rx="6" fill="#3b82f6" />
+            <rect x="60" y="372" width="130" height="6" fill="#3b82f6" />
+            <text x="125" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Data Scout</text>
+            <text x="125" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 2</text>
+            <text x="125" y="408" text-anchor="middle" font-size="8" fill="#64748b">Sonnet model</text>
 
-        <rect x="210" y="360" width="130" height="55" rx="6" fill="white" stroke="#8b5cf6" stroke-width="1.5"/>
-        <rect x="210" y="360" width="130" height="18" rx="6" fill="#8b5cf6"/>
-        <rect x="210" y="372" width="130" height="6" fill="#8b5cf6"/>
-        <text x="275" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Analyst</text>
-        <text x="275" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 1</text>
-        <text x="275" y="408" text-anchor="middle" font-size="8" fill="#64748b">Sonnet model</text>
+            <rect x="210" y="360" width="130" height="55" rx="6" fill="white" stroke="#8b5cf6" stroke-width="1.5" />
+            <rect x="210" y="360" width="130" height="18" rx="6" fill="#8b5cf6" />
+            <rect x="210" y="372" width="130" height="6" fill="#8b5cf6" />
+            <text x="275" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Analyst</text>
+            <text x="275" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 1</text>
+            <text x="275" y="408" text-anchor="middle" font-size="8" fill="#64748b">Sonnet model</text>
 
-        <rect x="370" y="360" width="130" height="55" rx="6" fill="white" stroke="#f59e0b" stroke-width="1.5"/>
-        <rect x="370" y="360" width="130" height="18" rx="6" fill="#f59e0b"/>
-        <rect x="370" y="372" width="130" height="6" fill="#f59e0b"/>
-        <text x="435" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Synthesizer</text>
-        <text x="435" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 1</text>
-        <text x="435" y="408" text-anchor="middle" font-size="8" fill="#64748b">Opus model</text>
+            <rect x="370" y="360" width="130" height="55" rx="6" fill="white" stroke="#f59e0b" stroke-width="1.5" />
+            <rect x="370" y="360" width="130" height="18" rx="6" fill="#f59e0b" />
+            <rect x="370" y="372" width="130" height="6" fill="#f59e0b" />
+            <text x="435" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Synthesizer</text>
+            <text x="435" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 1</text>
+            <text x="435" y="408" text-anchor="middle" font-size="8" fill="#64748b">Opus model</text>
 
-        <rect x="530" y="360" width="130" height="55" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5"/>
-        <rect x="530" y="360" width="130" height="18" rx="6" fill="#ef4444"/>
-        <rect x="530" y="372" width="130" height="6" fill="#ef4444"/>
-        <text x="595" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Critic</text>
-        <text x="595" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 1</text>
-        <text x="595" y="408" text-anchor="middle" font-size="8" fill="#64748b">Opus model</text>
+            <rect x="530" y="360" width="130" height="55" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5" />
+            <rect x="530" y="360" width="130" height="18" rx="6" fill="#ef4444" />
+            <rect x="530" y="372" width="130" height="6" fill="#ef4444" />
+            <text x="595" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Critic</text>
+            <text x="595" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 1</text>
+            <text x="595" y="408" text-anchor="middle" font-size="8" fill="#64748b">Opus model</text>
 
-        <!-- CronJobs row -->
-        <rect x="60" y="440" width="290" height="45" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
-        <text x="205" y="460" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">CronJobs (Automated Ingestion)</text>
-        <text x="205" y="476" text-anchor="middle" font-size="9" fill="#64748b">Daily: data refresh | Weekly: ontology | Ad-hoc: schema sync</text>
+            <!-- CronJobs row -->
+            <rect x="60" y="440" width="290" height="45" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5" />
+            <text x="205" y="460" text-anchor="middle" font-size="10" font-weight="600" fill="#166534">CronJobs
+                (Automated Ingestion)</text>
+            <text x="205" y="476" text-anchor="middle" font-size="9" fill="#64748b">Daily: data refresh | Weekly:
+                ontology | Ad-hoc: schema sync</text>
 
-        <!-- Monitoring -->
-        <rect x="380" y="440" width="280" height="45" rx="6" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.5"/>
-        <text x="520" y="460" text-anchor="middle" font-size="10" font-weight="600" fill="#5b21b6">Monitoring Stack</text>
-        <text x="520" y="476" text-anchor="middle" font-size="9" fill="#64748b">Langfuse traces | Prometheus metrics | ADOT (OpenTelemetry)</text>
+            <!-- Monitoring -->
+            <rect x="380" y="440" width="280" height="45" rx="6" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.5" />
+            <text x="520" y="460" text-anchor="middle" font-size="10" font-weight="600" fill="#5b21b6">Monitoring
+                Stack</text>
+            <text x="520" y="476" text-anchor="middle" font-size="9" fill="#64748b">Langfuse traces | Prometheus metrics
+                | ADOT (OpenTelemetry)</text>
 
-        <!-- AWS Services row -->
-        <rect x="60" y="510" width="600" height="75" rx="8" fill="#f8fafc" stroke="#232f3e" stroke-width="1.5"/>
-        <rect x="60" y="510" width="600" height="20" rx="8" fill="url(#awsGrad)"/>
-        <rect x="60" y="524" width="600" height="6" fill="url(#awsGrad)"/>
-        <text x="360" y="525" text-anchor="middle" font-size="10" font-weight="600" fill="white">AWS Services</text>
+            <!-- AWS Services row -->
+            <rect x="60" y="510" width="600" height="75" rx="8" fill="#f8fafc" stroke="#232f3e" stroke-width="1.5" />
+            <rect x="60" y="510" width="600" height="20" rx="8" fill="url(#awsGrad)" />
+            <rect x="60" y="524" width="600" height="6" fill="url(#awsGrad)" />
+            <text x="360" y="525" text-anchor="middle" font-size="10" font-weight="600" fill="white">AWS Services</text>
 
-        <!-- AWS service boxes -->
-        <rect x="75" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1"/>
-        <text x="125" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">Bedrock</text>
-        <text x="125" y="568" text-anchor="middle" font-size="7" fill="#64748b">Claude API</text>
+            <!-- AWS service boxes -->
+            <rect x="75" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1" />
+            <text x="125" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">Bedrock</text>
+            <text x="125" y="568" text-anchor="middle" font-size="7" fill="#64748b">Claude API</text>
 
-        <rect x="190" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1"/>
-        <text x="240" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">S3</text>
-        <text x="240" y="568" text-anchor="middle" font-size="7" fill="#64748b">Data Lake</text>
+            <rect x="190" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1" />
+            <text x="240" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">S3</text>
+            <text x="240" y="568" text-anchor="middle" font-size="7" fill="#64748b">Data Lake</text>
 
-        <rect x="305" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1"/>
-        <text x="355" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">DynamoDB</text>
-        <text x="355" y="568" text-anchor="middle" font-size="7" fill="#64748b">Knowledge Graph</text>
+            <rect x="305" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1" />
+            <text x="355" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">DynamoDB</text>
+            <text x="355" y="568" text-anchor="middle" font-size="7" fill="#64748b">Knowledge Graph</text>
 
-        <rect x="420" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1"/>
-        <text x="470" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">Secrets Mgr</text>
-        <text x="470" y="568" text-anchor="middle" font-size="7" fill="#64748b">ExternalSecret</text>
+            <rect x="420" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1" />
+            <text x="470" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">Secrets Mgr</text>
+            <text x="470" y="568" text-anchor="middle" font-size="7" fill="#64748b">ExternalSecret</text>
 
-        <rect x="535" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1"/>
-        <text x="585" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">IAM (IRSA)</text>
-        <text x="585" y="568" text-anchor="middle" font-size="7" fill="#64748b">SA → IAM Role</text>
+            <rect x="535" y="540" width="100" height="35" rx="4" fill="white" stroke="#cbd5e1" stroke-width="1" />
+            <text x="585" y="556" text-anchor="middle" font-size="8" font-weight="600" fill="#1e293b">IAM (IRSA)</text>
+            <text x="585" y="568" text-anchor="middle" font-size="7" fill="#64748b">SA → IAM Role</text>
 
-        <!-- ConfigMap -->
-        <rect x="60" y="600" width="330" height="35" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
-        <text x="225" y="622" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">ConfigMap: model selection, feature flags, cache TTLs</text>
+            <!-- ConfigMap -->
+            <rect x="60" y="600" width="330" height="35" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1" />
+            <text x="225" y="622" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">ConfigMap: model
+                selection, feature flags, cache TTLs</text>
 
-        <!-- NetworkPolicy -->
-        <rect x="410" y="600" width="250" height="35" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1"/>
-        <text x="535" y="622" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">NetworkPolicy: egress allow-list only</text>
-    </svg>
-    <div class="diagram-caption">Figure 2: Full EKS production architecture — separate deployments per agent role, AWS services via IRSA, automated ingestion CronJobs</div>
-</div>
+            <!-- NetworkPolicy -->
+            <rect x="410" y="600" width="250" height="35" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1" />
+            <text x="535" y="622" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">NetworkPolicy:
+                egress allow-list only</text>
+        </svg>
+        <div class="diagram-caption">Figure 2: Full EKS production architecture — separate deployments per agent role,
+            AWS services via IRSA, automated ingestion CronJobs</div>
+    </div>
 
-<h2>Key Kubernetes Patterns</h2>
+    <h2>Key Kubernetes Patterns</h2>
 
-<h3>1. Separate Deployment per Agent Role</h3>
-<p>Each agent role is its own Kubernetes Deployment with its own Service. This gives you:</p>
-<ul>
-    <li><strong>Independent scaling:</strong> Data Scouts scale to 2 replicas for throughput; Synthesizer stays at 1</li>
-    <li><strong>Resource isolation:</strong> The Opus-tier agents get more memory; Scouts are lightweight</li>
-    <li><strong>Rolling updates:</strong> Update the Critic's prompt without restarting the Analyst</li>
-    <li><strong>Targeted monitoring:</strong> Langfuse traces per-service let you see exactly where time is spent</li>
-</ul>
+    <h3>1. Separate Deployment per Agent Role</h3>
+    <p>Each agent role is its own Kubernetes Deployment with its own Service. This gives you:</p>
+    <ul>
+        <li><strong>Independent scaling:</strong> Data Scouts scale to 2 replicas for throughput; Synthesizer stays at 1
+        </li>
+        <li><strong>Resource isolation:</strong> The Opus-tier agents get more memory; Scouts are lightweight</li>
+        <li><strong>Rolling updates:</strong> Update the Critic's prompt without restarting the Analyst</li>
+        <li><strong>Targeted monitoring:</strong> Langfuse traces per-service let you see exactly where time is spent
+        </li>
+    </ul>
 
-<h3>2. ConfigMap-Driven Model Selection</h3>
-<pre><code># configmap.yaml
+    <h3>2. ConfigMap-Driven Model Selection</h3>
+    <pre><code># configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -663,10 +826,11 @@ data:
   LANGFUSE_ENABLED: "true"
 </code></pre>
 
-<p>Model selection lives in a ConfigMap, not in code. When a new Claude model drops, you update the ConfigMap and restart pods — no code change, no build, no PR.</p>
+    <p>Model selection lives in a ConfigMap, not in code. When a new Claude model drops, you update the ConfigMap and
+        restart pods — no code change, no build, no PR.</p>
 
-<h3>3. IRSA for Zero-Credential Pods</h3>
-<pre><code># iam/trust-policy.json (simplified)
+    <h3>3. IRSA for Zero-Credential Pods</h3>
+    <pre><code># iam/trust-policy.json (simplified)
 {
   "Version": "2012-10-17",
   "Statement": [{
@@ -684,10 +848,12 @@ data:
 }
 </code></pre>
 
-<p>Pods assume IAM roles via IRSA (IAM Roles for Service Accounts). No AWS credentials stored anywhere — not in secrets, not in env vars, not in code. The pod's service account maps to an IAM role that grants access to S3, DynamoDB, Bedrock, and Secrets Manager.</p>
+    <p>Pods assume IAM roles via IRSA (IAM Roles for Service Accounts). No AWS credentials stored anywhere — not in
+        secrets, not in env vars, not in code. The pod's service account maps to an IAM role that grants access to S3,
+        DynamoDB, Bedrock, and Secrets Manager.</p>
 
-<h3>4. Automated Data Freshness via CronJobs</h3>
-<pre><code># cronjob-auto-ingest.yaml
+    <h3>4. Automated Data Freshness via CronJobs</h3>
+    <pre><code># cronjob-auto-ingest.yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -706,140 +872,197 @@ spec:
               command: ["python", "-m", "agent.jobs.ingest", "--source", "all"]
 </code></pre>
 
-<h2>Langfuse in the Production Stack</h2>
+    <h2>Langfuse in the Production Stack</h2>
 
-<p>Langfuse sits alongside Prometheus and OpenTelemetry as part of the monitoring deployment:</p>
+    <p>Langfuse sits alongside Prometheus and OpenTelemetry as part of the monitoring deployment:</p>
 
-<div class="diagram-container">
-    <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-        <!-- Title -->
-        <text x="360" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="#1a1a2e">Observability Stack — Three Pillars</text>
+    <div class="diagram-container">
+        <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+            <!-- Title -->
+            <text x="360" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="#1a1a2e">Observability
+                Stack — Three Pillars</text>
 
-        <!-- Prometheus -->
-        <rect x="40" y="45" width="200" height="140" rx="8" fill="white" stroke="#ef4444" stroke-width="2"/>
-        <rect x="40" y="45" width="200" height="24" rx="8" fill="#ef4444"/>
-        <rect x="40" y="62" width="200" height="7" fill="#ef4444"/>
-        <text x="140" y="63" text-anchor="middle" font-size="11" font-weight="600" fill="white">Prometheus + Grafana</text>
-        <text x="140" y="90" text-anchor="middle" font-size="10" fill="#475569">Infrastructure metrics</text>
-        <text x="140" y="110" text-anchor="middle" font-size="10" fill="#475569">Pod CPU / Memory</text>
-        <text x="140" y="130" text-anchor="middle" font-size="10" fill="#475569">Request latency (p95)</text>
-        <text x="140" y="150" text-anchor="middle" font-size="10" fill="#475569">Error rates</text>
-        <text x="140" y="170" text-anchor="middle" font-size="10" fill="#475569">CronJob success/fail</text>
+            <!-- Prometheus -->
+            <rect x="40" y="45" width="200" height="140" rx="8" fill="white" stroke="#ef4444" stroke-width="2" />
+            <rect x="40" y="45" width="200" height="24" rx="8" fill="#ef4444" />
+            <rect x="40" y="62" width="200" height="7" fill="#ef4444" />
+            <text x="140" y="63" text-anchor="middle" font-size="11" font-weight="600" fill="white">Prometheus +
+                Grafana</text>
+            <text x="140" y="90" text-anchor="middle" font-size="10" fill="#475569">Infrastructure metrics</text>
+            <text x="140" y="110" text-anchor="middle" font-size="10" fill="#475569">Pod CPU / Memory</text>
+            <text x="140" y="130" text-anchor="middle" font-size="10" fill="#475569">Request latency (p95)</text>
+            <text x="140" y="150" text-anchor="middle" font-size="10" fill="#475569">Error rates</text>
+            <text x="140" y="170" text-anchor="middle" font-size="10" fill="#475569">CronJob success/fail</text>
 
-        <!-- Langfuse -->
-        <rect x="260" y="45" width="200" height="140" rx="8" fill="white" stroke="#3b82f6" stroke-width="2"/>
-        <rect x="260" y="45" width="200" height="24" rx="8" fill="#3b82f6"/>
-        <rect x="260" y="62" width="200" height="7" fill="#3b82f6"/>
-        <text x="360" y="63" text-anchor="middle" font-size="11" font-weight="600" fill="white">Langfuse</text>
-        <text x="360" y="90" text-anchor="middle" font-size="10" fill="#475569">LLM-specific observability</text>
-        <text x="360" y="110" text-anchor="middle" font-size="10" fill="#475569">Per-role traces + spans</text>
-        <text x="360" y="130" text-anchor="middle" font-size="10" fill="#475569">Token cost per query</text>
-        <text x="360" y="150" text-anchor="middle" font-size="10" fill="#475569">Tool call success rates</text>
-        <text x="360" y="170" text-anchor="middle" font-size="10" fill="#475569">Quality scoring over time</text>
+            <!-- Langfuse -->
+            <rect x="260" y="45" width="200" height="140" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
+            <rect x="260" y="45" width="200" height="24" rx="8" fill="#3b82f6" />
+            <rect x="260" y="62" width="200" height="7" fill="#3b82f6" />
+            <text x="360" y="63" text-anchor="middle" font-size="11" font-weight="600" fill="white">Langfuse</text>
+            <text x="360" y="90" text-anchor="middle" font-size="10" fill="#475569">LLM-specific observability</text>
+            <text x="360" y="110" text-anchor="middle" font-size="10" fill="#475569">Per-role traces + spans</text>
+            <text x="360" y="130" text-anchor="middle" font-size="10" fill="#475569">Token cost per query</text>
+            <text x="360" y="150" text-anchor="middle" font-size="10" fill="#475569">Tool call success rates</text>
+            <text x="360" y="170" text-anchor="middle" font-size="10" fill="#475569">Quality scoring over time</text>
 
-        <!-- ADOT -->
-        <rect x="480" y="45" width="200" height="140" rx="8" fill="white" stroke="#059669" stroke-width="2"/>
-        <rect x="480" y="45" width="200" height="24" rx="8" fill="#059669"/>
-        <rect x="480" y="62" width="200" height="7" fill="#059669"/>
-        <text x="580" y="63" text-anchor="middle" font-size="11" font-weight="600" fill="white">ADOT (OpenTelemetry)</text>
-        <text x="580" y="90" text-anchor="middle" font-size="10" fill="#475569">Distributed traces</text>
-        <text x="580" y="110" text-anchor="middle" font-size="10" fill="#475569">Cross-service spans</text>
-        <text x="580" y="130" text-anchor="middle" font-size="10" fill="#475569">AWS service call latency</text>
-        <text x="580" y="150" text-anchor="middle" font-size="10" fill="#475569">S3/DynamoDB timing</text>
-        <text x="580" y="170" text-anchor="middle" font-size="10" fill="#475569">Bedrock API tracking</text>
-    </svg>
-    <div class="diagram-caption">Figure 3: Three-pillar observability — infra (Prometheus), LLM behavior (Langfuse), distributed traces (OpenTelemetry/ADOT)</div>
-</div>
-
-<h2>The "Build the Builder" Feedback Loop</h2>
-
-<p>Here's the meta-pattern that makes all of this compound:</p>
-
-<ol>
-    <li><strong>Langfuse traces</strong> from the production agent reveal quality issues</li>
-    <li>Those issues become <strong>development tasks</strong> in the next session</li>
-    <li>The <strong>Advisor agent</strong> reviews the proposed fix</li>
-    <li>Fix is implemented using <strong>parallel subagents</strong></li>
-    <li>Advisor reviews the implementation and catches edge cases</li>
-    <li>Version bump (all manifest files) — Advisor verifies nothing was missed</li>
-    <li>Deploy → Langfuse traces the improvement → loop</li>
-</ol>
-
-<p>Every production observation becomes a development action. Every development session compounds knowledge into memory. The system gets better at building itself.</p>
-
-<div class="metric-grid">
-    <div class="metric-card">
-        <div class="metric-value">12+</div>
-        <div class="metric-label">Files Per Version Bump</div>
+            <!-- ADOT -->
+            <rect x="480" y="45" width="200" height="140" rx="8" fill="white" stroke="#059669" stroke-width="2" />
+            <rect x="480" y="45" width="200" height="24" rx="8" fill="#059669" />
+            <rect x="480" y="62" width="200" height="7" fill="#059669" />
+            <text x="580" y="63" text-anchor="middle" font-size="11" font-weight="600" fill="white">ADOT
+                (OpenTelemetry)</text>
+            <text x="580" y="90" text-anchor="middle" font-size="10" fill="#475569">Distributed traces</text>
+            <text x="580" y="110" text-anchor="middle" font-size="10" fill="#475569">Cross-service spans</text>
+            <text x="580" y="130" text-anchor="middle" font-size="10" fill="#475569">AWS service call latency</text>
+            <text x="580" y="150" text-anchor="middle" font-size="10" fill="#475569">S3/DynamoDB timing</text>
+            <text x="580" y="170" text-anchor="middle" font-size="10" fill="#475569">Bedrock API tracking</text>
+        </svg>
+        <div class="diagram-caption">Figure 3: Three-pillar observability — infra (Prometheus), LLM behavior (Langfuse),
+            distributed traces (OpenTelemetry/ADOT)</div>
     </div>
-    <div class="metric-card">
-        <div class="metric-value">4</div>
-        <div class="metric-label">Agent Deployments</div>
+
+    <h2>The "Build the Builder" Feedback Loop</h2>
+
+    <p>Here's the meta-pattern that makes all of this compound:</p>
+
+    <ol>
+        <li><strong>Langfuse traces</strong> from the production agent reveal quality issues</li>
+        <li>Those issues become <strong>development tasks</strong> in the next session</li>
+        <li>The <strong>Advisor agent</strong> reviews the proposed fix</li>
+        <li>Fix is implemented using <strong>parallel subagents</strong></li>
+        <li>Advisor reviews the implementation and catches edge cases</li>
+        <li>Version bump (all manifest files) — Advisor verifies nothing was missed</li>
+        <li>Deploy → Langfuse traces the improvement → loop</li>
+    </ol>
+
+    <p>Every production observation becomes a development action. Every development session compounds knowledge into
+        memory. The system gets better at building itself.</p>
+
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-value">12+</div>
+            <div class="metric-label">Files Per Version Bump</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">4</div>
+            <div class="metric-label">Agent Deployments</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">3</div>
+            <div class="metric-label">CronJobs (Daily/Weekly/Adhoc)</div>
+        </div>
     </div>
-    <div class="metric-card">
-        <div class="metric-value">3</div>
-        <div class="metric-label">CronJobs (Daily/Weekly/Adhoc)</div>
+
+    <h2>What I'd Do Differently Starting Today</h2>
+
+    <h3>1. Start with the Advisor pattern from day one</h3>
+    <p>I added the mandatory Advisor after it caught its 4th production bug. If I'd had it from the start, those 4 bugs
+        would never have shipped.</p>
+
+    <h3>2. Set up Langfuse before writing the first agent</h3>
+    <p>Retrofitting observability is painful. Instrument from the beginning. Even if the first version is one agent with
+        one tool, trace it. The data compounds.</p>
+
+    <h3>3. Use ConfigMaps for everything that might change</h3>
+    <p>Model names, feature flags, cache TTLs, token budgets — if it might change without a code change, it belongs in a
+        ConfigMap. I've updated models twice without a single line of code.</p>
+
+    <h3>4. Write the memory system for your future self</h3>
+    <p>Every hard-won lesson — every "oh, I missed that file again" or "that API changed" — goes into persistent memory
+        immediately. Future sessions start where you left off, not from scratch.</p>
+
+    <div class="takeaway">
+        <h3>The Full Stack — Summary</h3>
+        <table class="comparison-table" style="margin-top:12px;">
+            <thead>
+                <tr>
+                    <th>Layer</th>
+                    <th>Technology</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Development</td>
+                    <td>Claude Code + Advisor Agent</td>
+                    <td>AI-assisted dev with mandatory review</td>
+                </tr>
+                <tr>
+                    <td>Backend</td>
+                    <td>FastAPI + Strands SDK</td>
+                    <td>Agent orchestration + tool execution</td>
+                </tr>
+                <tr>
+                    <td>Frontend</td>
+                    <td>SvelteKit</td>
+                    <td>Interactive research UI</td>
+                </tr>
+                <tr>
+                    <td>Models</td>
+                    <td>AWS Bedrock (Claude)</td>
+                    <td>Tiered: Sonnet (fast) + Opus (reasoning)</td>
+                </tr>
+                <tr>
+                    <td>Data</td>
+                    <td>S3 (Parquet) + DynamoDB</td>
+                    <td>Data lake + knowledge graph</td>
+                </tr>
+                <tr>
+                    <td>Observability</td>
+                    <td>Langfuse + Prometheus + ADOT</td>
+                    <td>LLM traces + infra metrics + distributed traces</td>
+                </tr>
+                <tr>
+                    <td>Platform</td>
+                    <td>EKS + IRSA + ExternalSecrets</td>
+                    <td>Zero-credential, auto-scaling Kubernetes</td>
+                </tr>
+                <tr>
+                    <td>CI/CD</td>
+                    <td>Jenkins + Kustomize</td>
+                    <td>Build → push → deploy pipeline</td>
+                </tr>
+                <tr>
+                    <td>Ingestion</td>
+                    <td>K8s CronJobs</td>
+                    <td>Automated data freshness</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
-</div>
 
-<h2>What I'd Do Differently Starting Today</h2>
+    <div class="separator"></div>
 
-<h3>1. Start with the Advisor pattern from day one</h3>
-<p>I added the mandatory Advisor after it caught its 4th production bug. If I'd had it from the start, those 4 bugs would never have shipped.</p>
+    <p><strong>If you're building agentic AI systems, the investment in your development workflow is as important as the
+            system itself.</strong> An Advisor that catches bugs before production, memory that compounds lessons, and
+        Langfuse traces that reveal what's actually happening — these aren't luxuries. They're what separate a demo from
+        a production system.</p>
 
-<h3>2. Set up Langfuse before writing the first agent</h3>
-<p>Retrofitting observability is painful. Instrument from the beginning. Even if the first version is one agent with one tool, trace it. The data compounds.</p>
+    <p>The tools exist. The patterns work. The main barrier is discipline: always invoke the Advisor, always trace with
+        Langfuse, always persist lessons to memory. The compound effect is remarkable.</p>
 
-<h3>3. Use ConfigMaps for everything that might change</h3>
-<p>Model names, feature flags, cache TTLs, token budgets — if it might change without a code change, it belongs in a ConfigMap. I've updated models twice without a single line of code.</p>
-
-<h3>4. Write the memory system for your future self</h3>
-<p>Every hard-won lesson — every "oh, I missed that file again" or "that API changed" — goes into persistent memory immediately. Future sessions start where you left off, not from scratch.</p>
-
-<div class="takeaway">
-    <h3>The Full Stack — Summary</h3>
-    <table class="comparison-table" style="margin-top:12px;">
-        <thead>
-            <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
-        </thead>
-        <tbody>
-            <tr><td>Development</td><td>Claude Code + Advisor Agent</td><td>AI-assisted dev with mandatory review</td></tr>
-            <tr><td>Backend</td><td>FastAPI + Strands SDK</td><td>Agent orchestration + tool execution</td></tr>
-            <tr><td>Frontend</td><td>SvelteKit</td><td>Interactive research UI</td></tr>
-            <tr><td>Models</td><td>AWS Bedrock (Claude)</td><td>Tiered: Sonnet (fast) + Opus (reasoning)</td></tr>
-            <tr><td>Data</td><td>S3 (Parquet) + DynamoDB</td><td>Data lake + knowledge graph</td></tr>
-            <tr><td>Observability</td><td>Langfuse + Prometheus + ADOT</td><td>LLM traces + infra metrics + distributed traces</td></tr>
-            <tr><td>Platform</td><td>EKS + IRSA + ExternalSecrets</td><td>Zero-credential, auto-scaling Kubernetes</td></tr>
-            <tr><td>CI/CD</td><td>Jenkins + Kustomize</td><td>Build → push → deploy pipeline</td></tr>
-            <tr><td>Ingestion</td><td>K8s CronJobs</td><td>Automated data freshness</td></tr>
-        </tbody>
-    </table>
-</div>
-
-<div class="separator"></div>
-
-<p><strong>If you're building agentic AI systems, the investment in your development workflow is as important as the system itself.</strong> An Advisor that catches bugs before production, memory that compounds lessons, and Langfuse traces that reveal what's actually happening — these aren't luxuries. They're what separate a demo from a production system.</p>
-
-<p>The tools exist. The patterns work. The main barrier is discipline: always invoke the Advisor, always trace with Langfuse, always persist lessons to memory. The compound effect is remarkable.</p>
-
-<div class="separator"></div>
+    <div class="separator"></div>
 
 
-<p><em>Coming soon: how I migrated this entire agentic platform from self-managed EKS deployments to AWS Bedrock AgentCore — reducing operational overhead while keeping the same multi-agent architecture. Stay tuned.</em></p>
+    <p><em>Coming soon: how I migrated this entire agentic platform from self-managed EKS deployments to AWS Bedrock
+            AgentCore — reducing operational overhead while keeping the same multi-agent architecture. Stay tuned.</em>
+    </p>
 
-<p><em>If you're building similar systems or have questions about deploying agents on EKS (or migrating off it), feel free to connect.</em></p>
+    <p><em>If you're building similar systems or have questions about deploying agents on EKS (or migrating off it),
+            feel free to connect.</em></p>
 
-<div class="tag-list">
-    <span class="tag">#ClaudeCode</span>
-    <span class="tag">#AgenticAI</span>
-    <span class="tag">#EKS</span>
-    <span class="tag">#Kubernetes</span>
-    <span class="tag">#Langfuse</span>
-    <span class="tag">#DevWorkflow</span>
-    <span class="tag">#PlatformEngineering</span>
-    <span class="tag">#AWSBedrock</span>
-    <span class="tag">#AIInProduction</span>
-</div>
+    <div class="tag-list">
+        <span class="tag">#ClaudeCode</span>
+        <span class="tag">#AgenticAI</span>
+        <span class="tag">#EKS</span>
+        <span class="tag">#Kubernetes</span>
+        <span class="tag">#Langfuse</span>
+        <span class="tag">#DevWorkflow</span>
+        <span class="tag">#PlatformEngineering</span>
+        <span class="tag">#AWSBedrock</span>
+        <span class="tag">#AIInProduction</span>
+    </div>
 
 </body>
+
 </html>

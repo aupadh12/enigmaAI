@@ -11,6 +11,9 @@
         content="Building a standing internal evaluation suite — and the four ways my harness broke before it produced a single trustworthy number.">
     <meta property="og:image"
         content="https://aupadh12.github.io/enigmaAI/blogposts/covers/5-benchmarking-llms-in-the-enterprise.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:url"
         content="https://aupadh12.github.io/enigmaAI/blogposts/5-benchmarking-llms-in-the-enterprise.html">
     <meta name="twitter:card" content="summary_large_image">
@@ -381,7 +384,8 @@
         memorised — a configuration field renamed from the name upstream actually uses, a threshold given explicitly in
         the prompt that differs from the published default, an option the prompt rules out that is the popular answer
         everywhere else. The correct behaviour is to follow the prompt. A model that answers from memory instead of from
-        the text in front of it fails.</p>
+        the text in front of it fails.
+    </p>
 
     <p>The idea is sound and these are still the highest-signal items in the bank &mdash; they're a leakage tripwire,
         because if a future model starts confidently overriding the prompt with the memorised value, your benchmark has
@@ -418,7 +422,8 @@
             <code>grading_failure</code> — never as a score of zero. These are completely different events. A zero says
             the model answered badly. A grading failure says your harness didn't work. Collapsing them means your
             infrastructure problems show up as model regressions, and you'll spend a week investigating the wrong
-            system.</p>
+            system.
+        </p>
     </div>
 
     <h2>Failure #1: The Model Spent the Entire Budget Thinking</h2>
@@ -486,7 +491,8 @@
             <code>error_kind</code> and is excluded from scoring entirely, while a substantial-but-cut-off answer is
             flagged incomplete and scored as a floor — because a nearly-complete answer still carries real signal, and
             throwing it away discards measurement you legitimately have. What matters is that neither is ever silently
-            indistinguishable from a model that genuinely got it wrong.</li>
+            indistinguishable from a model that genuinely got it wrong.
+        </li>
         <li><strong>Generalise that to every terminal state that isn't "the model finished."</strong> Truncation is the
             one everybody hits, but it isn't the only one. Two of my challenges tripped a platform content filter and
             were recorded as <em>wrong answers to questions the model was never permitted to answer</em>. The stop
@@ -513,7 +519,8 @@
 
     <ul>
         <li><strong>A truncated honeypot scores zero</strong> — which in a hallucination test looks like a
-            <em>pass</em>. Your contamination detector now reports "clean" precisely because it failed.</li>
+            <em>pass</em>. Your contamination detector now reports "clean" precisely because it failed.
+        </li>
         <li><strong>A truncated frontier model can score below your deliberately-weak control model</strong> — which
             fails your grading-sanity check, and reads as "the benchmark is broken" rather than "the harness truncated."
         </li>
@@ -576,7 +583,8 @@
     <p>A related honesty problem: the API response echoes back the identifier you sent, so when you call an alias,
         <strong>nothing downstream can record which underlying version actually served the request.</strong> Any score
         built on an alias is attributable to a <em>name</em>, not a <em>version</em>. State that limitation in the
-        report rather than implying a provenance the platform can't give you.</p>
+        report rather than implying a provenance the platform can't give you.
+    </p>
 
     <h2>Failure #3: The Compensating Control Had Never Run</h2>
 
@@ -606,7 +614,8 @@
         <li><strong>Replace per-call-site opt-ins with a single construction path.</strong> A keyword argument
             defaulting to the unsafe value is a defect generator — every new call site is a fresh chance to forget. A
             <code>from_config(cfg)</code> classmethod becomes the only production path, and a grep asserts the raw
-            constructor has zero production callers.</li>
+            constructor has zero production callers.
+        </li>
         <li><strong>At least one test drives the entry point</strong> — the CLI, the job's <code>main()</code>, the
             request handler — with the deployed config values, not a fixture.</li>
         <li><strong>Prove the regression test catches the bug.</strong> Revert the fix, watch the test fail with the
@@ -757,7 +766,8 @@
         <strong>I do not yet have a saved score for any model.</strong> Two full sweeps ran every challenge to
         completion and then lost one hundred percent of their results at the final write, on a permissions fault that
         only existed on the real output path. Every figure I've produced so far is fixture replay: it proves the harness
-        works and says nothing whatsoever about any model.</p>
+        works and says nothing whatsoever about any model.
+    </p>
 
     <p>And "four failures" was me being kind to myself. Counting honestly across five versions of the harness it's
         closer to fourteen — four in the chain above, four more in the sweep that lost its results, and six found in

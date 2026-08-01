@@ -10,6 +10,9 @@
     <meta property="og:description"
         content="Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data — including a cross-tenant vulnerability I shipped, found and closed.">
     <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/6-securing-agentic-ai.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Your Agent Is a Confused Deputy">
@@ -351,7 +354,8 @@ def analyze_uploaded_file(user_email: str, filename: str) -&gt; dict:
             parameter typed by an anonymous user. We all learned decades ago not to write
             <code>GET /invoice?user_id=42</code> and trust <code>user_id</code>. Tool calling reintroduced the same bug
             in a shape that <em>looks</em> like an internal function call — because in your code, it is one. The
-            function boundary feels trusted. It isn't. The model sits between the attacker and your function.</p>
+            function boundary feels trusted. It isn't. The model sits between the attacker and your function.
+        </p>
     </div>
 
     <h3>The fix: identity comes from the edge, never the model</h3>
@@ -391,12 +395,14 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
         <em>model's</em> value is used for the access decision. That's the original vulnerability, restored, silently —
         and it will be unset one day, on a new entry point, a background task, a retry worker. I had written a fail-open
         and reassured myself with a comment. If the parameter isn't in the signature, that code path cannot be written.
-        The model does not need to supply identity to select a tool correctly; that concern was unfounded.</p>
+        The model does not need to supply identity to select a tool correctly; that concern was unfounded.
+    </p>
 
     <p><strong>Fail closed.</strong> No identity in context is not "fall back to something" — it's an error, and it
         should be loud. If you must keep the parameter for backward compatibility, ignore its value unconditionally
         <em>and log when it disagrees with the context value</em>. That disagreement is one of the highest-signal
-        prompt-injection canaries available to you: something just tried to tell your tool it was somebody else.</p>
+        prompt-injection canaries available to you: something just tried to tell your tool it was somebody else.
+    </p>
 
     <div class="warn-box">
         <p><strong>The part that nearly got me twice.</strong> Request-scoped context does <strong>not</strong> cross a
@@ -457,7 +463,8 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
     <p>This sounds obvious and is violated by nearly every first-generation enterprise agent, including mine. The
         default architecture is: one service account, one platform role, every tool bound for every user. That design is
         <em>fine</em> while all your data is public reference material. The moment one proprietary source lands, you
-        have built a privilege-escalation service with a friendly chat interface.</p>
+        have built a privilege-escalation service with a friendly chat interface.
+    </p>
 
     <p>And it will be discovered not by an attacker but by an auditor asking a devastatingly simple question: <em>"Can a
             user who lacks access to that database get its contents out of this chatbot?"</em> You need to be able to
@@ -506,12 +513,14 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
     <p>A fifth one worth naming: I had a perfectly good token validator sitting in the codebase, correctly implemented,
         <strong>unused on the data path</strong>. Written for an admin route, never wired to the endpoint that mattered.
         Existing-but-unwired security code is worse than absent security code, because a reviewer greps, finds it, and
-        assumes coverage.</p>
+        assumes coverage.
+    </p>
 
     <h2>Control #1: Classify the Data Before You Connect It</h2>
 
     <p>Every governance conversation went in circles until we stopped discussing tools and started classifying
-        <em>data</em>. Four tiers proved to be the right granularity:</p>
+        <em>data</em>. Four tiers proved to be the right granularity:
+    </p>
 
     <table>
         <thead>
@@ -589,7 +598,8 @@ agent = Agent(
         can write and run code, and the sandbox holds a credential broader than the filtered tool set, it can reach
         unbound data directly by writing its own client &mdash; tool filtering is not a boundary for a process that can
         construct arbitrary callers. <strong>Third, the tools that</strong> are <strong>bound remain fully
-            injection-reachable</strong>, with all of the user's real authority behind them.</p>
+            injection-reachable</strong>, with all of the user's real authority behind them.
+    </p>
 
     <p>It also has a pleasant side effect — fewer irrelevant tools means better tool selection and a cheaper request.
         Security and quality point the same direction here, which is rare enough to enjoy.</p>
@@ -797,7 +807,8 @@ agent = Agent(
 
     <p>An interim service-account approach is defensible for <em>read-only, non-person-level</em> internal data
         <strong>if</strong> it carries a written sunset date. Never for regulated data. The failure mode isn't the
-        interim design — it's that the interim design has no expiry and becomes permanent.</p>
+        interim design — it's that the interim design has no expiry and becomes permanent.
+    </p>
 
     <h2>Control #5: Audit, and Guardrails at the Right Layer</h2>
 
@@ -813,7 +824,8 @@ agent = Agent(
         application: object-lock or write-once storage, so that even your own service cannot rewrite history.
         <strong>Tamper-evident</strong> requires cryptographic chaining or signing, and note that it lets you
         <em>detect</em> alteration rather than prevent it. "We have append-only logging" gets offered to auditors as
-        though it meant immutable. It doesn't, and for tier-3 data the distinction is the whole control.</p>
+        though it meant immutable. It doesn't, and for tier-3 data the distinction is the whole control.
+    </p>
 
     <p><strong>Understand which guardrails apply where.</strong> Managed platforms increasingly offer policy engines
         that intercept tool traffic and apply content filtering, prompt-injection detection, and PII checks. Useful —

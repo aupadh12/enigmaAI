@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,15 +8,27 @@
 
     <meta property="og:type" content="article">
     <meta property="og:title" content="Multi-Agent AI Collaboration">
-    <meta property="og:description" content="Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.">
-    <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/3-multi-agent-collaboration.png">
+    <meta property="og:description"
+        content="Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.">
+    <meta property="og:image"
+        content="https://aupadh12.github.io/enigmaAI/blogposts/covers/3-multi-agent-collaboration.png">
+    <meta property="og:image:width" content="1280">
+    <meta property="og:image:height" content="720">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/3-multi-agent-collaboration.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Multi-Agent AI Collaboration">
-    <meta name="twitter:description" content="Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.">
-    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/3-multi-agent-collaboration.png">
+    <meta name="twitter:description"
+        content="Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.">
+    <meta name="twitter:image"
+        content="https://aupadh12.github.io/enigmaAI/blogposts/covers/3-multi-agent-collaboration.png">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
             line-height: 1.8;
@@ -25,6 +38,7 @@
             margin: 0 auto;
             padding: 40px 24px;
         }
+
         .header-badge {
             display: inline-block;
             background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
@@ -37,6 +51,7 @@
             text-transform: uppercase;
             margin-bottom: 16px;
         }
+
         h1 {
             font-size: 32px;
             font-weight: 700;
@@ -44,12 +59,14 @@
             margin-bottom: 12px;
             color: #1a1a2e;
         }
+
         .subtitle {
             font-size: 18px;
             color: #555;
             margin-bottom: 32px;
             font-style: italic;
         }
+
         .author-block {
             display: flex;
             align-items: center;
@@ -58,6 +75,7 @@
             padding-bottom: 24px;
             border-bottom: 1px solid #e8e8e8;
         }
+
         .author-avatar {
             width: 48px;
             height: 48px;
@@ -70,9 +88,20 @@
             font-weight: 700;
             font-size: 18px;
         }
-        .author-info { font-size: 14px; }
-        .author-name { font-weight: 600; color: #1a1a2e; }
-        .author-title { color: #666; }
+
+        .author-info {
+            font-size: 14px;
+        }
+
+        .author-name {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .author-title {
+            color: #666;
+        }
+
         h2 {
             font-size: 24px;
             font-weight: 700;
@@ -81,13 +110,19 @@
             border-left: 4px solid #f59e0b;
             padding-left: 16px;
         }
+
         h3 {
             font-size: 18px;
             font-weight: 600;
             margin: 28px 0 12px;
             color: #333;
         }
-        p { margin-bottom: 16px; font-size: 16px; }
+
+        p {
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
         .highlight-box {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             border-left: 4px solid #f59e0b;
@@ -95,15 +130,20 @@
             border-radius: 0 8px 8px 0;
             margin: 24px 0;
         }
-        .highlight-box p { margin-bottom: 0; }
+
+        .highlight-box p {
+            margin-bottom: 0;
+        }
+
         .diagram-container {
             background: white;
             border: 1px solid #e2e8f0;
             border-radius: 12px;
             padding: 24px;
             margin: 32px 0;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
+
         .diagram-caption {
             text-align: center;
             font-size: 13px;
@@ -111,6 +151,7 @@
             margin-top: 12px;
             font-style: italic;
         }
+
         code {
             background: #f1f5f9;
             padding: 2px 8px;
@@ -118,6 +159,7 @@
             font-size: 14px;
             font-family: 'SF Mono', 'Fira Code', monospace;
         }
+
         pre {
             background: #1e293b;
             color: #e2e8f0;
@@ -128,13 +170,20 @@
             font-size: 13px;
             line-height: 1.6;
         }
-        pre code { background: none; padding: 0; color: inherit; }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
         .role-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 16px;
             margin: 24px 0;
         }
+
         .role-card {
             background: white;
             border: 1px solid #e2e8f0;
@@ -143,6 +192,7 @@
             position: relative;
             overflow: hidden;
         }
+
         .role-card::before {
             content: '';
             position: absolute;
@@ -151,24 +201,40 @@
             right: 0;
             height: 4px;
         }
-        .role-card.scout::before { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
-        .role-card.analyst::before { background: linear-gradient(90deg, #8b5cf6, #a855f7); }
-        .role-card.synthesizer::before { background: linear-gradient(90deg, #f59e0b, #eab308); }
-        .role-card.critic::before { background: linear-gradient(90deg, #ef4444, #f97316); }
+
+        .role-card.scout::before {
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+        }
+
+        .role-card.analyst::before {
+            background: linear-gradient(90deg, #8b5cf6, #a855f7);
+        }
+
+        .role-card.synthesizer::before {
+            background: linear-gradient(90deg, #f59e0b, #eab308);
+        }
+
+        .role-card.critic::before {
+            background: linear-gradient(90deg, #ef4444, #f97316);
+        }
+
         .role-icon {
             font-size: 24px;
             margin-bottom: 8px;
         }
+
         .role-name {
             font-weight: 700;
             font-size: 16px;
             margin-bottom: 6px;
         }
+
         .role-desc {
             font-size: 13px;
             color: #555;
             line-height: 1.5;
         }
+
         .role-model {
             display: inline-block;
             background: #f1f5f9;
@@ -178,14 +244,24 @@
             color: #64748b;
             margin-top: 8px;
         }
-        ul, ol { margin: 12px 0 20px 24px; }
-        li { margin-bottom: 8px; font-size: 16px; }
+
+        ul,
+        ol {
+            margin: 12px 0 20px 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
         .comparison-table {
             width: 100%;
             border-collapse: collapse;
             margin: 24px 0;
             font-size: 14px;
         }
+
         .comparison-table th {
             background: #f8fafc;
             padding: 12px 16px;
@@ -193,11 +269,16 @@
             font-weight: 600;
             border-bottom: 2px solid #e2e8f0;
         }
+
         .comparison-table td {
             padding: 12px 16px;
             border-bottom: 1px solid #f1f5f9;
         }
-        .comparison-table tr:hover { background: #fafbfc; }
+
+        .comparison-table tr:hover {
+            background: #fafbfc;
+        }
+
         .takeaway {
             background: #fef3c7;
             border: 1px solid #fde68a;
@@ -205,7 +286,12 @@
             padding: 20px 24px;
             margin: 32px 0;
         }
-        .takeaway h3 { color: #92400e; margin-top: 0; }
+
+        .takeaway h3 {
+            color: #92400e;
+            margin-top: 0;
+        }
+
         .langfuse-box {
             background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
             border: 1px solid #93c5fd;
@@ -213,7 +299,12 @@
             padding: 20px 24px;
             margin: 24px 0;
         }
-        .langfuse-box h3 { color: #1e40af; margin-top: 0; }
+
+        .langfuse-box h3 {
+            color: #1e40af;
+            margin-top: 0;
+        }
+
         .tag-list {
             display: flex;
             flex-wrap: wrap;
@@ -222,6 +313,7 @@
             padding-top: 24px;
             border-top: 1px solid #e8e8e8;
         }
+
         .tag {
             background: #f1f5f9;
             color: #475569;
@@ -229,13 +321,20 @@
             border-radius: 16px;
             font-size: 13px;
         }
-        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+
+        .separator {
+            height: 1px;
+            background: #e8e8e8;
+            margin: 40px 0;
+        }
+
         .metric-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             margin: 24px 0;
         }
+
         .metric-card {
             background: white;
             border: 1px solid #e2e8f0;
@@ -243,11 +342,13 @@
             padding: 16px;
             text-align: center;
         }
+
         .metric-value {
             font-size: 24px;
             font-weight: 700;
             color: #f59e0b;
         }
+
         .metric-label {
             font-size: 11px;
             color: #666;
@@ -255,254 +356,283 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
         .cover-image {
             width: 100%;
             height: auto;
             display: block;
             border-radius: 12px;
             margin-bottom: 32px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        </style>
+    </style>
 </head>
+
 <body>
 
-<img class="cover-image" src="covers/3-multi-agent-collaboration.png" alt="Blog cover">
+    <img class="cover-image" src="covers/3-multi-agent-collaboration.png" alt="Blog cover">
 
-<span class="header-badge">Multi-Agent AI</span>
+    <span class="header-badge">Multi-Agent AI</span>
 
-<h1>Multi-Agent AI Collaboration: Orchestrating Specialized AI Roles in Production</h1>
-<p class="subtitle">Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.</p>
+    <h1>Multi-Agent AI Collaboration: Orchestrating Specialized AI Roles in Production</h1>
+    <p class="subtitle">Why one agent isn't enough — and how to build a team of AI specialists that research, analyze,
+        synthesize, and critique each other's work. With full observability via Langfuse.</p>
 
-<div class="author-block">
-    <div class="author-avatar">AP</div>
-    <div class="author-info">
-        <div class="author-name">Ashutosh Upadhyay</div>
-        <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS & Kubernetes</div>
+    <div class="author-block">
+        <div class="author-avatar">AP</div>
+        <div class="author-info">
+            <div class="author-name">Ashutosh Upadhyay</div>
+            <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS & Kubernetes</div>
+        </div>
     </div>
-</div>
 
-<h2>Why Single-Agent Systems Hit a Ceiling</h2>
+    <h2>Why Single-Agent Systems Hit a Ceiling</h2>
 
-<p>I built a 33-tool agentic system that could query databases, build knowledge graphs, and generate research reports autonomously. It worked well — until users started asking complex research questions that required balancing multiple perspectives:</p>
+    <p>I built a 33-tool agentic system that could query databases, build knowledge graphs, and generate research
+        reports autonomously. It worked well — until users started asking complex research questions that required
+        balancing multiple perspectives:</p>
 
-<ul>
-    <li>"Compare drug sensitivity across 3 cancer subtypes and recommend therapeutic targets"</li>
-    <li>"What contradicts the current hypothesis about X pathway?"</li>
-    <li>"Synthesize findings from 5 datasets and identify gaps in the evidence"</li>
-</ul>
+    <ul>
+        <li>"Compare drug sensitivity across 3 cancer subtypes and recommend therapeutic targets"</li>
+        <li>"What contradicts the current hypothesis about X pathway?"</li>
+        <li>"Synthesize findings from 5 datasets and identify gaps in the evidence"</li>
+    </ul>
 
-<p>A single agent with 33 tools tries to do everything at once. It becomes a generalist — decent at many things, excellent at nothing. Worse, it can't <em>critique its own work</em>.</p>
+    <p>A single agent with 33 tools tries to do everything at once. It becomes a generalist — decent at many things,
+        excellent at nothing. Worse, it can't <em>critique its own work</em>.</p>
 
-<div class="highlight-box">
-    <p><strong>The fundamental insight:</strong> Multi-agent systems aren't about splitting work — they're about <em>introducing cognitive diversity</em>. Different agents with different prompts, different model tiers, and different objectives produce better outcomes than one agent thinking harder.</p>
-</div>
-
-<h2>The Multi-Agent Architecture</h2>
-
-<p>I evolved the system into a 4-role collaboration pattern, each role with a distinct responsibility and personality:</p>
-
-<div class="role-grid">
-    <div class="role-card scout">
-        <div class="role-name">Data Scout</div>
-        <div class="role-desc">Searches, queries, and retrieves raw information. Optimized for breadth — it explores every angle and returns comprehensive raw data without filtering.</div>
-        <div class="role-model">Model: Sonnet (fast, cost-effective)</div>
+    <div class="highlight-box">
+        <p><strong>The fundamental insight:</strong> Multi-agent systems aren't about splitting work — they're about
+            <em>introducing cognitive diversity</em>. Different agents with different prompts, different model tiers,
+            and different objectives produce better outcomes than one agent thinking harder.</p>
     </div>
-    <div class="role-card analyst">
-        <div class="role-name">Analyst</div>
-        <div class="role-desc">Performs statistical analysis, identifies patterns, and generates visualizations. Deep but narrow — focused purely on data interpretation.</div>
-        <div class="role-model">Model: Sonnet (analytical precision)</div>
+
+    <h2>The Multi-Agent Architecture</h2>
+
+    <p>I evolved the system into a 4-role collaboration pattern, each role with a distinct responsibility and
+        personality:</p>
+
+    <div class="role-grid">
+        <div class="role-card scout">
+            <div class="role-name">Data Scout</div>
+            <div class="role-desc">Searches, queries, and retrieves raw information. Optimized for breadth — it explores
+                every angle and returns comprehensive raw data without filtering.</div>
+            <div class="role-model">Model: Sonnet (fast, cost-effective)</div>
+        </div>
+        <div class="role-card analyst">
+            <div class="role-name">Analyst</div>
+            <div class="role-desc">Performs statistical analysis, identifies patterns, and generates visualizations.
+                Deep but narrow — focused purely on data interpretation.</div>
+            <div class="role-model">Model: Sonnet (analytical precision)</div>
+        </div>
+        <div class="role-card synthesizer">
+            <div class="role-name">Synthesizer</div>
+            <div class="role-desc">Combines findings from Scout and Analyst into a coherent narrative. Resolves
+                contradictions, identifies consensus, and produces the final report.</div>
+            <div class="role-model">Model: Opus (highest reasoning)</div>
+        </div>
+        <div class="role-card critic">
+            <div class="role-name">Critic</div>
+            <div class="role-desc">Reviews the Synthesizer's output for logical flaws, unsupported claims, missing
+                evidence, and alternative interpretations. The adversarial check.</div>
+            <div class="role-model">Model: Opus (adversarial reasoning)</div>
+        </div>
     </div>
-    <div class="role-card synthesizer">
-        <div class="role-name">Synthesizer</div>
-        <div class="role-desc">Combines findings from Scout and Analyst into a coherent narrative. Resolves contradictions, identifies consensus, and produces the final report.</div>
-        <div class="role-model">Model: Opus (highest reasoning)</div>
+
+    <div class="diagram-container">
+        <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+            <defs>
+                <linearGradient id="scoutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#3b82f6" />
+                    <stop offset="100%" style="stop-color:#06b6d4" />
+                </linearGradient>
+                <linearGradient id="analystGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#8b5cf6" />
+                    <stop offset="100%" style="stop-color:#a855f7" />
+                </linearGradient>
+                <linearGradient id="synthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#f59e0b" />
+                    <stop offset="100%" style="stop-color:#eab308" />
+                </linearGradient>
+                <linearGradient id="criticGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#ef4444" />
+                    <stop offset="100%" style="stop-color:#f97316" />
+                </linearGradient>
+                <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                </marker>
+                <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+                </marker>
+                <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+                </marker>
+            </defs>
+
+            <!-- Title -->
+            <text x="360" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a2e">Multi-Agent
+                Orchestration Flow</text>
+
+            <!-- User Query -->
+            <rect x="270" y="45" width="180" height="45" rx="22" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2" />
+            <text x="360" y="72" text-anchor="middle" font-size="12" font-weight="600" fill="#475569">User Research
+                Query</text>
+
+            <!-- Arrow down to orchestrator -->
+            <path d="M360 90 L360 120" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+            <!-- Orchestrator -->
+            <rect x="250" y="120" width="220" height="40" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5" />
+            <text x="360" y="145" text-anchor="middle" font-size="12" font-weight="600" fill="white">Orchestrator
+                (FastAPI Router)</text>
+
+            <!-- Arrows to scouts (3 tasks) -->
+            <path d="M300 160 L180 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" />
+            <path d="M360 160 L360 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" />
+            <path d="M420 160 L540 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" />
+
+            <!-- Data Scout pool (3 parallel tasks across 2 replicas) -->
+            <rect x="80" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
+            <rect x="80" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)" />
+            <rect x="80" y="211" width="160" height="8" fill="url(#scoutGrad)" />
+            <text x="160" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout: Primary
+                Data</text>
+            <text x="160" y="240" text-anchor="middle" font-size="10" fill="#475569">Query data lake</text>
+            <text x="160" y="255" text-anchor="middle" font-size="10" fill="#475569">Search KG / APIs</text>
+
+            <!-- Data Scout task 2 -->
+            <rect x="280" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
+            <rect x="280" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)" />
+            <rect x="280" y="211" width="160" height="8" fill="url(#scoutGrad)" />
+            <text x="360" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout:
+                Ontology</text>
+            <text x="360" y="240" text-anchor="middle" font-size="10" fill="#475569">Fetch hierarchies</text>
+            <text x="360" y="255" text-anchor="middle" font-size="10" fill="#475569">Normalize entities</text>
+
+            <!-- Data Scout task 3 -->
+            <rect x="480" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
+            <rect x="480" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)" />
+            <rect x="480" y="211" width="160" height="8" fill="url(#scoutGrad)" />
+            <text x="560" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout:
+                Contradictions</text>
+            <text x="560" y="240" text-anchor="middle" font-size="10" fill="#475569">Cross-reference DBs</text>
+            <text x="560" y="255" text-anchor="middle" font-size="10" fill="#475569">Find counter-evidence</text>
+
+            <!-- Parallel indicator -->
+            <text x="360" y="280" text-anchor="middle" font-size="10" font-weight="600" fill="#3b82f6">3 PARALLEL SCOUT
+                TASKS</text>
+
+            <!-- Arrows down to analyst -->
+            <path d="M200 265 L310 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+            <path d="M360 265 L360 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+            <path d="M520 265 L410 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+
+            <!-- Analyst -->
+            <rect x="260" y="295" width="200" height="60" rx="8" fill="white" stroke="#8b5cf6" stroke-width="2" />
+            <rect x="260" y="295" width="200" height="22" rx="8" fill="url(#analystGrad)" />
+            <rect x="260" y="310" width="200" height="7" fill="url(#analystGrad)" />
+            <text x="360" y="312" text-anchor="middle" font-size="11" font-weight="600" fill="white">Analyst</text>
+            <text x="360" y="336" text-anchor="middle" font-size="10" fill="#475569">Statistical patterns +
+                Visualizations</text>
+            <text x="360" y="350" text-anchor="middle" font-size="10" fill="#475569">Evidence scoring</text>
+
+            <!-- Arrow down to synthesizer -->
+            <path d="M360 355 L360 380" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+            <!-- Synthesizer -->
+            <rect x="240" y="380" width="240" height="55" rx="8" fill="white" stroke="#f59e0b" stroke-width="2" />
+            <rect x="240" y="380" width="240" height="22" rx="8" fill="url(#synthGrad)" />
+            <rect x="240" y="395" width="240" height="7" fill="url(#synthGrad)" />
+            <text x="360" y="397" text-anchor="middle" font-size="11" font-weight="600" fill="white">Synthesizer
+                (Opus)</text>
+            <text x="360" y="418" text-anchor="middle" font-size="10" fill="#475569">Merge findings → Coherent
+                narrative</text>
+            <text x="360" y="432" text-anchor="middle" font-size="10" fill="#475569">Resolve contradictions</text>
+
+            <!-- Arrow to Critic -->
+            <path d="M360 435 L360 455" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed)" />
+
+            <!-- Critic -->
+            <rect x="260" y="455" width="200" height="40" rx="8" fill="white" stroke="#ef4444" stroke-width="2" />
+            <rect x="260" y="455" width="200" height="20" rx="8" fill="url(#criticGrad)" />
+            <rect x="260" y="468" width="200" height="7" fill="url(#criticGrad)" />
+            <text x="360" y="470" text-anchor="middle" font-size="11" font-weight="600" fill="white">Critic
+                (Opus)</text>
+            <text x="360" y="488" text-anchor="middle" font-size="10" fill="#475569">Adversarial review + gaps</text>
+
+            <!-- Feedback loop -->
+            <path d="M260 475 C180 475, 180 410, 240 410" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5"
+                fill="none" marker-end="url(#arrowRed)" />
+            <text x="170" y="445" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="600">REVISION</text>
+            <text x="170" y="457" text-anchor="middle" font-size="9" fill="#ef4444">LOOP</text>
+
+            <!-- Langfuse sidebar -->
+            <rect x="680" y="120" width="100" height="380" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1"
+                stroke-dasharray="4" />
+            <text x="730" y="145" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">Langfuse</text>
+            <text x="730" y="165" text-anchor="middle" font-size="8" fill="#3b82f6">Traces</text>
+            <text x="730" y="200" text-anchor="middle" font-size="8" fill="#3b82f6">Latency</text>
+            <text x="730" y="230" text-anchor="middle" font-size="8" fill="#3b82f6">Token $</text>
+            <text x="730" y="260" text-anchor="middle" font-size="8" fill="#3b82f6">Quality</text>
+            <text x="730" y="290" text-anchor="middle" font-size="8" fill="#3b82f6">Per-role</text>
+            <text x="730" y="320" text-anchor="middle" font-size="8" fill="#3b82f6">Spans</text>
+
+            <!-- Dotted lines from agents to langfuse -->
+            <line x1="640" y1="240" x2="680" y2="200" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
+            <line x1="460" y1="325" x2="680" y2="260" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
+            <line x1="480" y1="410" x2="680" y2="320" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
+            <line x1="460" y1="475" x2="680" y2="380" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
+        </svg>
+        <div class="diagram-caption">Figure 1: Multi-agent orchestration with parallel data scouting, sequential
+            analysis, synthesis, and adversarial critique — all traced by Langfuse</div>
     </div>
-    <div class="role-card critic">
-        <div class="role-name">Critic</div>
-        <div class="role-desc">Reviews the Synthesizer's output for logical flaws, unsupported claims, missing evidence, and alternative interpretations. The adversarial check.</div>
-        <div class="role-model">Model: Opus (adversarial reasoning)</div>
-    </div>
-</div>
 
-<div class="diagram-container">
-    <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-        <defs>
-            <linearGradient id="scoutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#3b82f6"/>
-                <stop offset="100%" style="stop-color:#06b6d4"/>
-            </linearGradient>
-            <linearGradient id="analystGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#8b5cf6"/>
-                <stop offset="100%" style="stop-color:#a855f7"/>
-            </linearGradient>
-            <linearGradient id="synthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#f59e0b"/>
-                <stop offset="100%" style="stop-color:#eab308"/>
-            </linearGradient>
-            <linearGradient id="criticGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#ef4444"/>
-                <stop offset="100%" style="stop-color:#f97316"/>
-            </linearGradient>
-            <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
-            </marker>
-            <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
-            </marker>
-            <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/>
-            </marker>
-        </defs>
+    <h2>Why Different Models for Different Roles</h2>
 
-        <!-- Title -->
-        <text x="360" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a2e">Multi-Agent Orchestration Flow</text>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>Model Tier</th>
+                <th>Why</th>
+                <th>Cost Impact</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Data Scout</strong></td>
+                <td>Sonnet (fast)</td>
+                <td>Tool selection is mechanical — doesn't need deep reasoning</td>
+                <td>Low (high volume, cheap model)</td>
+            </tr>
+            <tr>
+                <td><strong>Analyst</strong></td>
+                <td>Sonnet</td>
+                <td>Pattern recognition + code generation for viz</td>
+                <td>Medium</td>
+            </tr>
+            <tr>
+                <td><strong>Synthesizer</strong></td>
+                <td>Opus (strongest)</td>
+                <td>Resolving contradictions requires highest reasoning</td>
+                <td>High (but only one call)</td>
+            </tr>
+            <tr>
+                <td><strong>Critic</strong></td>
+                <td>Opus</td>
+                <td>Adversarial reasoning must match synthesizer's capability</td>
+                <td>High (but catches costly errors)</td>
+            </tr>
+        </tbody>
+    </table>
 
-        <!-- User Query -->
-        <rect x="270" y="45" width="180" height="45" rx="22" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
-        <text x="360" y="72" text-anchor="middle" font-size="12" font-weight="600" fill="#475569">User Research Query</text>
+    <p>This tiered approach means ~70% of total tokens are processed by the cheaper Sonnet model (scout + analyst),
+        while the expensive Opus reasoning is reserved for the two steps that need it most. Langfuse makes this cost
+        breakdown visible per-role.</p>
 
-        <!-- Arrow down to orchestrator -->
-        <path d="M360 90 L360 120" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+    <h2>The Orchestration Pattern</h2>
 
-        <!-- Orchestrator -->
-        <rect x="250" y="120" width="220" height="40" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
-        <text x="360" y="145" text-anchor="middle" font-size="12" font-weight="600" fill="white">Orchestrator (FastAPI Router)</text>
-
-        <!-- Arrows to scouts (3 tasks) -->
-        <path d="M300 160 L180 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)"/>
-        <path d="M360 160 L360 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)"/>
-        <path d="M420 160 L540 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)"/>
-
-        <!-- Data Scout pool (3 parallel tasks across 2 replicas) -->
-        <rect x="80" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2"/>
-        <rect x="80" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)"/>
-        <rect x="80" y="211" width="160" height="8" fill="url(#scoutGrad)"/>
-        <text x="160" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout: Primary Data</text>
-        <text x="160" y="240" text-anchor="middle" font-size="10" fill="#475569">Query data lake</text>
-        <text x="160" y="255" text-anchor="middle" font-size="10" fill="#475569">Search KG / APIs</text>
-
-        <!-- Data Scout task 2 -->
-        <rect x="280" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2"/>
-        <rect x="280" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)"/>
-        <rect x="280" y="211" width="160" height="8" fill="url(#scoutGrad)"/>
-        <text x="360" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout: Ontology</text>
-        <text x="360" y="240" text-anchor="middle" font-size="10" fill="#475569">Fetch hierarchies</text>
-        <text x="360" y="255" text-anchor="middle" font-size="10" fill="#475569">Normalize entities</text>
-
-        <!-- Data Scout task 3 -->
-        <rect x="480" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2"/>
-        <rect x="480" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)"/>
-        <rect x="480" y="211" width="160" height="8" fill="url(#scoutGrad)"/>
-        <text x="560" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout: Contradictions</text>
-        <text x="560" y="240" text-anchor="middle" font-size="10" fill="#475569">Cross-reference DBs</text>
-        <text x="560" y="255" text-anchor="middle" font-size="10" fill="#475569">Find counter-evidence</text>
-
-        <!-- Parallel indicator -->
-        <text x="360" y="280" text-anchor="middle" font-size="10" font-weight="600" fill="#3b82f6">3 PARALLEL SCOUT TASKS</text>
-
-        <!-- Arrows down to analyst -->
-        <path d="M200 265 L310 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
-        <path d="M360 265 L360 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
-        <path d="M520 265 L410 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
-
-        <!-- Analyst -->
-        <rect x="260" y="295" width="200" height="60" rx="8" fill="white" stroke="#8b5cf6" stroke-width="2"/>
-        <rect x="260" y="295" width="200" height="22" rx="8" fill="url(#analystGrad)"/>
-        <rect x="260" y="310" width="200" height="7" fill="url(#analystGrad)"/>
-        <text x="360" y="312" text-anchor="middle" font-size="11" font-weight="600" fill="white">Analyst</text>
-        <text x="360" y="336" text-anchor="middle" font-size="10" fill="#475569">Statistical patterns + Visualizations</text>
-        <text x="360" y="350" text-anchor="middle" font-size="10" fill="#475569">Evidence scoring</text>
-
-        <!-- Arrow down to synthesizer -->
-        <path d="M360 355 L360 380" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
-
-        <!-- Synthesizer -->
-        <rect x="240" y="380" width="240" height="55" rx="8" fill="white" stroke="#f59e0b" stroke-width="2"/>
-        <rect x="240" y="380" width="240" height="22" rx="8" fill="url(#synthGrad)"/>
-        <rect x="240" y="395" width="240" height="7" fill="url(#synthGrad)"/>
-        <text x="360" y="397" text-anchor="middle" font-size="11" font-weight="600" fill="white">Synthesizer (Opus)</text>
-        <text x="360" y="418" text-anchor="middle" font-size="10" fill="#475569">Merge findings → Coherent narrative</text>
-        <text x="360" y="432" text-anchor="middle" font-size="10" fill="#475569">Resolve contradictions</text>
-
-        <!-- Arrow to Critic -->
-        <path d="M360 435 L360 455" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed)"/>
-
-        <!-- Critic -->
-        <rect x="260" y="455" width="200" height="40" rx="8" fill="white" stroke="#ef4444" stroke-width="2"/>
-        <rect x="260" y="455" width="200" height="20" rx="8" fill="url(#criticGrad)"/>
-        <rect x="260" y="468" width="200" height="7" fill="url(#criticGrad)"/>
-        <text x="360" y="470" text-anchor="middle" font-size="11" font-weight="600" fill="white">Critic (Opus)</text>
-        <text x="360" y="488" text-anchor="middle" font-size="10" fill="#475569">Adversarial review + gaps</text>
-
-        <!-- Feedback loop -->
-        <path d="M260 475 C180 475, 180 410, 240 410" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5" fill="none" marker-end="url(#arrowRed)"/>
-        <text x="170" y="445" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="600">REVISION</text>
-        <text x="170" y="457" text-anchor="middle" font-size="9" fill="#ef4444">LOOP</text>
-
-        <!-- Langfuse sidebar -->
-        <rect x="680" y="120" width="100" height="380" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4"/>
-        <text x="730" y="145" text-anchor="middle" font-size="10" font-weight="600" fill="#1e40af">Langfuse</text>
-        <text x="730" y="165" text-anchor="middle" font-size="8" fill="#3b82f6">Traces</text>
-        <text x="730" y="200" text-anchor="middle" font-size="8" fill="#3b82f6">Latency</text>
-        <text x="730" y="230" text-anchor="middle" font-size="8" fill="#3b82f6">Token $</text>
-        <text x="730" y="260" text-anchor="middle" font-size="8" fill="#3b82f6">Quality</text>
-        <text x="730" y="290" text-anchor="middle" font-size="8" fill="#3b82f6">Per-role</text>
-        <text x="730" y="320" text-anchor="middle" font-size="8" fill="#3b82f6">Spans</text>
-
-        <!-- Dotted lines from agents to langfuse -->
-        <line x1="640" y1="240" x2="680" y2="200" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3"/>
-        <line x1="460" y1="325" x2="680" y2="260" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3"/>
-        <line x1="480" y1="410" x2="680" y2="320" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3"/>
-        <line x1="460" y1="475" x2="680" y2="380" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3"/>
-    </svg>
-    <div class="diagram-caption">Figure 1: Multi-agent orchestration with parallel data scouting, sequential analysis, synthesis, and adversarial critique — all traced by Langfuse</div>
-</div>
-
-<h2>Why Different Models for Different Roles</h2>
-
-<table class="comparison-table">
-    <thead>
-        <tr>
-            <th>Role</th>
-            <th>Model Tier</th>
-            <th>Why</th>
-            <th>Cost Impact</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td><strong>Data Scout</strong></td>
-            <td>Sonnet (fast)</td>
-            <td>Tool selection is mechanical — doesn't need deep reasoning</td>
-            <td>Low (high volume, cheap model)</td>
-        </tr>
-        <tr>
-            <td><strong>Analyst</strong></td>
-            <td>Sonnet</td>
-            <td>Pattern recognition + code generation for viz</td>
-            <td>Medium</td>
-        </tr>
-        <tr>
-            <td><strong>Synthesizer</strong></td>
-            <td>Opus (strongest)</td>
-            <td>Resolving contradictions requires highest reasoning</td>
-            <td>High (but only one call)</td>
-        </tr>
-        <tr>
-            <td><strong>Critic</strong></td>
-            <td>Opus</td>
-            <td>Adversarial reasoning must match synthesizer's capability</td>
-            <td>High (but catches costly errors)</td>
-        </tr>
-    </tbody>
-</table>
-
-<p>This tiered approach means ~70% of total tokens are processed by the cheaper Sonnet model (scout + analyst), while the expensive Opus reasoning is reserved for the two steps that need it most. Langfuse makes this cost breakdown visible per-role.</p>
-
-<h2>The Orchestration Pattern</h2>
-
-<pre><code># Simplified multi-agent orchestration
+    <pre><code># Simplified multi-agent orchestration
 from langfuse import observe
 
 class ResearchOrchestrator:
@@ -549,78 +679,90 @@ class ResearchOrchestrator:
         return report
 </code></pre>
 
-<h2>Observability with Langfuse: You Can't Optimize What You Can't Measure</h2>
+    <h2>Observability with Langfuse: You Can't Optimize What You Can't Measure</h2>
 
-<div class="langfuse-box">
-    <h3>Why Langfuse is Non-Negotiable for Multi-Agent Systems</h3>
-    <p>With 4 agent roles making 6-15 LLM calls per user query, you <em>need</em> tracing. Without it, debugging "why did the agent give a wrong answer?" is impossible. Langfuse gives you:</p>
-    <ul style="margin-top:12px;">
-        <li><strong>Per-role traces:</strong> See exactly what each agent decided and why</li>
-        <li><strong>Token cost breakdown:</strong> Know which role is expensive and whether it's worth it</li>
-        <li><strong>Latency waterfall:</strong> Identify bottlenecks (is the critic adding value or just adding time?)</li>
-        <li><strong>Quality scoring:</strong> Track user satisfaction per query type over time</li>
-    </ul>
-</div>
+    <div class="langfuse-box">
+        <h3>Why Langfuse is Non-Negotiable for Multi-Agent Systems</h3>
+        <p>With 4 agent roles making 6-15 LLM calls per user query, you <em>need</em> tracing. Without it, debugging
+            "why did the agent give a wrong answer?" is impossible. Langfuse gives you:</p>
+        <ul style="margin-top:12px;">
+            <li><strong>Per-role traces:</strong> See exactly what each agent decided and why</li>
+            <li><strong>Token cost breakdown:</strong> Know which role is expensive and whether it's worth it</li>
+            <li><strong>Latency waterfall:</strong> Identify bottlenecks (is the critic adding value or just adding
+                time?)</li>
+            <li><strong>Quality scoring:</strong> Track user satisfaction per query type over time</li>
+        </ul>
+    </div>
 
-<div class="diagram-container">
-    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-        <!-- Title -->
-        <text x="360" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a2e">Langfuse Trace Waterfall — Single Research Query</text>
+    <div class="diagram-container">
+        <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+            <!-- Title -->
+            <text x="360" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1a2e">Langfuse Trace
+                Waterfall — Single Research Query</text>
 
-        <!-- Background -->
-        <rect x="40" y="40" width="640" height="260" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+            <!-- Background -->
+            <rect x="40" y="40" width="640" height="260" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
 
-        <!-- Time axis -->
-        <line x1="180" y1="60" x2="660" y2="60" stroke="#cbd5e1" stroke-width="1"/>
-        <text x="180" y="55" font-size="9" fill="#94a3b8">0s</text>
-        <text x="300" y="55" font-size="9" fill="#94a3b8">2s</text>
-        <text x="420" y="55" font-size="9" fill="#94a3b8">4s</text>
-        <text x="540" y="55" font-size="9" fill="#94a3b8">6s</text>
-        <text x="650" y="55" font-size="9" fill="#94a3b8">8s</text>
+            <!-- Time axis -->
+            <line x1="180" y1="60" x2="660" y2="60" stroke="#cbd5e1" stroke-width="1" />
+            <text x="180" y="55" font-size="9" fill="#94a3b8">0s</text>
+            <text x="300" y="55" font-size="9" fill="#94a3b8">2s</text>
+            <text x="420" y="55" font-size="9" fill="#94a3b8">4s</text>
+            <text x="540" y="55" font-size="9" fill="#94a3b8">6s</text>
+            <text x="650" y="55" font-size="9" fill="#94a3b8">8s</text>
 
-        <!-- Labels -->
-        <text x="50" y="95" font-size="11" font-weight="600" fill="#1e293b">Scout 1</text>
-        <text x="50" y="125" font-size="11" font-weight="600" fill="#1e293b">Scout 2</text>
-        <text x="50" y="155" font-size="11" font-weight="600" fill="#1e293b">Scout 3</text>
-        <text x="50" y="195" font-size="11" font-weight="600" fill="#1e293b">Analyst</text>
-        <text x="50" y="235" font-size="11" font-weight="600" fill="#1e293b">Synthesizer</text>
-        <text x="50" y="275" font-size="11" font-weight="600" fill="#1e293b">Critic</text>
+            <!-- Labels -->
+            <text x="50" y="95" font-size="11" font-weight="600" fill="#1e293b">Scout 1</text>
+            <text x="50" y="125" font-size="11" font-weight="600" fill="#1e293b">Scout 2</text>
+            <text x="50" y="155" font-size="11" font-weight="600" fill="#1e293b">Scout 3</text>
+            <text x="50" y="195" font-size="11" font-weight="600" fill="#1e293b">Analyst</text>
+            <text x="50" y="235" font-size="11" font-weight="600" fill="#1e293b">Synthesizer</text>
+            <text x="50" y="275" font-size="11" font-weight="600" fill="#1e293b">Critic</text>
 
-        <!-- Scout bars (parallel — 3 tasks, 2 replicas serve them) -->
-        <rect x="180" y="82" width="200" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8"/>
-        <text x="280" y="95" text-anchor="middle" font-size="9" fill="white" font-weight="600">3 tool calls → 2.5s</text>
+            <!-- Scout bars (parallel — 3 tasks, 2 replicas serve them) -->
+            <rect x="180" y="82" width="200" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
+            <text x="280" y="95" text-anchor="middle" font-size="9" fill="white" font-weight="600">3 tool calls →
+                2.5s</text>
 
-        <rect x="180" y="112" width="170" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8"/>
-        <text x="265" y="125" text-anchor="middle" font-size="9" fill="white" font-weight="600">2 tool calls → 2.1s</text>
+            <rect x="180" y="112" width="170" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
+            <text x="265" y="125" text-anchor="middle" font-size="9" fill="white" font-weight="600">2 tool calls →
+                2.1s</text>
 
-        <rect x="180" y="142" width="240" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8"/>
-        <text x="300" y="155" text-anchor="middle" font-size="9" fill="white" font-weight="600">4 tool calls → 3.0s</text>
+            <rect x="180" y="142" width="240" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
+            <text x="300" y="155" text-anchor="middle" font-size="9" fill="white" font-weight="600">4 tool calls →
+                3.0s</text>
 
-        <!-- Analyst (starts after longest scout @ 3.0s) -->
-        <rect x="425" y="182" width="100" height="18" rx="4" fill="url(#analystGrad)" opacity="0.8"/>
-        <text x="475" y="195" text-anchor="middle" font-size="9" fill="white" font-weight="600">Analysis → 1.2s</text>
+            <!-- Analyst (starts after longest scout @ 3.0s) -->
+            <rect x="425" y="182" width="100" height="18" rx="4" fill="url(#analystGrad)" opacity="0.8" />
+            <text x="475" y="195" text-anchor="middle" font-size="9" fill="white" font-weight="600">Analysis →
+                1.2s</text>
 
-        <!-- Synthesizer (starts @ 4.2s) -->
-        <rect x="530" y="222" width="75" height="18" rx="4" fill="url(#synthGrad)" opacity="0.8"/>
-        <text x="567" y="235" text-anchor="middle" font-size="9" fill="white" font-weight="600">Synth → 0.9s</text>
+            <!-- Synthesizer (starts @ 4.2s) -->
+            <rect x="530" y="222" width="75" height="18" rx="4" fill="url(#synthGrad)" opacity="0.8" />
+            <text x="567" y="235" text-anchor="middle" font-size="9" fill="white" font-weight="600">Synth → 0.9s</text>
 
-        <!-- Critic (starts @ 5.1s) -->
-        <rect x="610" y="262" width="50" height="18" rx="4" fill="url(#criticGrad)" opacity="0.8"/>
-        <text x="635" y="275" text-anchor="middle" font-size="9" fill="white" font-weight="600">0.6s</text>
+            <!-- Critic (starts @ 5.1s) -->
+            <rect x="610" y="262" width="50" height="18" rx="4" fill="url(#criticGrad)" opacity="0.8" />
+            <text x="635" y="275" text-anchor="middle" font-size="9" fill="white" font-weight="600">0.6s</text>
 
-        <!-- Dependency arrows -->
-        <path d="M420 150 L425 188" stroke="#64748b" stroke-width="1" stroke-dasharray="3" marker-end="url(#arrow)"/>
-        <path d="M525 192 L530 228" stroke="#64748b" stroke-width="1" stroke-dasharray="3" marker-end="url(#arrow)"/>
-        <path d="M605 232 L610 268" stroke="#64748b" stroke-width="1" stroke-dasharray="3" marker-end="url(#arrow)"/>
+            <!-- Dependency arrows -->
+            <path d="M420 150 L425 188" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
+                marker-end="url(#arrow)" />
+            <path d="M525 192 L530 228" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
+                marker-end="url(#arrow)" />
+            <path d="M605 232 L610 268" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
+                marker-end="url(#arrow)" />
 
-        <!-- Total time: 3.0 + 1.2 + 0.9 + 0.6 = 5.7s -->
-        <rect x="500" y="45" width="140" height="20" rx="4" fill="#1e293b"/>
-        <text x="570" y="59" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Total: ~5.7s | ~$0.08</text>
-    </svg>
-    <div class="diagram-caption">Figure 2: Langfuse trace showing parallel scout execution, sequential dependencies, and per-role cost/latency</div>
-</div>
+            <!-- Total time: 3.0 + 1.2 + 0.9 + 0.6 = 5.7s -->
+            <rect x="500" y="45" width="140" height="20" rx="4" fill="#1e293b" />
+            <text x="570" y="59" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Total: ~5.7s |
+                ~$0.08</text>
+        </svg>
+        <div class="diagram-caption">Figure 2: Langfuse trace showing parallel scout execution, sequential dependencies,
+            and per-role cost/latency</div>
+    </div>
 
-<pre><code># Langfuse integration pattern (SDK v3)
+    <pre><code># Langfuse integration pattern (SDK v3)
 from langfuse import observe, get_client
 
 @observe(name="multi-agent-research")
@@ -656,38 +798,43 @@ async def research(query: str):
     )
 </code></pre>
 
-<h3>What Langfuse Revealed That Surprised Me</h3>
+    <h3>What Langfuse Revealed That Surprised Me</h3>
 
-<ol>
-    <li><strong>The Critic saved money.</strong> Counter-intuitively, adding an expensive Opus critic <em>reduced</em> total cost because it caught errors that would have required users to re-run queries. Fewer retries = less total spend.</li>
-    <li><strong>Scout parallelism was bottlenecked.</strong> The "fast" scout phase was actually the slowest because one scout was making 4 tool calls sequentially. Langfuse waterfall made this obvious.</li>
-    <li><strong>Per-role token tracking revealed waste.</strong> The Analyst was receiving the full scout output (~8K tokens) but only using 30% of it. Adding a summarization step between scout and analyst cut costs 40%.</li>
-</ol>
+    <ol>
+        <li><strong>The Critic saved money.</strong> Counter-intuitively, adding an expensive Opus critic
+            <em>reduced</em> total cost because it caught errors that would have required users to re-run queries. Fewer
+            retries = less total spend.</li>
+        <li><strong>Scout parallelism was bottlenecked.</strong> The "fast" scout phase was actually the slowest because
+            one scout was making 4 tool calls sequentially. Langfuse waterfall made this obvious.</li>
+        <li><strong>Per-role token tracking revealed waste.</strong> The Analyst was receiving the full scout output
+            (~8K tokens) but only using 30% of it. Adding a summarization step between scout and analyst cut costs 40%.
+        </li>
+    </ol>
 
-<div class="metric-grid">
-    <div class="metric-card">
-        <div class="metric-value">4</div>
-        <div class="metric-label">Agent Roles</div>
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-value">4</div>
+            <div class="metric-label">Agent Roles</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">~6s</div>
+            <div class="metric-label">Avg Latency</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">$0.08</div>
+            <div class="metric-label">Per Query</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">23%</div>
+            <div class="metric-label">Critique Revision Rate</div>
+        </div>
     </div>
-    <div class="metric-card">
-        <div class="metric-value">~6s</div>
-        <div class="metric-label">Avg Latency</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-value">$0.08</div>
-        <div class="metric-label">Per Query</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-value">23%</div>
-        <div class="metric-label">Critique Revision Rate</div>
-    </div>
-</div>
 
-<h2>The Critic Pattern: Why Adversarial AI Matters</h2>
+    <h2>The Critic Pattern: Why Adversarial AI Matters</h2>
 
-<p>The most valuable addition was the Critic agent. Its prompt is explicitly adversarial:</p>
+    <p>The most valuable addition was the Critic agent. Its prompt is explicitly adversarial:</p>
 
-<pre><code>CRITIC_PROMPT = """You are a rigorous scientific reviewer. Your job is to FIND FLAWS.
+    <pre><code>CRITIC_PROMPT = """You are a rigorous scientific reviewer. Your job is to FIND FLAWS.
 
 For each claim in the report:
 1. Is it supported by the evidence provided?
@@ -698,13 +845,16 @@ For each claim in the report:
 Be ruthless. A report that passes your review should be publishable."""
 </code></pre>
 
-<p>In production, the Critic triggers a revision loop ~23% of the time. When it does, the revised report is measurably better (scored via Langfuse user feedback). The other 77% of the time, it adds confidence that the report is solid — which users notice and appreciate.</p>
+    <p>In production, the Critic triggers a revision loop ~23% of the time. When it does, the revised report is
+        measurably better (scored via Langfuse user feedback). The other 77% of the time, it adds confidence that the
+        report is solid — which users notice and appreciate.</p>
 
-<h2>Deployment: Each Role is a Separate Service</h2>
+    <h2>Deployment: Each Role is a Separate Service</h2>
 
-<p>The multi-agent system isn't just logical separation — it's <strong>physical separation on Kubernetes</strong>. Each role runs as its own Deployment with its own resource profile:</p>
+    <p>The multi-agent system isn't just logical separation — it's <strong>physical separation on Kubernetes</strong>.
+        Each role runs as its own Deployment with its own resource profile:</p>
 
-<pre><code># deployment-data-scout.yaml (excerpt)
+    <pre><code># deployment-data-scout.yaml (excerpt)
 spec:
   replicas: 2              # High throughput, parallel queries
   containers:
@@ -723,45 +873,55 @@ spec:
           cpu: "500m"
 </code></pre>
 
-<p>This lets you scale each role independently. Data Scouts scale out for throughput. Synthesizer stays at 1 replica because it's sequential anyway. The Critic can be temporarily scaled to 0 in low-priority environments to save cost.</p>
+    <p>This lets you scale each role independently. Data Scouts scale out for throughput. Synthesizer stays at 1 replica
+        because it's sequential anyway. The Critic can be temporarily scaled to 0 in low-priority environments to save
+        cost.</p>
 
-<h2>Lessons Learned</h2>
+    <h2>Lessons Learned</h2>
 
-<h3>1. Start with one agent, split when you hit diminishing returns</h3>
-<p>Don't design multi-agent from day one. I ran a single agent for 6 months before splitting. The split was justified only when I could clearly identify where "thinking harder" wasn't helping and "thinking differently" would.</p>
+    <h3>1. Start with one agent, split when you hit diminishing returns</h3>
+    <p>Don't design multi-agent from day one. I ran a single agent for 6 months before splitting. The split was
+        justified only when I could clearly identify where "thinking harder" wasn't helping and "thinking differently"
+        would.</p>
 
-<h3>2. The Synthesizer prompt is the hardest to write</h3>
-<p>Getting an LLM to <em>resolve contradictions</em> rather than just listing them requires very specific prompting. The breakthrough was telling it to assign confidence levels (0-1) to each finding and use those to weight the synthesis.</p>
+    <h3>2. The Synthesizer prompt is the hardest to write</h3>
+    <p>Getting an LLM to <em>resolve contradictions</em> rather than just listing them requires very specific prompting.
+        The breakthrough was telling it to assign confidence levels (0-1) to each finding and use those to weight the
+        synthesis.</p>
 
-<h3>3. Langfuse per-role tracing is mandatory, not optional</h3>
-<p>Without it, you can't answer: "Is the critic actually improving output?" You need data — token costs, latency impact, and revision rates — to justify each role's existence.</p>
+    <h3>3. Langfuse per-role tracing is mandatory, not optional</h3>
+    <p>Without it, you can't answer: "Is the critic actually improving output?" You need data — token costs, latency
+        impact, and revision rates — to justify each role's existence.</p>
 
-<div class="takeaway">
-    <h3>Key Takeaways</h3>
-    <ul>
-        <li>Multi-agent = <strong>cognitive diversity</strong>, not just task splitting</li>
-        <li>Use <strong>tiered models</strong>: cheap models for data gathering, expensive models for reasoning</li>
-        <li>An <strong>adversarial Critic</strong> is one of the highest-ROI additions to an agentic system</li>
-        <li><strong>Langfuse tracing</strong> is non-negotiable — you need per-role cost, latency, and quality metrics</li>
-        <li>Deploy each role as a <strong>separate K8s service</strong> for independent scaling</li>
-        <li>Start with 1 agent; split only when you can articulate exactly <em>why</em></li>
-    </ul>
-</div>
+    <div class="takeaway">
+        <h3>Key Takeaways</h3>
+        <ul>
+            <li>Multi-agent = <strong>cognitive diversity</strong>, not just task splitting</li>
+            <li>Use <strong>tiered models</strong>: cheap models for data gathering, expensive models for reasoning</li>
+            <li>An <strong>adversarial Critic</strong> is one of the highest-ROI additions to an agentic system</li>
+            <li><strong>Langfuse tracing</strong> is non-negotiable — you need per-role cost, latency, and quality
+                metrics</li>
+            <li>Deploy each role as a <strong>separate K8s service</strong> for independent scaling</li>
+            <li>Start with 1 agent; split only when you can articulate exactly <em>why</em></li>
+        </ul>
+    </div>
 
-<div class="separator"></div>
+    <div class="separator"></div>
 
-<p><em>If you're building multi-agent systems or have questions about orchestrating AI roles on Kubernetes, feel free to connect.</em></p>
+    <p><em>If you're building multi-agent systems or have questions about orchestrating AI roles on Kubernetes, feel
+            free to connect.</em></p>
 
-<div class="tag-list">
-    <span class="tag">#MultiAgent</span>
-    <span class="tag">#AgenticAI</span>
-    <span class="tag">#LLMOps</span>
-    <span class="tag">#Langfuse</span>
-    <span class="tag">#Observability</span>
-    <span class="tag">#Kubernetes</span>
-    <span class="tag">#AIArchitecture</span>
-    <span class="tag">#PlatformEngineering</span>
-</div>
+    <div class="tag-list">
+        <span class="tag">#MultiAgent</span>
+        <span class="tag">#AgenticAI</span>
+        <span class="tag">#LLMOps</span>
+        <span class="tag">#Langfuse</span>
+        <span class="tag">#Observability</span>
+        <span class="tag">#Kubernetes</span>
+        <span class="tag">#AIArchitecture</span>
+        <span class="tag">#PlatformEngineering</span>
+    </div>
 
 </body>
+
 </html>

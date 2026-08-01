@@ -11,6 +11,9 @@
         content="I run agents on Kubernetes and evaluated moving them to a managed agent platform. Here's what genuinely improves, what quietly becomes your problem, and why a hybrid split was the honest answer.">
     <meta property="og:image"
         content="https://aupadh12.github.io/enigmaAI/blogposts/covers/7-kubernetes-to-managed-agent-runtime.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:url"
         content="https://aupadh12.github.io/enigmaAI/blogposts/7-kubernetes-to-managed-agent-runtime.html">
     <meta name="twitter:card" content="summary_large_image">
@@ -331,7 +334,8 @@
         <p><strong>Before anything else: verify every claim against current documentation.</strong> When I started, I
             wrote up an assessment partly from what I already "knew" about the platform. Several points were
             <em>confidently wrong</em> — my knowledge was preview-era, and the platform had changed substantially since.
-            Two facts I'd have staked a design on had reversed.</p>
+            Two facts I'd have staked a design on had reversed.
+        </p>
         <p>On fast-moving infrastructure, training-era knowledge — mine or a model's — is a liability dressed as
             expertise. Every load-bearing fact in this post was checked against live documentation on the day I wrote
             it, and I'd re-check before quoting any of it. That is the single most valuable habit in this whole
@@ -369,12 +373,14 @@
     <p><strong>Inbound:</strong> the platform's JWT authorizer validates audience, client and scopes — and can enforce
         <em>required custom claims</em> with equality and set-membership operators. On paper that means directory-group
         or application-role gating happens at the platform edge, before a single line of my code executes. In my
-        self-hosted setup, that check lives in my application, which means a bug in my code is a bypass.</p>
+        self-hosted setup, that check lives in my application, which means a bug in my code is a bypass.
+    </p>
 
     <p><strong>Outbound:</strong> genuine standards-based token exchange, where the exchanged token carries
         <em>both</em> the agent's identity and the original caller's. That's per-hop zero trust, and it's the pattern
         I'd otherwise be building by hand. Credentials live in a managed, customer-key-encrypted vault; agent code never
-        handles a secret.</p>
+        handles a secret.
+    </p>
 
     <div class="warn-box">
         <p><strong>Now the part that took me an embarrassingly long time to notice.</strong> Edge claim gating and the
@@ -448,7 +454,8 @@
     <p>Read that carefully, because it is exactly the vulnerability class I wrote about in my post on agent security. If
         a session identifier is accepted from the client and used to resume a conversation without verifying that
         <em>this</em> user owns <em>that</em> session, you have built a cross-tenant read on top of a platform whose
-        micro-VM isolation is impeccable.</p>
+        micro-VM isolation is impeccable.
+    </p>
 
     <p>The isolation guarantee is about <em>compute</em>. The authorisation guarantee is about <em>identity</em>, and it
         stays yours. That's why session identifiers have a long minimum length — the platform is telling you these
@@ -504,7 +511,8 @@
         <em>none of the three run on their own.</em> You create a policy engine, associate it with a gateway, and author
         policies that name the safeguard, the category and a confidence threshold. What I had mistaken for automatic
         enforcement was a set of default <em>thresholds</em> applied when the policy-authoring service writes the policy
-        for you. Default thresholds, not default enforcement. Until you write a policy, zero guardrails are running.</p>
+        for you. Default thresholds, not default enforcement. Until you write a policy, zero guardrails are running.
+    </p>
 
     <p>Two further limits worth knowing. There are expressiveness constraints: no regular-expression matching, and
         restrictions on combining condition types within a single policy. And guardrails-in-policy is available in only
