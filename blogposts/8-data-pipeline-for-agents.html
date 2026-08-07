@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Agent Is Only As Good As Its Data Pipeline</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Your Agent Is Only As Good As Its Data Pipeline">
+    <meta property="og:description"
+        content="The agent gets the credit. The data pipeline does the work. Here's the production ingestion architecture that keeps a 19-source research agent reliable.">
+    <meta property="og:image" name="image"
+        content="https://aupadh12.github.io/enigmaAI/blogposts/covers/8-data-pipeline-for-agents.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/8-data-pipeline-for-agents.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Your Agent Is Only As Good As Its Data Pipeline">
+    <meta name="twitter:description"
+        content="The agent gets the credit. The data pipeline does the work. Here's the production ingestion architecture that keeps a 19-source research agent reliable.">
+    <meta name="twitter:image"
+        content="https://aupadh12.github.io/enigmaAI/blogposts/covers/8-data-pipeline-for-agents.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8;
+            color: #1a1a2e;
+            background: #fafbfc;
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        .header-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #15803d 0%, #16a34a 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 12px;
+            color: #1a1a2e;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 32px;
+            font-style: italic;
+        }
+
+        .author-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .author-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #15803d, #16a34a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .author-info {
+            font-size: 14px;
+        }
+
+        .author-name {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .author-title {
+            color: #666;
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 40px 0 16px;
+            color: #1a1a2e;
+            border-left: 4px solid #16a34a;
+            padding-left: 16px;
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 28px 0 12px;
+            color: #333;
+        }
+
+        p {
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left: 4px solid #16a34a;
+            padding: 20px 24px;
+            border-radius: 0 8px 8px 0;
+            margin: 24px 0;
+        }
+
+        .highlight-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .warn-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 20px 24px;
+            border-radius: 0 8px 8px 0;
+            margin: 24px 0;
+        }
+
+        .warn-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .stale-box {
+            background: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 20px 24px;
+            border-radius: 0 8px 8px 0;
+            margin: 24px 0;
+        }
+
+        .stale-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .diagram-container {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 32px 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .diagram-caption {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 12px;
+            font-style: italic;
+        }
+
+        code {
+            background: #f1f5f9;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px 24px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 14px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        th {
+            background: #f1f5f9;
+            text-align: left;
+            padding: 12px 14px;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #475569;
+            vertical-align: top;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        ul,
+        ol {
+            margin: 12px 0 20px 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .takeaway {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 32px 0;
+        }
+
+        .takeaway h3 {
+            color: #166534;
+            margin-top: 0;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid #e8e8e8;
+        }
+
+        .tag {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+        }
+
+        .separator {
+            height: 1px;
+            background: #e8e8e8;
+            margin: 40px 0;
+        }
+
+        .cover-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-72QSEYC70K');
+    </script>
+</head>
+
+<body>
+
+    <img class="cover-image" src="covers/8-data-pipeline-for-agents.png" alt="Blog cover">
+
+<span class="header-badge">Data Engineering</span>
+    <h1>Your Agent Is Only As Good As Its Data Pipeline</h1>
+    <p class="subtitle">The agent gets the credit. The data pipeline does the work. Here's the production ingestion
+        architecture that keeps a 19-source research agent reliable.</p>
+
+    <div class="author-block">
+        <div class="author-avatar">AP</div>
+        <div class="author-info">
+            <div class="author-name">Ashutosh Upadhyay</div>
+            <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
+        </div>
+    </div>
+
+    <h2>The Part Nobody Writes About</h2>
+
+    <p>Every post about agentic AI systems talks about the model, the tool loop, the reasoning pattern. Nobody writes
+        about the CronJobs.</p>
+
+    <p>Those are the things that actually determine whether your agent gives a useful answer. An agent that reasons
+        brilliantly over stale data is worse than an agent that reasons poorly over fresh data — because the bad
+        reasoning is visible and the stale data isn't. Users debug what they can see.</p>
+
+    <p>I run a research agent that answers questions about biological datasets: protein expressions, drug response
+        curves, disease associations, pathway memberships, ontology hierarchies. Nineteen distinct sources feed into it.
+        The agent itself is a few thousand lines of tool code. The data pipeline underneath it is what the agent is
+        actually made of.</p>
+
+    <p>This post is about that pipeline: the design decisions behind it, the failure modes I learned the hard way, and
+        the patterns that are worth carrying into any agent system that needs to stay current with the real world.</p>
+
+    <h2>Two Tiers: Fast Data and Slow Data Are Not the Same Problem</h2>
+
+    <p>The first useful distinction is temporal. Not all data changes at the same rate, and treating every source the
+        same way creates unnecessary work and unnecessary risk.</p>
+
+    <p>Fast-changing sources — experimental results, drug assays, cell line annotations, protein interaction scores —
+        need to run daily. They're the sources users actually depend on for current answers, and being a week stale
+        matters.</p>
+
+    <p>Slow-changing sources — biological ontologies, pathway definitions, disease hierarchies — change rarely and
+        predictably. Gene Ontology, HPO, MONDO, Reactome: these are curated controlled vocabularies that get quarterly
+        releases, not daily updates. Running them on the same daily job as everything else has two costs: it slows down
+        the daily job, and the two kinds of data have completely different freshness guarantees, so conflating them
+        makes your freshness model wrong.</p>
+
+    <p>The solution is two separate jobs with two separate schedules:</p>
+
+    <pre><code># Daily: fast-changing sources — 9 sources, 6h deadline
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  activeDeadlineSeconds: 21600
+
+# Weekly: ontologies — run Sunday, no deadline pressure
+spec:
+  schedule: "0 1 * * 0"
+  concurrencyPolicy: Forbid</code></pre>
+
+    <p>The <code>concurrencyPolicy: Forbid</code> on both is not optional. Without it, if a run takes longer than
+        expected — say, a source API is slow that day — the next scheduled run starts on top of it, and now you have two
+        ingestion jobs fighting over writes to the same Parquet prefix. The results are non-deterministic in a way
+        that's hard to debug.</p>
+
+    <div class="highlight-box">
+        <p><strong>The separation has another benefit:</strong> it gives you two different reliability requirements to
+            reason about. If the weekly ontology job fails, the agent still has last week's ontologies. If the daily job
+            fails, the agent has yesterday's drug response data. Both are acceptable degradations, and both are clearly
+            scoped. "Ingestion failed" is a much scarier alert when there's only one job covering everything.</p>
+    </div>
+
+    <h2>The Manifest Pattern: Freshness Without Scanning</h2>
+
+    <p>Once you have data in S3, you need a way to know how fresh it is. The naive approach is to list the objects in
+        the prefix and sort by date. This works until your Parquet lake gets large, and then it works slowly and
+        expensively.</p>
+
+    <p>The pattern that scales is a manifest file: a small JSON sidecar that each ingestion job writes alongside the
+        data, containing the timestamp, row count, schema version, and any source-specific metadata the freshness check
+        needs.</p>
+
+    <pre><code># Written by the ingestion job at the end of each run
+{
+  "source": "string_interactions",
+  "ingested_at": "2026-08-07T02:14:31Z",
+  "row_count": 4823156,
+  "parquet_path": "s3://bucket/data/string/2026-08-07/interactions.parquet",
+  "schema_version": "1.2"
+}</code></pre>
+
+    <p>The freshness checker reads the manifest, not the file list. One S3 GET per source instead of a paginated list
+        call. The check is O(1) regardless of how many Parquet files have accumulated.</p>
+
+    <p>The manifest also gives you something a file listing never will: row counts. A freshness check that only verifies
+        "a file exists from today" misses the case where the ingestion job ran successfully but the source API returned
+        empty results. A manifest that records row count lets you detect that case and alert on it separately from a job
+        failure.</p>
+
+    <div class="warn-box">
+        <p><strong>A trap worth naming:</strong> the manifest write must be the last thing the ingestion job does, after
+            all Parquet files are committed. If the job writes the manifest first and then fails mid-write on the data
+            files, your freshness check says everything is fine while your agent quietly reads incomplete data. Treat
+            the manifest as a commit record, not an intent record.</p>
+    </div>
+
+    <h2>The Deadline Trap: When One Slow Source Starves the Rest</h2>
+
+    <p>The <code>activeDeadlineSeconds: 21600</code> on the daily job exists because of a failure I actually hit.</p>
+
+    <p>When an ingestion job runs everything sequentially — source A, then B, then C — one slow source at the front of
+        the queue delays every source behind it. Worse: if that slow source eventually times out and the job keeps
+        running, the whole job can exceed the next schedule window. The next day's run is now blocked by
+        <code>concurrencyPolicy: Forbid</code>, and you've just lost two days of freshness for every source.</p>
+
+    <p>The <code>activeDeadlineSeconds</code> acts as a circuit breaker: if the job hasn't finished in six hours,
+        Kubernetes kills it, marks it failed, and leaves the schedule clear for the next day's run. Partial freshness is
+        better than no freshness and a cascading stale state.</p>
+
+    <p>But the real fix is structural, not a timeout: <strong>slow sources belong in their own separate
+            CronJob</strong>, not in the daily job at all. If a source routinely takes two hours to ingest, it either
+        gets its own job with appropriate timing, or it gets excluded from <code>source="all"</code> so users can
+        request it explicitly but it doesn't block the daily run.</p>
+
+    <pre><code># In the ingestion handler — sources that can't run in the daily job
+_BULK_SOURCES = frozenset([
+    "string", "depmap", "cellosaurus", "ncats", "rsc",
+    # NOT: "ontology" (weekly), NOT: "upload" (user-driven)
+])
+
+def ingest_all_sources():
+    for source in _BULK_SOURCES:  # ontology and upload excluded
+        _ingest_source(source)</code></pre>
+
+    <p>This pattern means <code>source="all"</code> is a safe, bounded operation. The ontology job runs on its own
+        schedule and is never at risk of being blocked by a daily run that ran long.</p>
+
+    <h2>Ontology vs Query-Derived Data: Why They Need Separate Stores</h2>
+
+    <p>The second major structural decision is storage separation. Not all data that flows into a knowledge graph is the
+        same kind of data, and treating it uniformly creates problems that compound over time.</p>
+
+    <p>Query-derived data — the nodes and edges extracted when a user asks a question — is ephemeral by nature. A
+        drug-protein association extracted from a query this week may be superseded by a new ingestion next week.
+        Keeping it for 90 days and then discarding it is the right behavior. A DynamoDB TTL attribute handles this
+        automatically.</p>
+
+    <p>Ontology data — canonical disease terms, gene function annotations, pathway hierarchies — is permanent by design.
+        It's curated controlled vocabulary. Giving it a TTL means it expires and disappears, and the next query that
+        asks "what pathways does this gene belong to" gets back nothing until the weekly job runs again. That's not a
+        freshness issue; that's an availability hole.</p>
+
+    <p>The solution is two separate DynamoDB tables with different write patterns:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Table</th>
+                <th>Write pattern</th>
+                <th>TTL</th>
+                <th>Who writes</th>
+                <th>Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>kg</code> (main)</td>
+                <td>UpdateItem</td>
+                <td>90 days</td>
+                <td>32 tools</td>
+                <td>Query-derived facts</td>
+            </tr>
+            <tr>
+                <td><code>kg-ontology</code></td>
+                <td>BatchWriteItem</td>
+                <td>None</td>
+                <td>1 tool</td>
+                <td>Permanent ontology facts</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>The ontology table uses BatchWriteItem rather than UpdateItem because ontology ingestion is a bulk operation:
+        loading 40,000 GO terms is faster when batched than when sent as 40,000 individual requests. It also uses a
+        thread-safe lock because the ingestion job processes multiple ontologies concurrently and DynamoDB has no native
+        transaction support across batch writes to the same table.</p>
+
+    <div class="stale-box">
+        <p><strong>The silent failure mode:</strong> both tables gate writes through a <code>VALID_NODE_TYPES</code>
+            frozenset. Any node type not in the set is silently dropped — no error, no log. This is intentional (unknown
+            types shouldn't cause crashes) but dangerous in one direction: if you add a new node type to your code but
+            forget to add it to the frozenset, all writes of that type succeed with return code 200 and zero rows
+            stored. The agent then correctly reports "no data found" for queries that should return results. The silence
+            is the worst part. Always check the frozenset when adding any new data type.</p>
+    </div>
+
+    <h2>What I'd Set Up on Day One</h2>
+
+    <p>If I were building a new data pipeline for an agent system, these are the five decisions I'd make before writing
+        the first ingestion function:</p>
+
+    <p><strong>1. Separate fast and slow sources from the start.</strong> The schedule separation is not an optimization
+        you add later — it shapes your freshness model, your failure handling, and your operational load. Build it in
+        early.</p>
+
+    <p><strong>2. Manifests before file listing.</strong> Write a manifest at the end of every ingestion run. Your
+        freshness checker should read manifests, never list objects. The O(1) vs O(n) difference becomes real at scale,
+        and the row count in the manifest catches empty-result failures that file listing never will.</p>
+
+    <p><strong>3. Budget the deadline before you commit it.</strong> Add up the worst-case runtime of every source in
+        your daily job and check that it fits inside your deadline with margin. If it doesn't, split off slow sources
+        before the deadline starts being violated randomly.</p>
+
+    <p><strong>4. Two stores if your data has two retention policies.</strong> If some of your data should persist
+        forever and some should expire, putting them in the same table forces you to choose one TTL setting and live
+        with the wrong answer for one category. Tables are cheap; data availability holes are not.</p>
+
+    <p><strong>5. Define your VALID_NODE_TYPES frozenset before you write your first node.</strong> Silent drops are the
+        hardest bugs to catch in a knowledge graph system. The frozenset is a contract; define it explicitly and gate
+        everything behind it.</p>
+
+    <div class="highlight-box">
+        <p><strong>The unglamorous truth:</strong> when a user says "the agent gave me the wrong answer," the first
+            thing I check is not the reasoning trace. It's the manifest. Was the source fresh? Did the ingestion job
+            complete? Were row counts non-zero? In my experience, more wrong answers come from stale or incomplete data
+            than from model reasoning errors. A great model cannot fix bad data. A mediocre model with fresh, complete
+            data gives you something to work with.</p>
+    </div>
+
+    <div class="separator"></div>
+
+    <h2>Putting It Together</h2>
+
+    <p>The pipeline architecture I run today handles 19 sources across two schedules, writes to two separate stores with
+        different retention policies, uses manifest files for O(1) freshness checks, and has explicit guards against
+        slow sources blocking fast ones. None of it is clever. All of it is necessary.</p>
+
+    <p>The agent that runs on top of it answers questions with current data because the pipeline has done its job
+        correctly, invisibly, every night. The pipeline doesn't get mentioned in demos. It gets mentioned in postmortems
+        when it fails. Build it like it matters, because it does.</p>
+
+    <div class="takeaway">
+        <h3>Key Takeaways</h3>
+        <ul>
+            <li><strong>Separate fast-changing and slow-changing sources onto different schedules.</strong> Conflating
+                them gives you the wrong freshness model and the wrong failure blast radius.</li>
+            <li><strong>Write manifests, not just data.</strong> A manifest is a commit record: timestamp, row count,
+                schema version. Read it at freshness check time — never list objects.</li>
+            <li><strong>The <code>activeDeadlineSeconds</code> is a circuit breaker, not a target.</strong> The real fix
+                for slow sources is a separate CronJob, not a longer timeout.</li>
+            <li><strong>Two retention policies need two stores.</strong> One TTL setting on a unified table is always
+                wrong for at least one category of data.</li>
+            <li><strong>Silent drops are the hardest bugs.</strong> Gate all writes through an explicit type registry.
+                An unlisted type that silently disappears will give you "no data found" answers that look like model
+                failures.</li>
+            <li><strong>More wrong answers come from stale data than bad reasoning.</strong> Check the pipeline before
+                you debug the model.</li>
+        </ul>
+    </div>
+
+    <div class="tag-list">
+        <span class="tag">#DataEngineering</span>
+        <span class="tag">#AgenticAI</span>
+        <span class="tag">#Kubernetes</span>
+        <span class="tag">#DataPipelines</span>
+        <span class="tag">#KnowledgeGraph</span>
+        <span class="tag">#MLOps</span>
+        <span class="tag">#AIEngineering</span>
+        <span class="tag">#S3</span>
+    </div>
+
+</body>
+
+</html>

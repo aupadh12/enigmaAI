@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observability for AI Agents: Beyond Langfuse Traces</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Observability for AI Agents: Beyond Langfuse Traces">
+    <meta property="og:description" content="Langfuse catches bad tool data. Prometheus catches the stuck pod. CloudWatch catches the $12 session. Here's how three layers work together for agent observability.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/11-observability-for-agents.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/11-observability-for-agents.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Observability for AI Agents: Beyond Langfuse Traces">
+    <meta name="twitter:description" content="Langfuse catches bad tool data. Prometheus catches the stuck pod. CloudWatch catches the $12 session. Here's how three layers work together for agent observability.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/11-observability-for-agents.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #0f766e, #0d9488);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #0d9488; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+            border-left: 4px solid #0d9488; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #134e4a; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+</head>
+<body>
+
+    <img class="cover-image" src="covers/11-observability-for-agents.png" alt="Blog cover">
+
+<span class="header-badge">Observability</span>
+<h1>Observability for AI Agents: Beyond Langfuse Traces</h1>
+<p class="subtitle">Langfuse is great for tracing what the agent did. It can't tell you why the pod was liveness-killed mid-request, why the ingestion job silently produced zero rows, or which session cost $12. Here's how three layers work together — and where each one falls short alone.</p>
+
+<div class="author-block">
+    <div class="author-avatar">AP</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
+    </div>
+</div>
+
+<h2>The Incident That Made Me Think About This Seriously</h2>
+
+<p>A user reported that the agent had "given a wrong answer" about a protein interaction. I opened Langfuse, found the trace, and saw that the tool call had returned results — rows came back, the reasoning looked coherent, the final answer was plausible. Nothing in the trace looked wrong.</p>
+
+<p>The actual problem was in Prometheus. The ingestion pod for that data source had been OOM-killed the night before, mid-write. The CronJob had run, the job had reported success (it died after the checkpoint that marks success, but before finishing the write), and the manifest had been written claiming a complete dataset. The manifest was lying. The Parquet file had 40,000 rows instead of the expected 400,000. The agent had queried 10% of the data and given an answer based on a biased sample, because Langfuse traces don't tell you about the state of the data warehouse your tools are querying.</p>
+
+<p>I had Langfuse, and it was useless for this incident. I didn't yet have Prometheus metrics on ingestion job outcomes. I found the problem by manually checking the CronJob pod logs — which meant I found it two days after the fact, not at the time of the wrong answer.</p>
+
+<p>That incident reshaped how I think about observability for agent systems.</p>
+
+<h2>The Three Layers</h2>
+
+<p>An agent system has more failure surfaces than a conventional service, and they require different observation tools. A wrong answer can come from the model reasoning incorrectly, from a tool returning bad data, from an infrastructure problem that corrupted or degraded the tool's data source, or from a cost/throughput issue that caused the model to truncate its response. These four failure modes look different in each observability layer.</p>
+
+<h3>Layer 1: LLM Tracing (Langfuse)</h3>
+
+<p>Langfuse is where I start for any "the agent gave a wrong answer" report. It captures the full tool call sequence, token counts per span, and the reasoning trace — enough to distinguish "the model went down a wrong path" from "the tool returned bad data" from "the reasoning was cut off."</p>
+
+<p>The most valuable thing it showed me early on was the difference between two classes of wrong answer that look identical to the user:</p>
+
+<ul>
+    <li><strong>Silent wrong answer:</strong> the agent returned a response, the tool calls all succeeded with normal row counts, but the reasoning applied an incorrect interpretation. This is a model or skills problem.</li>
+    <li><strong>Data-sourced wrong answer:</strong> the agent returned a response, the tool calls succeeded, but one returned unexpectedly few rows. This is a pipeline or data quality problem.</li>
+</ul>
+
+<p>In Langfuse you can see the row count in the tool return. That single number changed how I debug. If the row count is low, I stop looking at the trace and go to Prometheus. If the row count is normal and the reasoning is wrong, I look at which skills were loaded and whether the model applied them correctly.</p>
+
+<p>What Langfuse cannot tell you: whether the pod is healthy, whether the ingestion job ran, whether the S3 write completed, or what anything cost at the Bedrock API level. It's a model-behavior layer. Everything below the model is invisible to it.</p>
+
+<h3>Layer 2: Infrastructure Metrics (Prometheus + Grafana)</h3>
+
+<p>I added two categories of custom metrics after the OOM incident, and I wish I'd had them from the start.</p>
+
+<p><strong>Ingestion health metrics:</strong></p>
+
+<pre><code># Pushed by the CronJob at end of each run
+ingestion_last_success_timestamp{source="string"}   → Unix timestamp
+ingestion_row_count{source="string"}                → count of rows written
+ingestion_duration_seconds{source="string"}         → job duration
+
+# Alert rule: source is stale
+alert: IngestionStale
+expr: time() - ingestion_last_success_timestamp > 86400  # 24h
+labels: severity: warning</code></pre>
+
+<p>These fire before a user discovers stale data in a query. The alert lands in Slack 24 hours after a missed ingestion, not two days later when someone reports a suspicious answer.</p>
+
+<p>The row count metric caught something more subtle: a source that started returning half its normal rows due to an upstream API change. The CronJob succeeded, the manifest looked correct, but the row count had dropped 50% over three weeks. A user would eventually have noticed the answers were incomplete, but the metric caught it first.</p>
+
+<p><strong>Pod health metrics:</strong></p>
+
+<p>Standard Kubernetes metrics from kube-state-metrics, but with one addition: I track request duration specifically for agent endpoints, not just HTTP latency. A FastAPI endpoint running a long agentic loop will have request durations in the minutes. Standard latency SLOs will fire false positives constantly unless you separate "agent query" latency from "API call" latency in the metric labels.</p>
+
+<div class="warn-box">
+    <p><strong>The pod restart trap:</strong> a pod that restarts every few hours looks healthy in Prometheus if you're only watching <code>kube_pod_status_ready</code>. It's ready most of the time. What it's doing is getting liveness-killed mid-request, recovering, serving the next request normally, and then getting killed again. The metric you need is <code>kube_pod_container_status_restarts_total</code> with a rate over a window that covers your request duration. If restarts per hour is greater than zero during business hours, something is killing in-flight requests and users are seeing unexplained failures.</p>
+</div>
+
+<h3>Layer 3: Cost and Model Health (CloudWatch + Bedrock)</h3>
+
+<p>Bedrock emits invocation metrics to CloudWatch automatically: token counts, latency, throttle events, cache hit/miss. I added a Grafana dashboard panel for these early on and it paid off within two weeks.</p>
+
+<p>The first thing it caught was a query pattern I hadn't anticipated: some users were asking the agent to "analyze everything" — which triggered my agent to call every tool in sequence, accumulating a context window across 34 tool results before generating a response. The token count for these queries was 10-15x the median. They weren't errors — they completed successfully — but they were causing occasional throttling for other users because they consumed a significant share of the per-minute token quota.</p>
+
+<p>Without the CloudWatch metrics, I'd have known there was intermittent throttling but not which query pattern was causing it. With them, I could see the spike in input tokens immediately before each throttle event.</p>
+
+<p>The second thing: cache hit rates. I had prompt caching configured but wasn't sure it was actually working. The CloudWatch cache read token metric made it visible. When the static system prompt was longer than the minimum size for cache eligibility, the cache hit rate was around 70%. When I reorganized the system prompt to put the static portion first (caching requires the cacheable portion to be at a fixed prefix position), it jumped to 85%. That's a real cost difference across thousands of queries.</p>
+
+<div class="highlight-box">
+    <p><strong>The attribution gap:</strong> CloudWatch aggregates Bedrock spend by model, not by session or user. You can see "Opus 5 spent 2.4M input tokens this hour" but not "session X cost $12 because the user asked it to analyze everything." To get per-session cost attribution, you have to log token counts per query yourself (Langfuse gives you these per-span) and join them against the Bedrock billing granularity offline. There is no built-in path from "which Langfuse trace was expensive" to "how much did it cost" — you build that join yourself.</p>
+</div>
+
+<h2>The Correlation Key Problem</h2>
+
+<p>The most important design decision in a multi-layer observability stack is the correlation key — the identifier that ties together a Langfuse trace, a Prometheus metric, and a CloudWatch log for the same event.</p>
+
+<p>I got this wrong initially. Langfuse uses trace IDs. My Prometheus metrics used user IDs as labels. My FastAPI logs used session IDs. These were three different identifiers, none of which appeared in each other's system. When I was debugging the OOM-corrupted data incident, I had to manually correlate timestamps across three systems to figure out that the failed CronJob and the bad trace had happened within the same two-hour window. That's a slow, error-prone process.</p>
+
+<p>The fix is straightforward but requires threading the same identifier through every layer from the start:</p>
+
+<pre><code># Set once at request entry point
+request_id = str(uuid4())  # or use the Langfuse trace ID directly
+
+# Langfuse — set as trace metadata
+langfuse.trace(id=trace_id, session_id=session_id, user_id=user_id)
+
+# Prometheus — add as label (keep cardinality low — use session, not request)
+agent_query_duration_seconds.labels(
+    agent_role="data_scout",
+    session_id=session_id[:8]  # truncate for cardinality
+).observe(duration)
+
+# Structured logs — add to every log line
+logger.info("tool_call_complete", extra={
+    "trace_id": trace_id,
+    "session_id": session_id,
+    "tool": tool_name,
+    "row_count": len(result)
+})</code></pre>
+
+<p>With consistent IDs threaded through, correlating a Langfuse trace with Prometheus metrics and CloudWatch logs takes seconds instead of minutes. More importantly, it enables the query you actually want during an incident: "show me all observability data for session X."</p>
+
+<h2>The Failure Mode Each Layer Catches (and Misses)</h2>
+
+<table>
+    <thead>
+        <tr><th>Failure mode</th><th>Langfuse catches?</th><th>Prometheus catches?</th><th>CloudWatch catches?</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Model went down wrong reasoning path</td><td>Yes — trace shows it</td><td>No</td><td>No</td></tr>
+        <tr><td>Tool returned bad data</td><td>Partially — row count visible</td><td>Yes — if you metric row counts</td><td>No</td></tr>
+        <tr><td>Ingestion job silently truncated</td><td>No</td><td>Yes — if you alert on row counts</td><td>No</td></tr>
+        <tr><td>Pod liveness-killed mid-request</td><td>No — trace ends abruptly</td><td>Yes — restart counter</td><td>No</td></tr>
+        <tr><td>Thinking tokens exhausted budget</td><td>Yes — stop_reason visible</td><td>No</td><td>Yes — token spike</td></tr>
+        <tr><td>Throttling from one expensive query</td><td>Partially — high token count visible</td><td>Partially — latency spike</td><td>Yes — throttle events</td></tr>
+        <tr><td>Prompt cache not actually working</td><td>No</td><td>No</td><td>Yes — cache read tokens</td></tr>
+        <tr><td>Skills S3 object stale</td><td>No</td><td>No — if you don't add it</td><td>No</td></tr>
+    </tbody>
+</table>
+
+<p>The last row is worth calling out. Skills staleness — the case where the Python file was updated but the S3 object wasn't — shows up in none of the three default observability layers. The agent behaves subtly differently, the trace looks normal, and there's no infrastructure signal. The only detection is explicit: either you add a metric that tracks the last S3 write time for each skill object, or you catch it in a user report.</p>
+
+<h2>What I'd Set Up First</h2>
+
+<p>If I were starting fresh, these are the five things I'd instrument before shipping to users — not as an afterthought:</p>
+
+<ol>
+    <li><strong>Ingestion row count metrics.</strong> Push them from the CronJob. Alert if any source drops below 80% of its expected row count. This single metric would have caught my OOM incident proactively.</li>
+    <li><strong>A consistent correlation ID through every layer.</strong> Thread the Langfuse trace ID into Prometheus labels and structured logs from day one. Retrofitting this is painful.</li>
+    <li><strong>Stop reason tracking in Langfuse.</strong> If <code>stop_reason</code> is <code>max_tokens</code> instead of <code>end_turn</code>, the answer was cut off. Users don't always notice truncated answers. This metric catches a whole class of silent failures.</li>
+    <li><strong>A CloudWatch alarm on Bedrock throttle events.</strong> Set it low — one throttle event per hour. Throttling is usually not random; it's a specific query pattern. Finding that pattern early saves you from a user-visible quality degradation when the traffic grows.</li>
+    <li><strong>Pod restart rate during business hours.</strong> Any non-zero restart rate deserves investigation. On a healthy agent system, pods should restart only for deployments, not for kills.</li>
+</ol>
+
+<div class="separator"></div>
+
+<h2>Looking Back</h2>
+
+<p>The thing I underestimated at the start was how different "the agent gave a wrong answer" is from a conventional service failure. In a conventional service, wrong output usually comes from a code bug — a reproducible condition you can find and fix. In an agent, wrong output comes from a combination of model state, context window contents, tool data quality, and infrastructure health — and the same query might produce different answers on different runs depending on which of those factors is in a different state.</p>
+
+<p>That means observability for agents isn't a nice-to-have for production readiness — it's the mechanism by which you can distinguish between these failure modes at all. Without traces, you can't tell if the model reasoned wrong. Without infrastructure metrics, you can't tell if the data was wrong. Without cost metrics, you can't tell if you're spending ten times more than expected on a pattern you didn't design for.</p>
+
+<p>Each layer answers different questions. All three are necessary. The correlation key ties them together into something you can actually use at 2am when a user has flagged a suspicious answer and you need to figure out which of the four failure modes just happened.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Three layers, three questions.</strong> Langfuse answers "what did the model do?" — Prometheus answers "is the infrastructure healthy?" — CloudWatch answers "what did it cost and what throttled?" No single layer covers all three.</li>
+        <li><strong>Low row count in a tool call is a data pipeline signal, not a model signal.</strong> Check Prometheus before debugging the trace.</li>
+        <li><strong>CronJob "success" doesn't mean complete data.</strong> Instrument row counts separately from job exit codes. The OOM-killed pod reports success after the checkpoint, before the write finishes.</li>
+        <li><strong>Thread a correlation ID through every layer from day one.</strong> Retrofitting it means a period of slow manual incident correlation you'll regret.</li>
+        <li><strong>Stop reason is a first-class metric.</strong> <code>max_tokens</code> means the answer was truncated — a silent failure users often miss.</li>
+        <li><strong>Skills staleness is invisible to all three layers by default.</strong> Add an explicit check on S3 object modification time if you use runtime-served domain rules.</li>
+        <li><strong>Observability is the mechanism by which you distinguish failure modes.</strong> In an agent system, you can't debug what you can't observe.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">#Observability</span>
+    <span class="tag">#AgenticAI</span>
+    <span class="tag">#Langfuse</span>
+    <span class="tag">#Prometheus</span>
+    <span class="tag">#Grafana</span>
+    <span class="tag">#Kubernetes</span>
+    <span class="tag">#MLOps</span>
+    <span class="tag">#AIEngineering</span>
+    <span class="tag">#CloudWatch</span>
+</div>
+
+</body>
+</html>

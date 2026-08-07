@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Releasing an AI System Is Not Like Releasing Software</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Releasing an AI System Is Not Like Releasing Software">
+    <meta property="og:description" content="A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/9-releasing-ai-systems.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Releasing an AI System Is Not Like Releasing Software">
+    <meta name="twitter:description" content="A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/9-releasing-ai-systems.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #b45309, #d97706);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #d97706; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-left: 4px solid #d97706; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #92400e; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+</head>
+<body>
+
+    <img class="cover-image" src="covers/9-releasing-ai-systems.png" alt="Blog cover">
+
+<span class="header-badge">Release Engineering</span>
+<h1>Releasing an AI System Is Not Like Releasing Software</h1>
+<p class="subtitle">A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like — and why software release habits create the gap.</p>
+
+<div class="author-block">
+    <div class="author-avatar">AP</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
+    </div>
+</div>
+
+<h2>The Release That Wasn't</h2>
+
+<p>I bumped the image tag across 14 deploy files, ran the Jenkins job, watched 8 deployments and 4 CronJobs roll over cleanly. Green. Done.</p>
+
+<p>Three weeks later someone asked why the UI still said the old version. I looked. It did. I checked the presentation slides used for demos. They said an even older version. The architecture diagram served by the UI said a version from five releases ago. None of it had errored. No CI gate had caught it. The Kubernetes rollout was perfect; the system just wasn't self-consistent.</p>
+
+<p>This is the release failure mode specific to AI systems: <em>the container is correct but the system isn't.</em> Regular software release discipline gets you to a correct container. It doesn't get you to a consistent system.</p>
+
+<h2>Why This Doesn't Happen With Regular Software</h2>
+
+<p>In a typical web service, the version string is in one or two places: a <code>package.json</code> or <code>pyproject.toml</code>, surfaced by a <code>/health</code> or <code>/version</code> endpoint. The container image tag matches what's in code because the build system enforces it. A wrong version is either immediately visible or caught by a smoke test.</p>
+
+<p>AI systems break this pattern in at least four ways:</p>
+
+<p><strong>Documentation is functional, not decorative.</strong> In a web service, the README being one version behind is a minor annoyance. In an AI system, the presentation deck might be what a department head sees to decide whether to expand your rollout. The architecture diagram might be what a security reviewer uses to assess data flow. These documents are live artifacts, not optional extras.</p>
+
+<p><strong>Configuration is split across multiple systems.</strong> Model IDs live in ConfigMaps, not code. Changing the inference model means updating the ConfigMap — but the UI's "About" page that displays model names reads from a hardcoded string, not the ConfigMap. They decouple silently.</p>
+
+<p><strong>Diagrams exist in two copies.</strong> The architecture diagram lives in <code>docs/</code> for editing, and in <code>static/</code> for serving. The UI serves the <code>static/</code> copy. They are two separate files. Updating the <code>docs/</code> copy and forgetting the <code>static/</code> copy is not caught by any tool that looks at the container image.</p>
+
+<p><strong>Skills are served from object storage.</strong> The domain-expertise layer of the agent — the rules it uses to reason about your specific domain — lives in S3, not in the container. Editing the Python source file and rebuilding the container does nothing. The runtime reads from S3. This is the most dangerous one: it means the container can be "correct" while the agent is operating on stale domain rules.</p>
+
+<h2>The Three Categories Nobody Checks</h2>
+
+<p>After the incident above, I wrote out everything that could hold a version-dependent fact. It fell into three categories, and the first one is the only one most people think about:</p>
+
+<h3>Category 1: Deploy manifests (the part everyone checks)</h3>
+
+<p>Image tags in Kubernetes manifests. This is what a tag bump updates. It's important, but it's also the smallest part of the problem. On my system it covers 12 manifests: 8 deployments, 4 CronJobs.</p>
+
+<pre><code>find . -name "container.yaml" | xargs grep -l "experagent" | wc -l
+# 12 — not 8, not 14. Discover, don't count from memory.</code></pre>
+
+<div class="warn-box">
+    <p><strong>Even here, count by discovery.</strong> I had "14 files" in my head from the last release. The actual number was 12. The runner image has a separate lifecycle and should not be swept into a global find-replace. Grepping for the pattern is the only reliable count.</p>
+</div>
+
+<h3>Category 2: Human-facing version strings (the part everyone misses)</h3>
+
+<p>These are the strings that users, reviewers, and stakeholders see. They have no relationship to the container image tag. They don't update automatically. They're scattered across:</p>
+
+<ul>
+    <li>The UI's "About" page and footer — often hardcoded HTML strings</li>
+    <li>The presentation deck — every slide that says "v21.3" or "34 tools" or "Opus 5"</li>
+    <li>Architecture diagrams — component labels, CronJob cells, DynamoDB notes</li>
+    <li>Presenter notes — where version strings appear as speaker context</li>
+    <li>Changelogs and release notes embedded in HTML</li>
+</ul>
+
+<p>On my system, the presentation HTML alone contains 28 places where a version string or version-dependent fact appears. None of them are caught by a grep for the image tag, because the image tag and the presentation version string are different things edited by different people at different times.</p>
+
+<h3>Category 3: Content with no version string (the hardest one)</h3>
+
+<p>Some facts change with a release but carry no version label. They can't be found by grepping for a version string because they're not version strings — they're counts, model names, feature descriptions.</p>
+
+<table>
+    <thead>
+        <tr><th>What changes</th><th>Where it lives</th><th>How to verify</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Tool count ("34 tools")</td><td>UI About page, presentation slides</td><td>Count <code>ALL_TOOLS</code> in code, compare</td></tr>
+        <tr><td>Model names ("Opus 5")</td><td>UI About page, presentation, notes</td><td>Read ConfigMap, not code defaults</td></tr>
+        <tr><td>Source count ("19 sources")</td><td>Multiple UI pages</td><td>Count <code>VALID_SOURCES</code> in code, compare</td></tr>
+        <tr><td>Skills content</td><td>S3 objects, not Python files</td><td>Overwrite S3 directly after code edit</td></tr>
+        <tr><td>Diagram component labels</td><td>Two copies of .drawio file</td><td>md5 compare after both copies updated</td></tr>
+    </tbody>
+</table>
+
+<p>The tool count case is particularly easy to miss. The UI's "About" page says "34 tools." You add a new tool. You rebuild the container. The agent now has 35 tools. The UI still says 34. The discrepancy is invisible until someone demos the new tool and a stakeholder notices the mismatch.</p>
+
+<h2>The Two-Copy Trap</h2>
+
+<p>The architecture diagram is the clearest example of how an AI system's release surface differs from a regular application. The diagram isn't just documentation — in my system it's served by the UI as an interactive visualization. That means it exists in two separate places:</p>
+
+<ul>
+    <li><code>docs/experagent.drawio</code> — the editable source, lives in the backend repo</li>
+    <li><code>experagent-ui/static/drawio/experagent.drawio</code> — the copy the UI actually serves</li>
+</ul>
+
+<p>They are not linked. They are not synced by any tool. If you edit the <code>docs/</code> copy and re-export the SVG, the UI still serves the old copy from <code>static/</code>. The only verification is a checksum comparison after you've manually copied both files:</p>
+
+<pre><code>md5 -q docs/experagent.drawio
+md5 -q experagent-ui/static/drawio/experagent.drawio
+# These must match. If they don't, one copy was missed.</code></pre>
+
+<p>I discovered these were desynced five months into running the system. The <code>docs/</code> copy had been updated three times. The <code>static/</code> copy had been updated once. The UI had been serving an outdated diagram to every user for months, with no error and no indication anything was wrong.</p>
+
+<div class="stale-box">
+    <p><strong>The root cause of repeated recurrence:</strong> there is no single source of truth for the version string in an AI system. <code>package.json</code> might say <code>0.1.0</code>. <code>__init__.py</code> might say <code>0.1.0</code>. <code>pyproject.toml</code> might say <code>2.1.0</code>. None of these are related to the image tag, which is the version users and operations actually care about. The version is hand-copied into approximately 30 places with no enforcement. Until you add a CI gate that verifies the version string is consistent across all 30 places, the inconsistency is a matter of when, not if.</p>
+</div>
+
+<h2>The Skills S3 Problem</h2>
+
+<p>Skills are the most counterintuitive part of the release. The Python file that defines them — <code>skills.py</code> — is in the repository. It's versioned. It's reviewed. It's in the container image. Editing it and rebuilding the container feels like a complete release.</p>
+
+<p>It isn't. The agent reads skills at query time from S3, not from the container. The S3 object is the authoritative copy. The Python file is effectively a local draft.</p>
+
+<pre><code># This is what the agent actually calls at query time
+async def get_skills(domain: str) -> dict:
+    s3_key = f"skills/{domain}.json"
+    response = s3_client.get_object(Bucket=SKILLS_BUCKET, Key=s3_key)
+    return json.loads(response["Body"].read())
+    # reads from S3 — not from skills.py</code></pre>
+
+<p>The release step that most engineers omit: after editing <code>skills.py</code>, the S3 object must be overwritten manually. A container rebuild that includes the new <code>skills.py</code> has zero effect on agent behavior until the S3 overwrite happens. If you run two container versions side by side during a rollout, they'll both read from the same S3 object — the current one, not the version-matched one.</p>
+
+<p>This pattern applies to any AI system where configuration, prompts, or rules are loaded at runtime from external storage rather than from the container. The container image is not the complete release artifact. It's one component of it.</p>
+
+<h2>A Checklist That Actually Closes</h2>
+
+<p>The checklist I now use for every release has 30 items across 6 sections. The test for "done" is not "I updated the files I remembered." It's: running a discovery grep prints nothing.</p>
+
+<pre><code># Section D: verify no stale version strings remain
+grep -rn "v21\.2\|v21\.1\|v20\." \
+  --include="*.html" --include="*.svelte" --include="*.md" \
+  experagent-ui/src/ docs/
+# Must print nothing before the release is complete.</code></pre>
+
+<p>The six sections are: deploy manifests, ConfigMap and runtime config, UI version surfaces, documentation and presentations, diagram copies, and runtime-served artifacts (skills S3). The last two are the ones that standard release processes don't cover at all.</p>
+
+<p>For every section, the rule is: discover by grep, not by recall. The number of files in each section has changed with every release. Remembered counts are wrong. The grep count is correct.</p>
+
+<div class="highlight-box">
+    <p><strong>The fix worth making permanent:</strong> a CI job that reads the version from the ConfigMap and verifies it appears consistently across all known surfaces. It doesn't prevent the surface list from drifting, but it prevents a known surface from being left behind. Pairing it with a "surface inventory" file that CI verifies is complete turns a checklist into a gate. Until then, the checklist is the best available control.</p>
+</div>
+
+<div class="separator"></div>
+
+<h2>The Broader Pattern</h2>
+
+<p>The specific mechanisms here are particular to AI systems — skills in S3, diagrams in two places, ConfigMaps holding model IDs — but the underlying pattern generalises: in any system where the release artifact is not a single deployable unit, release discipline must extend to every component that can hold version-dependent state.</p>
+
+<p>Regular software release discipline is built around the assumption that a container (or a build artifact, or a binary) is the complete thing. AI systems violate that assumption in at least four ways: runtime configuration, runtime-served content, documentation that is operationally load-bearing, and human-facing displays that are decoupled from the thing being deployed.</p>
+
+<p>The checklist is the stopgap. The permanent fix is discovering and eliminating every place where a version-dependent fact lives outside the deployment artifact, or at minimum making each such fact automatically verified at release time. Until then: discover, don't remember; grep counts are correct, mental counts are wrong; and "done" means the verification command prints nothing.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>A correct container is not a consistent system.</strong> Deploy manifests are 1 of 6 release categories. The rest are invisible to standard deployment tooling.</li>
+        <li><strong>Human-facing version strings are operationally load-bearing.</strong> Demos, security reviews, and stakeholder decisions happen against these surfaces — not against the Kubernetes rollout log.</li>
+        <li><strong>Model IDs live in ConfigMaps, not code.</strong> The UI display of model names must read from configuration, or it decouples the moment the config changes.</li>
+        <li><strong>Diagrams exist in two places.</strong> The <code>docs/</code> copy and the <code>static/</code> copy are independent files. Verify with a checksum after updating both.</li>
+        <li><strong>Editing <code>skills.py</code> alone is inert.</strong> The agent reads from S3. The S3 object is the authoritative copy. The container rebuild changes nothing until the S3 overwrite happens.</li>
+        <li><strong>Done means the grep prints nothing.</strong> Not "I updated the files I remembered." Discover by grep; never trust a mental file count.</li>
+        <li><strong>Version strings in AI systems have no single source of truth.</strong> Until you add a CI gate, this is a matter of when, not if.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">#ReleaseEngineering</span>
+    <span class="tag">#MLOps</span>
+    <span class="tag">#AgenticAI</span>
+    <span class="tag">#DevOps</span>
+    <span class="tag">#Kubernetes</span>
+    <span class="tag">#AIEngineering</span>
+    <span class="tag">#PlatformEngineering</span>
+    <span class="tag">#CI/CD</span>
+</div>
+
+</body>
+</html>

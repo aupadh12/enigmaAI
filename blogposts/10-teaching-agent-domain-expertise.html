@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teaching an Agent to Think Like a Domain Expert — Without Fine-Tuning</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Teaching an Agent to Think Like a Domain Expert — Without Fine-Tuning">
+    <meta property="og:description" content="Not fine-tuning. Not prompt-stuffing. A skills system that retrieves domain heuristics at query time — and the failure modes that shaped it.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/10-teaching-agent-domain-expertise.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/10-teaching-agent-domain-expertise.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Teaching an Agent to Think Like a Domain Expert — Without Fine-Tuning">
+    <meta name="twitter:description" content="Not fine-tuning. Not prompt-stuffing. A skills system that retrieves domain heuristics at query time — and the failure modes that shaped it.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/10-teaching-agent-domain-expertise.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #9333ea; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+            border-left: 4px solid #9333ea; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #6b21a8; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+</head>
+<body>
+
+    <img class="cover-image" src="covers/10-teaching-agent-domain-expertise.png" alt="Blog cover">
+
+<span class="header-badge">Domain AI</span>
+<h1>Teaching an Agent to Think Like a Domain Expert — Without Fine-Tuning</h1>
+<p class="subtitle">I spent two months watching my agent confidently misinterpret domain-specific data before I understood why. The solution wasn't a better model. It was a skills system that retrieves domain heuristics at query time.</p>
+
+<div class="author-block">
+    <div class="author-avatar">AP</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
+    </div>
+</div>
+
+<h2>The Problem With a Smart Agent in a Specialist Domain</h2>
+
+<p>My agent reasons over biological data: protein expressions, drug sensitivity scores, disease-gene associations. The underlying model is genuinely capable — it can explain mechanisms, write analysis code, synthesise across sources. The problem I kept hitting wasn't capability. It was context.</p>
+
+<p>A specific example. The agent was asked to analyze which proteins showed unusual response to a compound. It retrieved the data correctly, ran the analysis correctly, and then reported the wrong proteins — because it had defaulted to treating bare identifiers as gene names, when the source data uses protein IDs. The gene-name and protein-ID namespaces partially overlap. The agent's answer wasn't obviously wrong. Some of the proteins it named were real, plausible hits. The error was silent and confident.</p>
+
+<p>This is the class of problem that a more powerful model doesn't fix. The model doesn't know this dataset's identifier convention. It can't know — the convention was established by the data provider, it's not in any public corpus, and it changes depending on which data file you're looking at. What the agent needed wasn't more intelligence; it needed a way to be told, at the moment it was about to reason over that data, "here are the rules that apply in this domain."</p>
+
+<h2>Why RAG Isn't Quite the Answer</h2>
+
+<p>My first instinct was RAG — build a vector index of domain documentation and retrieve relevant passages when needed. I tried a version of this. It helped with factual questions ("what does this gene do?") but didn't solve the interpretation problem.</p>
+
+<p>The distinction matters: RAG retrieves <em>documents</em>. What I needed was to retrieve <em>rules</em>. There's a difference between "here's a passage from a paper about TP53" and "here's how you should interpret a result involving TP53 in this specific dataset with its specific identifier conventions and known data quality issues."</p>
+
+<p>Documents tell the agent what things are. Rules tell it how to reason about them. Mixing the two into a single RAG index means your rules get diluted by documents during retrieval — the rule about identifier conventions might get ranked below a relevant-but-not-helpful passage about protein biology.</p>
+
+<p>What I ended up building is something I call a skills system. It's conceptually similar to RAG but operates on a different unit: instead of document chunks, it retrieves structured rule sets — compact, high-signal records that tell the agent specifically how to behave when working in a particular domain.</p>
+
+<h2>What a Skill Actually Is</h2>
+
+<p>A skill is a structured JSON object stored in S3. Each skill covers one data source or analysis domain. It has four fields:</p>
+
+<pre><code>{
+  "knowledge": "string interactions use combined_score 0-1000; default cutoff 400 is low — use 700+ for high-confidence edges",
+  "key_concepts": ["combined_score", "experimental_score", "coexpression_score"],
+  "common_mistakes": [
+    "treating all interaction types as equivalent — coexpression ≠ physical interaction",
+    "using default cutoff 400 for network analysis — results in thousands of low-confidence edges"
+  ],
+  "example_prompts": [
+    "Find high-confidence interaction partners for TP53",
+    "Which proteins form a tight interaction cluster with CDK2?"
+  ]
+}</code></pre>
+
+<p>The <code>knowledge</code> field is the distilled rules — the things a domain expert would tell a new analyst before they touched the data. The <code>common_mistakes</code> field is particularly valuable: it's the list of confident-but-wrong interpretations the agent is otherwise likely to make.</p>
+
+<p>When a query comes in, the agent calls a <code>get_skills</code> tool that identifies the relevant domain and fetches the skill from S3. The skill is injected into the agent's context window before it starts reasoning over the data.</p>
+
+<pre><code>async def get_skills(domain: str) -> dict:
+    """
+    Retrieve domain-specific interpretation rules.
+    Always call this before analyzing data from an unfamiliar source.
+    """
+    s3_key = f"skills/{domain}.json"
+    obj = await s3_client.get_object(Bucket=SKILLS_BUCKET, Key=s3_key)
+    return json.loads(await obj["Body"].read())</code></pre>
+
+<p>That last line is the part that bit me for three months. The agent reads from S3. Editing the Python definition of the skill changes nothing at runtime until you overwrite the S3 object. I updated the interaction score cutoff recommendation in the code, rebuilt the container, deployed it, and the agent kept applying the old cutoff for a week before I realized why.</p>
+
+<div class="stale-box">
+    <p><strong>Editing the Python file alone is inert.</strong> The container is not the authoritative copy of a skill. The S3 object is. Every skill edit has two steps: update the code (for version control and review), then overwrite the S3 object (for actual runtime effect). Treating the code edit as the complete change is the most common mistake I see people make with this pattern.</p>
+</div>
+
+<h2>The Difference Skills Made</h2>
+
+<p>The identifier namespace problem I described at the start went away immediately once I added a skill for the relevant data source that explicitly said: "bare identifiers in this source are ProteinIds, not GeneNames — check the column name before reporting." The agent started including this caveat in its answers and checking the right column.</p>
+
+<p>But the more interesting effect was what happened to tool selection. I hadn't expected this. Once the agent has a skill loaded that explains the source data's structure and caveats, it picks different tools than it would otherwise. If the skill says "this source has known quality issues with cell lines derived from lab X — cross-check with an independent source before drawing conclusions," the agent will often spontaneously call the cross-reference tool without being asked. The skill doesn't just change how the agent interprets results; it changes which results it considers worth verifying.</p>
+
+<p>That's the compounding effect that RAG-based document retrieval doesn't produce. Documents tell the model about facts. Skills teach it how to behave.</p>
+
+<h2>What I Got Wrong Building This</h2>
+
+<p>Three things, all worth flagging because I'd make the same mistakes again without having been through them:</p>
+
+<p><strong>I tried to make skills too comprehensive.</strong> My first version of the interaction network skill was 800 words covering every scoring scheme, every interaction type, every caveat I could think of. The agent would retrieve it, receive an 800-word context dump, and then ignore most of it because a long skill looks like a document. The version that actually worked was a tight, opinionated 150 words focused on the three most common mistakes and the single most important interpretation rule. Skills should be the distillation of expertise, not its documentation.</p>
+
+<p><strong>I assumed the agent would always call get_skills.</strong> It doesn't, unless the system prompt says to. I added an explicit instruction: "When working with data from a new source, call get_skills before beginning analysis." Without that, the agent would skip the skill call when it felt confident enough to proceed without it — which is exactly the situation where a skill is most needed. Confidence is not a reliable signal that the agent has the right domain context.</p>
+
+<p><strong>I put the skills in one place.</strong> I built a single-agent system first, then split into a multi-agent architecture. When I split, I added <code>get_skills</code> to the primary agent but forgot to add it to the three specialist subagents. For weeks, the Data Scout subagent was retrieving and analyzing data without domain context, while the primary agent was answering final questions with correct context about data it hadn't itself retrieved. The error was subtle: final answers looked reasonable because the primary agent had the skill, but the intermediate analysis the specialist did was applying wrong defaults. Add <code>get_skills</code> to every agent that touches domain data, not just the one that produces the final answer.</p>
+
+<div class="highlight-box">
+    <p><strong>The version that works:</strong> each specialist agent calls get_skills for the specific source it's working with. The primary orchestrator calls get_skills for the overall domain. Both skill calls happen before any data retrieval. The specialist's skill covers "how to read this source correctly"; the orchestrator's skill covers "how to synthesize results from multiple sources in this domain." They're different questions and benefit from different answers.</p>
+</div>
+
+<h2>When This Pattern Applies</h2>
+
+<p>Skills are worth building when you have data that requires interpretation conventions that aren't in the model's training data. That's a surprisingly large set of cases in any specialized domain:</p>
+
+<ul>
+    <li>Proprietary or internal datasets with custom identifier schemes</li>
+    <li>Public databases that have evolved their scoring conventions and have outdated documentation</li>
+    <li>Any source where the "correct" interpretation depends on subtle context (cell line origin, assay conditions, normalization method)</li>
+    <li>Any domain where there are well-known known errors in the data that an expert would mentally correct for but a model won't</li>
+</ul>
+
+<p>If a domain expert would spend ten minutes briefing a junior analyst before letting them loose on your data, those ten minutes of domain context are worth capturing as a skill. The model is the junior analyst; the skill is the briefing.</p>
+
+<div class="separator"></div>
+
+<h2>The Thing I Wish I'd Known at the Start</h2>
+
+<p>Domain expertise in an LLM-based system is not a property of the model. It's something you build and maintain separately, in a form that can be retrieved and injected at the point where reasoning happens.</p>
+
+<p>Fine-tuning puts domain knowledge into the weights — expensive, slow to update, and invisible when it fails. Prompt-stuffing puts it into the system prompt — broad but untargeted, and you quickly run into context limits across a wide domain. A skills system puts it into retrievable objects keyed to specific domains — cheap to update, easy to test, and available exactly when and where reasoning needs it.</p>
+
+<p>The gap between "capable general model" and "reliable domain agent" is mostly in the interpretation layer. That's the layer the skills system covers. Building it isn't glamorous work — it's essentially writing down expert knowledge in structured form and keeping it current. But it's the work that turns an impressive demo into a system people trust for real decisions.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>RAG retrieves documents; skills retrieve rules.</strong> Both have a place, but they answer different questions: RAG answers "what is this?" — skills answer "how should I reason about this?"</li>
+        <li><strong>The agent reads from S3, not from Python.</strong> A skill edit has two steps: update the code, then overwrite the S3 object. The code edit alone is inert at runtime.</li>
+        <li><strong>Tight skills beat comprehensive ones.</strong> 150 focused words covering three common mistakes outperforms 800 words of documentation. Skills are briefings, not manuals.</li>
+        <li><strong>Confidence is not a reliable signal.</strong> Add an explicit instruction to call get_skills before analysis — the agent skips it exactly when it's most needed.</li>
+        <li><strong>Every agent that touches domain data needs its own skill call.</strong> A specialist subagent retrieving data without domain context produces wrong intermediate results even when the final-answer agent has correct context.</li>
+        <li><strong>The gap between capable and reliable is in the interpretation layer.</strong> Building the skills system is unsexy work that makes the difference between an impressive demo and a trusted tool.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">#AgenticAI</span>
+    <span class="tag">#PromptEngineering</span>
+    <span class="tag">#DomainAI</span>
+    <span class="tag">#RAG</span>
+    <span class="tag">#MLOps</span>
+    <span class="tag">#AIEngineering</span>
+    <span class="tag">#KnowledgeSystems</span>
+    <span class="tag">#LLM</span>
+</div>
+
+</body>
+</html>
