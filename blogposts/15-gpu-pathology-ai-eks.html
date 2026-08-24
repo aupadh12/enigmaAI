@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load">
+    <meta property="og:description" content="Burst GPU workloads, silent Karpenter version traps, and why your SQS consumer should never be a ScaledJob.">
+    <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/15-gpu-pathology-ai-eks.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load">
+    <meta name="twitter:description" content="Burst GPU workloads, silent Karpenter version traps, and why your SQS consumer should never be a ScaledJob.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/15-gpu-pathology-ai-eks.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #059669, #047857);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #059669; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left: 4px solid #059669; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #d1fae5; text-align: left; padding: 12px 14px; font-weight: 600; color: #064e3b; border-bottom: 2px solid #a7f3d0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f0fdf4; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f0fdf4; border: 1px solid #a7f3d0; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #064e3b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+</head>
+<body>
+
+<img class="cover-image" src="covers/15-gpu-pathology-ai-eks.svg" alt="Blog cover">
+
+<div class="header-badge">MLOps</div>
+<h1>GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</h1>
+<p class="subtitle">Burst GPU workloads, silent Karpenter version traps, and why your SQS consumer should never be a ScaledJob.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · Johnson & Johnson Innovative Medicine · August 2026</div>
+    </div>
+</div>
+
+<h2>The Upgrade That Broke Everything Silently</h2>
+
+<p>Our digital pathology AI pipeline was running smoothly. Whole-slide images arrived in batches of eight, a KEDA ScaledJob spawned inference pods on demand, Karpenter provisioned GPU nodes within two minutes, and results streamed back to researchers. Then we upgraded Karpenter to 1.0.1.</p>
+
+<p>No job completed. GPU pods sat <code>Pending</code> indefinitely. No error, no failed pod, no alarm. A researcher noticed after 45 minutes that their analysis hadn't come back.</p>
+
+<p>We checked the NodePool status: <code>READY=True</code>. We checked the EC2NodeClass: <code>READY=True</code>. Everything looked healthy. Then we looked at the operator logs — the controller had been logging a reconcile failure every 60 seconds, invisible to <code>kubectl get</code>. Karpenter 1.0.1 had inverted the AMI selection logic for AL2023: GPU instances were being provisioned with the Neuron AMI variant instead of the NVIDIA one. The NVIDIA driver never installed. The NVIDIA device plugin never started. <code>nvidia.com/gpu</code> was never advertised as an allocatable resource. The scheduler had nothing to schedule onto, so GPU pods waited forever.</p>
+
+<p>The real lesson wasn't "CUDA calls fail on wrong hardware." It was: <strong>READY=True on the NodePool does not mean the GPU resource is allocatable.</strong> Status fields reflect the controller's last cached observation, not live device state.</p>
+
+<p>That was the first of three version traps we hit over six months of running GPU workloads for AI image analysis at scale. This is what we learned.</p>
+
+<h2>Why Digital Pathology AI Has a Unique Infrastructure Problem</h2>
+
+<p>Whole-slide image analysis is one of the most demanding workloads in biomedical AI. A single slide can be 50,000 × 50,000 pixels or more. Tissue segmentation, cell classification, and spatial phenotyping require GPU-accelerated inference with multi-gigabyte models loaded into VRAM. And the workload is inherently bursty: a pathologist submits ten slides at 09:00, needs results before lunch, then the queue is empty for hours.</p>
+
+<p>Standard Kubernetes Deployments are the wrong tool here. Keeping a GPU node running 24/7 for a workload that's active three hours per day is expensive — a g5.xlarge (1× A10G) runs around $1/hr on-demand — and you're paying that around the clock for a workload that only uses it a few hours a day. On the other hand, the cold start time for spinning up a new node, pulling a 5GB image, and loading the model into GPU memory is 45–90 seconds. That's acceptable once per batch; it's not acceptable if it happens per message.</p>
+
+<p>KEDA ScaledJobs solve the first problem elegantly: create one Kubernetes Job per N queue messages, let it run, let Karpenter deprovision the node when it's done. But ScaledJobs come with constraints that aren't obvious until you hit them in production.</p>
+
+<h2>ScaledJob vs Persistent Consumer: Picking the Wrong One Costs You</h2>
+
+<p>KEDA offers two scaling primitives for queue-driven work: <strong>ScaledObject</strong> (scales a Deployment) and <strong>ScaledJob</strong> (creates Jobs on demand). ScaledJob looks attractive for GPU workloads because it truly scales to zero. But there's a decision that matters more than which primitive you choose: <em>is each unit of work independent?</em></p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Criterion</th>
+            <th>ScaledJob ✓</th>
+            <th>Persistent Consumer ✓</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Work unit independence</td>
+            <td>Each item retries independently</td>
+            <td>State maintained across messages</td>
+        </tr>
+        <tr>
+            <td>Model loading cost</td>
+            <td>Cold start per batch is acceptable</td>
+            <td>Model loaded once, amortized across many messages</td>
+        </tr>
+        <tr>
+            <td>Ordering requirements</td>
+            <td>None — parallel execution fine</td>
+            <td>Ordered or sequential processing needed</td>
+        </tr>
+        <tr>
+            <td>In-flight tracking</td>
+            <td>SQS visibility timeout is enough</td>
+            <td>Complex in-flight state requires persistent consumer</td>
+        </tr>
+        <tr>
+            <td>Burst pattern</td>
+            <td>True burst: idle for hours, then peak</td>
+            <td>Steady moderate load</td>
+        </tr>
+        <tr>
+            <td>Best for</td>
+            <td>Parallel image inference batches</td>
+            <td>Ordered analysis pipelines with model state</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>For our image classification workload — stateless, parallelizable, GPU burst — ScaledJob was correct. For a separate downstream analysis pipeline that processed results in sequence and maintained state across slides in the same study, a persistent Deployment consuming SQS with an extended visibility timeout was the right answer.</p>
+
+<div class="highlight-box">
+    <p><strong>The rule:</strong> If each work item is fully independent and can be retried by re-processing the message from scratch, use ScaledJob. If the consumer maintains any state across messages — a loaded model, an ordered cursor, an in-progress accumulation — use a persistent Deployment with a long visibility timeout (set to 2× your expected processing time and extend it during processing).</p>
+</div>
+
+<p>The mistake we almost made: using ScaledJob for the downstream pipeline because "it scales to zero." A ScaledJob that spawns one pod per message, each loading a 3GB model from scratch, would have spent 45 seconds per slide loading the model and 8 seconds running inference. The persistent consumer loads the model once and processes the entire batch in 8 seconds per slide. The apparent simplicity of ScaledJob would have cost 5× in runtime.</p>
+
+<h2>Karpenter 1.0.1: The NVIDIA/Neuron AMI Inversion</h2>
+
+<p>This was the incident that opened this post. Let's be precise about what happened.</p>
+
+<p>Karpenter determines which AMI variant to use based on the <code>amiFamily</code> and instance type. For AL2023, GPU instances should get the <code>NVIDIA</code> variant; AWS Inferentia instances should get <code>Neuron</code>. In Karpenter 1.0.1, this variant selection was inverted for AL2023. GPU nodes booted with the Neuron AMI — which ships with the AWS Neuron runtime, not the NVIDIA driver. The device plugin never started, so the resource was never advertised.</p>
+
+<div class="stale-box">
+    <p><strong>Karpenter 1.0.1 trap (verified):</strong> GPU instances were provisioned with the Neuron AL2023 AMI variant. NVIDIA driver not installed → NVIDIA device plugin not started → <code>nvidia.com/gpu</code> never allocatable → GPU pods pending forever. NodePool and EC2NodeClass both showed <code>READY=True</code> (stale cached status). Operator logs showed reconcile failures every 60 seconds — invisible to <code>kubectl get</code>. The failure only surfaced when checking operator pod logs directly.</p>
+</div>
+
+<p>The fix is straightforward: <strong>upgrade Karpenter to ≥1.12.0</strong>, where the AMI variant selection is corrected. Keep <code>alias: al2023@latest</code> — do not revert to AL2, which AWS stopped releasing for EKS after November 2025. Add a post-upgrade verification step to confirm the GPU resource is actually allocatable.</p>
+
+<pre><code>apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: gpu-nodeclass
+spec:
+  # Keep al2023@latest — AL2 is end-of-life for EKS (Nov 2025)
+  # The variant selection bug was fixed in Karpenter ≥1.12.0
+  amiSelectorTerms:
+    - alias: al2023@latest
+
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: gpu-nodepool
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: gpu-nodeclass
+      requirements:
+        - key: "node.kubernetes.io/instance-type"
+          operator: In
+          values: ["g4dn.xlarge", "g4dn.2xlarge", "g5.xlarge", "g5.2xlarge"]
+          # NEVER pin to a single instance type — this breaks the scheduler
+        - key: "kubernetes.io/arch"
+          operator: In
+          values: ["amd64"]</code></pre>
+
+<div class="warn-box">
+    <p><strong>Never pin to a single instance type.</strong> <code>values: ["g4dn.xlarge"]</code> removes the scheduler's ability to place the pod if that instance type is unavailable or at capacity. Always provide a family of compatible sizes. The scheduler picks the right size based on the pod's resource request.</p>
+</div>
+
+<p>After the upgrade, we added a post-upgrade verification step: submit one test job and immediately check <code>kubectl describe node -l karpenter.sh/nodepool=gpu-nodepool | grep -E "instance-type|nvidia|neuron"</code>. This is now part of our Karpenter upgrade runbook.</p>
+
+<h2>KEDA 2.12: The ScaledJob That Silently Never Scaled</h2>
+
+<p>The second trap looked like a scaling configuration issue but was actually a KEDA version incompatibility in the <code>TriggerAuthentication</code> API.</p>
+
+<p>After upgrading to KEDA 2.12, ScaledJobs that used AWS-based queue triggers stopped spawning Jobs entirely. The queue was filling up. The ScaledJob showed no error — <code>kubectl describe scaledjob</code> reported the trigger as configured, KEDA operator logs showed no failures, and <code>kubectl apply</code> succeeded without warnings. But zero Jobs were being created.</p>
+
+<p>The cause: KEDA 2.12 changed the AWS provider string in <code>TriggerAuthentication</code>. Earlier versions used <code>provider: aws-eks</code>; the spec moved to <code>provider: aws</code> in later releases. In 2.12, neither matched cleanly in the version we had. The <code>TriggerAuthentication</code> silently failed to authenticate the KEDA operator's SQS call, so KEDA couldn't read the queue depth — and with no queue depth, it spawned no Jobs. No error. Just silence.</p>
+
+<div class="stale-box">
+    <p><strong>KEDA 2.12 trap (verified):</strong> <code>TriggerAuthentication</code> provider string mismatch caused the KEDA operator to fail its SQS queue-depth check silently. ScaledJob reported no error, spawned no Jobs, queue continued growing. Symptom: ScaledJob exists, trigger is configured, queue is non-empty — but <code>kubectl get jobs</code> shows nothing being created. Fix: upgrade KEDA to ≥2.19 where provider string handling is consistent.</p>
+</div>
+
+<p>The broader lesson: <code>identityOwner</code> is a field on <code>TriggerAuthentication.spec.podIdentity</code>, not on the ScaledJob itself — a detail the KEDA docs can obscure. And the valid values are <code>keda</code> or <code>workload</code>, not <code>operator</code>. If you've inherited a ScaledJob config with <code>identityOwner: operator</code>, that value was never valid and was silently ignored. The robust fix is to upgrade KEDA to a current version and validate your <code>TriggerAuthentication</code> against the current CRD schema after every upgrade.</p>
+
+<pre><code># TriggerAuthentication — correct location for identity config (not ScaledJob spec)
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: pathology-ai-trigger-auth
+  namespace: pathology
+spec:
+  podIdentity:
+    provider: aws      # Valid values: keda | workload (not "operator")
+---
+# ScaledJob references the TriggerAuthentication, not identityOwner directly
+spec:
+  triggers:
+  - type: aws-sqs-queue
+    authenticationRef:
+      name: pathology-ai-trigger-auth
+    metadata:
+      queueURL: https://sqs.us-east-1.amazonaws.com/123456789012/pathology-jobs
+      awsRegion: us-east-1</code></pre>
+
+<p>After any KEDA upgrade, immediately submit one test message and confirm a Job is spawned within 30 seconds. Silent non-scaling is the failure mode, not an error — the only signal is the absence of Jobs.</p>
+
+<h2>The Persistent Consumer Pattern for Ordered Pipelines</h2>
+
+<p>Our downstream analysis pipeline required ordered processing: each slide's analysis depended on the previous slide's result. It also maintained a loaded model in memory that took 45 seconds to initialize from cold.</p>
+
+<p>A ScaledJob would have created one Job per message, each loading the model fresh. With a 45-second cold start and 8 seconds of actual inference per slide, a queue of 20 slides would have taken 20 × 53 = 1,060 seconds vs 45 + 20 × 8 = 205 seconds for a persistent consumer. The persistent consumer is 5× faster — not because it's cleverer, but because it amortizes the fixed cost.</p>
+
+<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analysis-consumer
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: consumer
+        image: pathology-ai:v1.2.0
+        env:
+        - name: SQS_QUEUE_URL
+          value: "https://sqs.us-east-1.amazonaws.com/123456789012/analysis-queue"
+        - name: VISIBILITY_TIMEOUT
+          value: "600"  # 2× expected processing time (300s per slide)
+        - name: VISIBILITY_EXTENSION_INTERVAL
+          value: "120"  # Extend visibility every 2 minutes during processing</code></pre>
+
+<p>The consumer extends the SQS visibility timeout while it's processing. If the pod dies mid-processing, the message becomes visible again after the timeout expires and another consumer picks it up. This is the correct pattern for long-running GPU inference with model state: one consumer, long visibility timeout, explicit extension.</p>
+
+<h2>OME-XML Encoding: The Metadata Trap That Breaks Overlays</h2>
+
+<p>This one is specific to whole-slide image analysis pipelines that write overlay files. When generating analysis results as overlay TIFFs for display in WSI viewers, the image metadata is encoded as OME-XML in the TIFF ImageDescription tag.</p>
+
+<p>The OME standard uses Unicode — the micrometre symbol (µm) appears in pixel calibration values, stain names include non-ASCII characters, and annotation identifiers sometimes contain Unicode. If you pass the ImageDescription as a plain Python string to tifffile, the library raises a <code>ValueError: TIFF strings must be 7-bit ASCII</code> immediately at write time — a loud, fail-fast error that's hard to miss.</p>
+
+<div class="stale-box">
+    <p><strong>OME-XML encoding trap:</strong> Passing the ImageDescription XML as a plain Python string raises <code>ValueError: TIFF strings must be 7-bit ASCII</code> at write time — no file is written. The fix is to pass UTF-8 bytes instead. The subtler risk is earlier in your pipeline: if you've substituted <code>"um"</code> for <code>"µm"</code> to avoid the error, you've introduced a non-standard OME unit that a downstream viewer may misinterpret, silently misaligning the physical scale of the overlay.</p>
+</div>
+
+<pre><code>import tifffile
+
+# WRONG — raises ValueError: TIFF strings must be 7-bit ASCII if XML contains µm
+tiff.write(description=xml_string)
+
+# ALSO WRONG — "um" is not a valid OME unit; viewer may misread physical scale
+tiff.write(description=xml_string.replace("µm", "um"))
+
+# CORRECT — UTF-8 bytes preserves all Unicode in OME-XML
+tiff.write(description=xml_string.encode("utf-8"))</code></pre>
+
+<p>The fix is one method call. The lesson is to encode as UTF-8 bytes and never substitute Unicode characters — <code>"um"</code> for <code>"µm"</code> looks harmless but breaks the OME unit namespace.</p>
+
+<h2>The Infrastructure Pattern That Works</h2>
+
+<p>After six months of GPU workload production, here's the pattern we'd build from scratch today:</p>
+
+<ul>
+    <li><strong>Karpenter NodePool:</strong> Explicit instance family (never a single size), Karpenter ≥1.12.0 with <code>alias: al2023@latest</code>, post-upgrade GPU verification step in runbook</li>
+    <li><strong>ScaledJob:</strong> For stateless, parallelizable GPU work. Min replicas: 0. One Job per N messages. <code>successfulJobsHistoryLimit: 3</code> for debugging.</li>
+    <li><strong>Persistent Deployment:</strong> For ordered or stateful processing. Long SQS visibility timeout (2× max processing time). Explicit timeout extension during processing.</li>
+    <li><strong>IAM identity:</strong> TriggerAuthentication with <code>provider: aws</code>. Validate against the current KEDA CRD schema after every upgrade. Submit one test message immediately after upgrade.</li>
+    <li><strong>Version pinning:</strong> Pin Karpenter and KEDA versions in Helm values. Upgrade in staging with a GPU test workload before production.</li>
+    <li><strong>GPU verification step:</strong> Post-upgrade job that runs a minimal CUDA operation and confirms the result before declaring the upgrade complete.</li>
+</ul>
+
+<div class="highlight-box">
+    <p><strong>The upgrade checklist that would have caught everything:</strong> After any Karpenter or KEDA version change, (1) spawn a test ScaledJob that runs <code>nvidia-smi</code> and logs the GPU model, (2) check the spawned node's instance type matches the NodePool's instance family, (3) verify ScaledJob pods still have IAM access by running a test S3 operation. Ten minutes of validation prevents 45-minute silent failures.</p>
+</div>
+
+<h2>What GPU Infrastructure Teams Get Wrong</h2>
+
+<p>The most common mistake is treating GPU scheduling as solved once the first workload runs. Karpenter and KEDA are both under active development with frequent releases. Each release can change behavior that worked correctly before — sometimes with a warning in the changelog, sometimes not.</p>
+
+<p>The second mistake is treating status fields as ground truth. <code>READY=True</code> on a NodePool means the controller's last cached reconcile succeeded — it does not mean the GPU resource is allocatable right now. <code>Running</code> on a pod means the container started — it does not mean the GPU operation completed. Your upgrade runbook needs an active verification step that checks the actual resource, not the status field.</p>
+
+<p>The third mistake is the ScaledJob-for-everything trap. ScaledJob's scale-to-zero is genuinely powerful for burst workloads. But the 45-second GPU model cold start means it's only appropriate when the work unit is large enough to justify the initialization cost. For small, frequent units of work with shared model state, you're paying the cold start tax on every message.</p>
+
+<p>Digital pathology AI is demanding infrastructure — GPU bursts, large model payloads, strict ordering requirements for downstream analysis, and results that researchers depend on for clinical decisions. Getting the scaling pattern right matters. Getting the version traps documented matters more.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Pin Karpenter and KEDA versions.</strong> Both have introduced silent behavior changes in minor releases. Verify GPU AMI assignment after every Karpenter upgrade with a test job that runs <code>nvidia-smi</code>.</li>
+        <li><strong>ScaledJob for stateless burst; persistent Deployment for stateful or ordered.</strong> The 45-second GPU cold start makes ScaledJob expensive for small, frequent work units with shared model state.</li>
+        <li><strong>After any KEDA upgrade, verify scaling immediately.</strong> Submit one test message and confirm a Job is created within 30 seconds. Silent non-scaling is the failure mode — the queue fills with no error.</li>
+        <li><strong>Encode OME-XML as UTF-8 bytes.</strong> Passing a plain string raises <code>ValueError</code> at write time. Never substitute <code>"um"</code> for <code>"µm"</code> — it breaks the OME unit namespace.</li>
+        <li><strong>Your upgrade runbook needs a GPU verification step.</strong> A 10-minute test job that confirms GPU device access and AMI assignment prevents 45-minute silent failures.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Kubernetes</span>
+    <span class="tag">KEDA</span>
+    <span class="tag">Karpenter</span>
+    <span class="tag">GPU</span>
+    <span class="tag">Digital Pathology</span>
+    <span class="tag">MLOps</span>
+    <span class="tag">EKS</span>
+    <span class="tag">ScaledJob</span>
+    <span class="tag">SQS</span>
+</div>
+
+</body>
+</html>

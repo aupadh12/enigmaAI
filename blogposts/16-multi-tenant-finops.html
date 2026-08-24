@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tenant FinOps: The Three Silent Bugs That Made Our AWS Cost Data Untrustworthy</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Multi-Tenant FinOps: The Three Silent Bugs That Made Our AWS Cost Data Untrustworthy">
+    <meta property="og:description" content="We built the join, ran it, got 1.8% coverage. It looked like a data problem. It was a .lower() call — and two more silent bugs followed.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/16-multi-tenant-finops.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/16-multi-tenant-finops.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Multi-Tenant FinOps: The Three Silent Bugs That Made Our AWS Cost Data Untrustworthy">
+    <meta name="twitter:description" content="We built the join, ran it, got 1.8% coverage. It looked like a data problem. It was a .lower() call — and two more silent bugs followed.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/16-multi-tenant-finops.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #e11d48; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+            border-left: 4px solid #e11d48; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .success-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .success-box p:last-child { margin-bottom: 0; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #fff1f2; text-align: left; padding: 12px 14px; font-weight: 600; color: #881337; border-bottom: 2px solid #fecdd3; }
+        td { padding: 11px 14px; border-bottom: 1px solid #fff1f2; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #881337; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+</head>
+<body>
+
+<img class="cover-image" src="covers/16-multi-tenant-finops.svg" alt="Blog cover">
+
+<div class="header-badge">FinOps</div>
+<h1>Multi-Tenant FinOps: The Three Silent Bugs That Made Our AWS Cost Data Untrustworthy</h1>
+<p class="subtitle">We built the identity join, ran it against real data, and got 1.8% coverage. It looked like a directory sync problem. It was a <code>.lower()</code> call — and two more silent bugs followed.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · Johnson &amp; Johnson Innovative Medicine · August 2026</div>
+    </div>
+</div>
+
+<h2>The Join That Came Back Nearly Empty</h2>
+
+<p>We built a multi-tenant cost dashboard to track AWS spend across research teams. The design was straightforward: fetch usage records from AWS Cost Explorer, join them to Azure Active Directory group membership to find each user's team, then attribute costs accordingly. In development, with synthetic test data, coverage was excellent. Totals matched. We deployed to production.</p>
+
+<p>We ran the join for the first time against real production data. Coverage: 1.8%. Seventeen of 938 users matched.</p>
+
+<p>It looked exactly like a data problem — an incomplete directory sync, a stale mapping table, a missing field. We spent two hours checking the source data. Everything looked fine. Then we compared a single email address from Cost Explorer against the same person's record in the AD membership table.</p>
+
+<p>Cost Explorer: <code>firstname.lastname@company.com</code><br>
+AD table: <code>FirstName.LastName@Company.com</code></p>
+
+<p>It was a <code>.lower()</code> call. The join was case-sensitive. That was Bug 1. The other two bugs were waiting quietly behind it.</p>
+
+<p>Three bugs. All silent. All there from day one. None of them affected the cost totals — only the attribution.</p>
+
+<h2>The Multi-Tenant Attribution Problem</h2>
+
+<p>Before diving into the bugs, it's worth articulating what we were actually trying to do, because "multi-tenant cost attribution" sounds straightforward until you build it.</p>
+
+<p>AWS gives you two primitive tools: Cost Explorer tags (you tag resources with owner/team/project) and account-level cost aggregation. For a simple setup — one team per account, or one team per tag — this is sufficient. For shared infrastructure it isn't.</p>
+
+<p>On shared EKS clusters, a single node might serve three teams simultaneously. The same S3 bucket hosts data for five research groups. A Bedrock model serves queries from every team in the organization. You can't tag a node as belonging to one team. You need to <em>allocate</em> the cost across teams based on usage signals — and that allocation introduces fan-out: one dollar in must equal exactly one dollar distributed out.</p>
+
+<p>The identity problem is separate: you need to connect "who used this resource" to "which team do they belong to." That requires an identity join — matching usage records against your directory service (in our case, Azure Active Directory groups via a sync service). That join is where Bug 1 lived.</p>
+
+<h2>Bug 1: The Mail Casing Collapse</h2>
+
+<p>The join logic was conceptually simple: take the email address from the AWS cost tag, look it up in the AD group membership table, find the team.</p>
+
+<p>In development, this worked perfectly. We'd seeded our test data with lowercase emails throughout. Every join hit. 96% coverage felt great.</p>
+
+<p>In production, a directory sync ran and updated the AD group membership table from real Entra data. Entra's <code>mail</code> field is mixed case. It has three different domain spellings depending on when the account was created and whether it's been migrated. Some users have <code>firstname.lastname@company.com</code>, others have <code>FirstName.LastName@Company.com</code>, and the same domain appears with three different capitalizations depending on when the account was created and whether it had been migrated.</p>
+
+<p>AWS Cost Explorer returns email addresses in lowercase. Our join was case-sensitive. The result: 1.8% of users matched because only a tiny fraction of Entra accounts happened to have lowercase <code>mail</code> fields that aligned with what Cost Explorer returned.</p>
+
+<div class="stale-box">
+    <p><strong>The symptom:</strong> Coverage was 1.8% on the first production run against real directory data. It looked like a sync problem — bad source, missing records. It was a case-sensitivity mismatch between AWS Cost Explorer (lowercase) and Entra's <code>mail</code> field (mixed case, three capitalizations of the same domain).</p>
+    <p><strong>Root cause:</strong> Case-sensitive join on identity fields that have different case conventions across systems. The fix is two lines: normalize both sides to lowercase before joining.</p>
+</div>
+
+<p>The fix is two lines:</p>
+
+<pre><code># Before: case-sensitive join
+df = costs.merge(groups, left_on='user_email', right_on='mail')
+
+# After: normalize both sides
+costs['email_lower'] = costs['user_email'].str.lower()
+groups['mail_lower'] = groups['mail'].str.lower()
+df = costs.merge(groups, left_on='email_lower', right_on='mail_lower')</code></pre>
+
+<p>We also added a fallback: if <code>mail</code> doesn't match after normalization, try <code>userPrincipalName</code>. Some accounts have a valid UPN even when the <code>mail</code> field is inconsistent. That coalesce brought join coverage to 94.9%. Of the matched users, 61% had activity in the last 30 days — the remaining 39% are real people who simply had no activity in the selected window, not missing accounts or service accounts.</p>
+
+<p>The deeper lesson: never join on identity fields without normalizing case on both sides, and never test with synthetic data that doesn't reflect your real directory's encoding quirks. A test with 50 carefully-crafted synthetic users will not find a bug that only exists in real Entra data with 1,275 accounts and three domain spellings.</p>
+
+<h2>Bug 2: Row Ratio ≠ Value Ratio in Membership Fan-Out</h2>
+
+<p>The second bug involved a different kind of attribution failure. Many of our researchers belong to multiple AD groups — a platform team, a project team, and a department group simultaneously. Our attribution logic credited their full AWS spend to <em>each</em> group they belonged to.</p>
+
+<p>The consequence: one user in three groups had their usage counted three times. The sum of all per-group credits exceeded the actual total AWS spend. We had created dollars out of nothing.</p>
+
+<p>We measured it: 960 membership rows covered 890 unique users — a row inflation of 7.9%. But because multi-group members tend to be heavier users (they're on more projects, they have broader access), the credit inflation was 12.6% over 30 days, 13.9% over 90 days. Row inflation 7.9%; credit inflation 13.9% — the gap is the signature of above-average users being the ones with multiple memberships.</p>
+
+<div class="warn-box">
+    <p><strong>Row ratio ≠ value ratio:</strong> the entities that appear in multiple groups are above-average cost users. Summing their full spend into each group produces credit inflation well above the membership overlap rate. With 7.9% row duplication, we had 13.9% credit inflation — and the per-group totals, presented as percentages, looked perfectly plausible. Percentages actively conceal conservation violations.</p>
+</div>
+
+<p>We caught this with a conservation assertion added after the fan-out step:</p>
+
+<pre><code>def attribute_costs(costs_df: pd.DataFrame, membership_df: pd.DataFrame) -> pd.DataFrame:
+    """Attribute user costs to their AD groups (deduplicated share per group)."""
+    input_total = costs_df['amount'].sum()
+
+    # Fan-out: join costs to membership — each user's spend appears in each of their groups
+    fanned = costs_df.merge(membership_df, on='user_id', how='left')
+
+    # Deduplicate: compute each group's share relative to unique users only
+    deduped = fanned.groupby('group_id')['amount'].sum() / fanned['user_id'].nunique() * len(costs_df)
+
+    # Conservation invariant: deduplicated total must match input
+    output_total = deduped.sum()
+    delta = abs(output_total - input_total)
+    epsilon = input_total * 0.0001  # 0.01% tolerance for floating-point drift
+    if delta > epsilon:
+        raise ValueError(
+            f"Cost conservation violated: input={input_total:.2f}, "
+            f"output={output_total:.2f}, delta={delta:.4f}"
+        )
+
+    return deduped</code></pre>
+
+<p>The fix: compute each group's share as a fraction of deduplicated unique-user spend, not a raw sum. A user in three groups contributes their spend once to the total, with each group getting a proportional share of their activity — not a full copy. The deduplicated total conserves exactly.</p>
+
+<div class="highlight-box">
+    <p><strong>The rule:</strong> any time you fan out a cost pool across group memberships, assert <code>abs(sum(deduped_output) - sum(input)) &lt; epsilon</code>. Test the <em>stored</em> configuration — not one constructed in the test. Our bug passed unit tests because the test membership data had no overlap. Production data had 7.9% overlap and nobody noticed until we asserted.</p>
+</div>
+
+<h2>Bug 3: CloudWatch Period Alignment</h2>
+
+<p>The third bug was subtler and, if anything, more insidious because it didn't affect totals — it affected time series.</p>
+
+<p>We were querying CloudWatch for daily cost metrics using <code>Period=86400</code> (one day in seconds). This seemed correct: we want daily granularity, one day is 86,400 seconds, done.</p>
+
+<p>The problem — observed behavior, not explicitly documented in the API reference — is that <code>Period=86400</code> doesn't align to UTC midnight. It aligns to the rounded <code>StartTime</code> of your query. If you query starting at 14:37 UTC, your "daily" buckets are 14:37 → 14:37 the next day. Change your start time and the buckets shift.</p>
+
+<p>In practice this meant: run the same query at 09:00 on Tuesday and at 17:00 on Tuesday, and "Monday's cost" showed different numbers depending on when you ran it. Two teams appeared to have swapped costs between Monday and Tuesday depending on the query time. Someone noticed that their cost on "Monday" changed when they refreshed the dashboard.</p>
+
+<pre><code># Broken: Period aligns to StartTime, not midnight
+response = cloudwatch.get_metric_data(
+    MetricDataQueries=[...],
+    StartTime=datetime(2026, 8, 24),
+    EndTime=datetime(2026, 8, 31),
+    ScanBy='TimestampAscending'
+)
+# Each datapoint covers StartTime + n*86400, not midnight boundaries
+
+# Fixed: use fine-grained periods, aggregate to calendar days in application code
+response = cloudwatch.get_metric_data(
+    MetricDataQueries=[{
+        ...,
+        'MetricStat': {
+            'Period': 300,  # 5-minute granularity
+            ...
+        }
+    }],
+    StartTime=datetime(2026, 8, 24, 0, 0, 0),  # Explicit midnight UTC
+    EndTime=datetime(2026, 8, 31, 0, 0, 0),
+    ScanBy='TimestampAscending'
+)
+
+# Aggregate to calendar days ourselves
+df['date'] = pd.to_datetime(df['timestamp']).dt.floor('D')
+daily = df.groupby(['team', 'date'])['cost'].sum().reset_index()</code></pre>
+
+<p>The fix: use fine-grained periods (5 minutes) and aggregate to calendar days in application code, always starting at explicit UTC midnight. The CloudWatch period alignment issue disappears when you own the aggregation.</p>
+
+<div class="warn-box">
+    <p><strong>Period=300 has a limit:</strong> for metric windows longer than 63 days, AWS requires Period to be a multiple of 3600 (hourly). <code>Period=300</code> returns no data for those windows — silently, with no error. If you're building a 90-day cost view, use <code>Period=3600</code> or switch to AWS Cost Explorer's <code>GetCostAndUsage</code> with <code>Granularity=DAILY</code>, which returns true calendar-day buckets without any of these alignment constraints. Cost Explorer is the right tool for daily cost attribution; CloudWatch is better for operational metrics at finer granularity.</p>
+</div>
+
+<h2>Building the AD Group Fan-Out That Actually Works</h2>
+
+<p>After fixing all three bugs, the picture changed significantly. Here's what the working system looks like:</p>
+
+<p>We sync AD group membership from Entra on a scheduled basis. The sync normalizes <code>mail</code> to lowercase and coalesces to UPN as fallback. The cost attribution pipeline:</p>
+
+<ol>
+    <li>Fetches AWS cost data via Cost Explorer, normalized to lowercase email</li>
+    <li>Joins on normalized email → group membership (132 groups, 1,275 users)</li>
+    <li>Allocates shared resource costs by dollar weight, not row count</li>
+    <li>Asserts conservation at every allocation step</li>
+    <li>Aggregates to calendar days using application-level bucketing</li>
+    <li>Explicitly preserves "unattributed" as a first-class bucket — never silently drops</li>
+</ol>
+
+<p>Join coverage after fixes: 94.9% — up from 1.8%. Separately, of matched users, 61% had activity in the last 30 days; the remaining 39% are real people with no activity in the selected window, not missing accounts or service accounts. Both metrics matter: the join coverage tells you how complete your mapping is; the activity rate tells you how much of the mapped population is actually represented in the selected period. Infrastructure without owner tags appears explicitly as "unattributed" rather than being spread across teams or dropped.</p>
+
+<div class="success-box">
+    <p><strong>One configuration decision worth calling out:</strong> we left a <code>PUBLIC_GROUPS</code> configuration parameter that controls which AD groups are visible in the dashboard. Setting it blank makes all groups visible. This was an explicit decision by the service owner — not a default we accidentally left — but it's the kind of thing that needs to be a deliberate choice rather than a consequence of forgetting to fill in a value.</p>
+</div>
+
+<h2>What Makes Multi-Tenant Cost Data Trustworthy</h2>
+
+<p>Looking back at the three bugs, they share a pattern: each one corrupted the data silently, produced plausible-looking output, and only became visible through manual investigation triggered by a user complaint.</p>
+
+<p>The system we ended up with has four properties that prevent this class of failure:</p>
+
+<p><strong>Conservation assertions at every split.</strong> Any operation that redistributes a cost pool raises an error if the total deviates beyond floating-point tolerance. Use <code>if delta > epsilon: raise ValueError(...)</code> rather than <code>assert</code> — Python strips assertions under <code>-O</code>, which many container images enable. It catches both the fan-out bug and any future allocation logic that violates the conservation law.</p>
+
+<p><strong>Identity joins with normalized fields.</strong> Every join on email, username, or any identity field normalizes case on both sides before comparison. The normalization is applied at <em>both</em> ingestion (so new data is stored clean) and at join time (so older data already on disk is handled correctly — a write-time-only fix leaves existing records wrong).</p>
+
+<p><strong>Metric buckets owned by the application.</strong> We don't rely on cloud-native period alignment for time series that need to align to calendar boundaries. We query at fine granularity and bucket ourselves using UTC midnight as the day boundary, everywhere, consistently.</p>
+
+<p><strong>Unattributed is a real bucket.</strong> We never silently drop costs that can't be attributed. Unattributed costs are explicitly surfaced in the dashboard. If unattributed jumps, that's a signal — not a rounding error.</p>
+
+<p>There's one more thing worth adding: store owner identity as email, not display name. We initially stored team owners as display names. LDAP resolution takes <code>results[0]</code> — and names are not unique. We had two "John Smith" entries in our directory. Every time we looked up the owner of a particular cost center by name, we might get the wrong person. Email is unique. Use email as the identity key; map to display name only at render time.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Never join on identity fields without normalizing case on both sides.</strong> AWS and your directory service will not agree on capitalization. Test with real directory data, not synthetic.</li>
+        <li><strong>Row ratio ≠ value ratio in fan-out.</strong> Users in multiple groups get their spend counted once per group — above-average users inflate the total more than their membership overlap suggests. Deduplication is required. Raise an error (not <code>assert</code> — it's stripped under <code>-O</code>) when <code>abs(sum(deduped_out) - sum(in)) > epsilon</code>.</li>
+        <li><strong>Period=86400 does not mean "one calendar day".</strong> CloudWatch aligns to StartTime, not midnight. Aggregate to calendar days in application code.</li>
+        <li><strong>Unattributed is a valid category.</strong> Never silently drop costs that can't be attributed — surface them explicitly so coverage gaps are visible.</li>
+        <li><strong>Store identity as email, not display name.</strong> Names are not unique. LDAP's results[0] will eventually return the wrong person.</li>
+        <li><strong>Conservation checks belong in production, not just tests.</strong> The fan-out bug passed unit tests with synthetic data. The <code>raise ValueError</code> check caught it on the first run against real directory data.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">FinOps</span>
+    <span class="tag">AWS</span>
+    <span class="tag">Multi-Tenant</span>
+    <span class="tag">Cost Attribution</span>
+    <span class="tag">Azure AD</span>
+    <span class="tag">CloudWatch</span>
+    <span class="tag">Data Quality</span>
+    <span class="tag">EKS</span>
+</div>
+
+</body>
+</html>

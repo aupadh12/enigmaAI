@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build">
+    <meta property="og:description" content="We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.">
+    <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/14-billion-row-data-pipeline.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/14-billion-row-data-pipeline.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build">
+    <meta name="twitter:description" content="We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/14-billion-row-data-pipeline.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #2563eb; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-left: 4px solid #2563eb; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .success-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .success-box p:last-child { margin-bottom: 0; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #dbeafe; text-align: left; padding: 12px 14px; font-weight: 600; color: #1e3a8a; border-bottom: 2px solid #bfdbfe; }
+        td { padding: 11px 14px; border-bottom: 1px solid #eff6ff; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e3a8a; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+</head>
+<body>
+
+    <img class="cover-image" src="covers/14-billion-row-data-pipeline.svg" alt="Blog cover">
+
+<div class="header-badge">Data Engineering</div>
+<h1>Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build</h1>
+<p class="subtitle">We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · Johnson &amp; Johnson Innovative Medicine · August 2026</div>
+    </div>
+</div>
+
+<h2>We Were Ready to Build</h2>
+
+<p>The source data was clear. Thirty-four compound-screening studies. Three hundred twenty-two run folders. A clean long-format CSV schema: <code>gene_id, SampleName, raw, logcpm, nnZScore, ZScore, dateCreated</code>. We had estimated the total volume at 387 GB — 322 files, 1.2 GB average. We had a storage design using Hive-partitioned Parquet on S3, a weekly CronJob with 16 Gi memory, an Athena table with partition discovery, and a two-action API for the AI agent to query expression values and find regulated genes.</p>
+
+<p>Before writing a single line of code, we submitted the design to a review agent — an architectural advisor that reads the codebase, checks live AWS state, and looks for blockers. It came back with five of them.</p>
+
+<p>None of the five were subtle. Each would have caused silent data corruption, nightly OOM kills, or an Athena table that looked healthy but returned no rows. This post walks through what the advisor found, why each mistake was non-obvious at design time, and what the fixes looked like.</p>
+
+<h2>Probe Before You Design</h2>
+
+<p>Our 387 GB estimate came from a simple calculation: 322 files × 1.2 GB average file size, where 1.2 GB was the size of one file we had examined. The advisor flagged this. It couldn't verify the number because the S3 bucket required pod credentials it didn't have.</p>
+
+<p>So we probed. From a running pod, we listed the first five sample folders of two studies and retrieved the file sizes for each <code>*_data.csv</code>:</p>
+
+<pre><code>STUDY-A / sample-01: data.csv    1,213,259,101 bytes  (260 samples)
+STUDY-A / sample-02: data.csv      200,153,324 bytes  ( 72 samples)
+STUDY-A / sample-03: data.csv      335,569,971 bytes  (120 samples)
+STUDY-A / sample-04: data.csv      180,478,152 bytes  ( ~60 samples)
+STUDY-A / sample-05: data.csv      204,460,190 bytes  ( ~70 samples)</code></pre>
+
+<p>File sizes varied dramatically — proportional to sample count, not study. The 1.2 GB file we had used as the baseline had 260 samples. Most runs had 60–120 samples, making the average closer to 400 MB. The real total: approximately 129 GB CSV, not 387 GB.</p>
+
+<div class="highlight-box">
+<p><strong>The probe-first principle:</strong> Before sizing memory, deadlines, or cost models for a new data source, spend 10 minutes running ranged <code>GetObject</code> requests against a representative sample. One S3 API call prevented three weeks of over-engineered infrastructure. Our 16 Gi pod limit stayed, but the 18-hour deadline estimate dropped to a realistic 3–4 Saturday runs via incremental checkpointing.</p>
+</div>
+
+<p>The probe also confirmed something critical about the data structure: each CSV contained only the samples for that specific run folder — it was not a full-study eset replicated per folder. This changed the deduplication design entirely, as we'll see in Blocker 4.</p>
+
+<h2>Blocker 1: MSCK REPAIR TABLE Silently Does Nothing</h2>
+
+<p>Our design called for running <code>MSCK REPAIR TABLE</code> after each weekly ingest to register new partitions with AWS Glue. The advisor checked the IAM policy on the pod role and found this statement:</p>
+
+<pre><code>"Action": [
+    "glue:GetDatabase",
+    "glue:GetTable",
+    "glue:GetPartitions",
+    "glue:GetPartition",
+    "glue:BatchGetPartition",
+    "glue:UpdateTable"
+]</code></pre>
+
+<p>Missing: <code>glue:BatchCreatePartition</code> and <code>glue:CreatePartition</code>.</p>
+
+<p>AWS documentation confirms what makes this particularly nasty: <code>MSCK REPAIR TABLE</code> can return <code>SUCCEEDED</code> while registering zero new partitions. There's an entire AWS troubleshooting page titled "MSCK REPAIR TABLE detects partitions but doesn't add them to AWS Glue." The query runs, reports success, and your new data is completely invisible to Athena. No error. No warning.</p>
+
+<div class="stale-box">
+<p><strong>The silent failure mode:</strong> Adding <code>glue:BatchCreatePartition</code> to the policy would fix the permission gap — but Athena's own performance documentation recommends avoiding MSCK REPAIR for partition maintenance entirely. It scans S3 for new prefixes, which becomes expensive as data grows.</p>
+</div>
+
+<p>The fix was already demonstrated in the same codebase by the dose-response table: <code>projection.protein_prefix.type=injected</code>. (The sibling <code>de_results</code> table uses a different pattern — <code>projection.compound_bucket.type=integer</code> — because its partition key is numeric and benefits from range projection rather than injected.)</p>
+
+<p>Injected partition projection requires zero catalog writes. Athena derives the partition path from the query predicate at query time. No MSCK. No <code>BatchCreatePartition</code>. No IAM change. The only requirement is that every query must supply a <code>WHERE study_id = '...'</code> filter — which both agent actions do by design.</p>
+
+<pre><code># Glue table creation — injected projection
+aws glue create-table \
+  --database-name omicsagent_transcriptomics \
+  --table-input '{
+    "Name": "expression_data",
+    "Parameters": {
+      "projection.enabled": "true",
+      "projection.study_id.type": "injected",
+      "storage.location.template":
+        "s3://bucket/omicsagent/data/transcriptomics_bulk/expression/study_id=${study_id}"
+    },
+    "PartitionKeys": [{"Name": "study_id", "Type": "string"}],
+    ...
+  }'</code></pre>
+
+<h2>Blocker 2: The Daily CronJob Would OOM Every Night</h2>
+
+<p>The new expression ingestion code was added inside <code>_ingest_transcriptomics_bulk()</code>. The function was already called by two CronJobs:</p>
+
+<ul>
+    <li>Daily 04:00 UTC — metadata ingestion (pdata/fdata), 4 Gi memory limit, 4-hour deadline</li>
+    <li>Weekly Saturday 06:00 UTC — expression ingestion, 16 Gi memory limit, 8-hour deadline</li>
+</ul>
+
+<p>Both CronJobs called the same function. The new expression loop had no gating condition. The moment the v22.01 image deployed, the daily 4 Gi job would attempt to load 1.2 GB CSV files into memory, OOM-kill on the first large file, and retry until it hit the backoff limit. This would happen every night, noisily, while appearing to be an expression ingestion failure when it was actually a design error.</p>
+
+<p>The fix was a function parameter with a safe default:</p>
+
+<pre><code>def _ingest_transcriptomics_bulk(
+    s3: S3DataLakeClient,
+    include_expression: bool = False,   # B2 fix: daily 4Gi job uses default False
+) -> tuple[int, list[str]]:
+    ...
+    if include_expression:
+        for sample_prefix in sample_prefixes:
+            # read 200MB–1.2GB CSV, convert to Parquet, write to S3
+            ...</code></pre>
+
+<p>The weekly expression CronJob passes <code>include_expression=True</code> explicitly. The daily job passes nothing and stays at 4 Gi with metadata-only work. Two CronJobs, one function, one parameter separating a stable daily job from a multi-hour heavy ingest.</p>
+
+<h2>Blocker 3: Checkpoints Were Corrupting pdata Records</h2>
+
+<p>To handle the multi-run nature of the backfill (322 files across several Saturdays), we added a periodic checkpoint: flush the S3 JSON manifest every 30 expression files so the next run can skip already-processed ones.</p>
+
+<p>The manifest stores ingested runs as a dict of keys. For pdata/fdata, the key is <code>{study_id}/{sample_id}/{run_folder}</code>. For expression, we used <code>expr/{study_id}/{sample_id}</code>.</p>
+
+<p>The checkpoint flushed <code>new_run_records</code> — which by that point contained both pdata keys from the current run's metadata loop AND expression keys from the expression loop. Pdata keys were being written to the manifest before <code>all_pdata.parquet</code> had been written to S3.</p>
+
+<div class="stale-box">
+<p><strong>The data loss scenario:</strong> Pod processes 30 expression files → checkpoint fires → pdata keys for samples from earlier in the loop are now in the manifest → pod dies (OOM, node drain, deadline) → next run hits <code>if run_key in ingested_runs: continue</code> for those pdata rows → they are permanently skipped → those samples never appear in <code>all_pdata.parquet</code> → the agent's metadata queries silently return incomplete data forever.</p>
+</div>
+
+<pre><code># B3 fix: checkpoint only expr/ keys
+# pdata keys must not be marked ingested before all_pdata.parquet is written
+if len(expr_files_written) % expr_checkpoint_every == 0:
+    expr_only = {
+        k: v for k, v in new_run_records.items()
+        if k.startswith("expr/")   # ← this filter is the fix
+    }
+    s3.upsert_manifest(
+        "transcriptomics_bulk",
+        expr_files_written,
+        0,
+        time.time() - ingest_start,
+        downloaded_filenames=expr_only,
+    )</code></pre>
+
+<p>The full <code>new_run_records</code> dict (including pdata keys) is only flushed at the very end of the function, after <code>all_pdata.parquet</code> has been successfully written.</p>
+
+<h2>Blocker 4: Re-Analysis Versions Duplicated, Not Overwrote</h2>
+
+<p>The expression data is versioned. Each sample folder can contain multiple run folders — timestamped re-analyses with updated annotation versions. Our design stated "only ingest the latest run per sample," and the code correctly selected <code>max(run_prefixes)</code> as the run to process.</p>
+
+<p>But the S3 object key was <code>{sample_id}__{run_folder}.parquet</code>.</p>
+
+<p>When a sample gets a new annotation version, the new run_folder is different. The new Parquet object has a different key. The old one is still there. Athena's <code>expression_data</code> table now has two Parquet files in the same <code>study_id=</code> partition, both for the same sample. <code>get_expression</code> and <code>find_regulated_genes</code> return duplicate rows — same gene, same sample, two different Z-scores from two different annotation versions.</p>
+
+<pre><code># Wrong: run_folder in key means re-analysis adds a second file
+expr_s3_key = f"{prefix}/study_id={study_id}/{sample_id}__{run_folder}.parquet"
+
+# B3 fix: key on sample_id only — PUT is idempotent, re-analysis overwrites
+expr_s3_key = f"{prefix}/study_id={study_id}/{sample_id}.parquet"</code></pre>
+
+<p>S3's <code>put_object</code> overwrites unconditionally. Keying on sample_id makes every re-analysis overwrite the S3 object. The <code>run_folder</code> value is still preserved as a column inside the Parquet file for provenance, but it no longer participates in the S3 key.</p>
+<div class="warn-box"><p><strong>Note on incremental runs:</strong> The manifest key (<code>expr/{study_id}/{sample_id}</code>) has no <code>run_folder</code> component, so the incremental skip fires before the S3 write on subsequent runs. Re-ingesting a newer annotation version currently requires clearing the manifest entry for that sample. We've logged this as a backlog item to key the manifest on <code>expr/{study}/{sample}/{run_folder}</code>.</p></div>
+
+<h2>Blocker 5: Schema Drift Produces Silent NULLs</h2>
+
+<p>The CSV schema had seven columns, two of which — <code>nnZScore</code> and <code>ZScore</code> — were nullable. In our initial design, we used pyarrow's default type inference. For most files this was fine. For any file where a Z-score column was entirely empty (all blank values), pyarrow inferred the column type as <code>null</code> — a special type meaning "no values, no schema."</p>
+
+<p>When Athena reads a Parquet partition containing a <code>null</code>-typed column where the Glue schema declares <code>double</code>, the behavior is undocumented and version-dependent: it either raises <code>HIVE_BAD_DATA</code> or silently returns NULLs. Either way, <code>find_regulated_genes</code> filters on <code>z_score IS NOT NULL AND ABS(z_score) >= threshold</code> — those samples simply never appear in results. The fix is the same regardless of which failure mode your version of Athena produces.</p>
+
+<pre><code># B5 fix: explicit column_types for all 7 source columns
+expr_tbl = pcsv.read_csv(
+    io.BytesIO(body_bytes),
+    convert_options=pcsv.ConvertOptions(
+        column_types={
+            "gene_id":     pa.string(),
+            "SampleName":  pa.string(),
+            "raw":         pa.int64(),
+            "logcpm":      pa.float64(),
+            "nnZScore":    pa.float64(),   # nullable — but typed, not inferred
+            "ZScore":      pa.float64(),   # nullable — but typed, not inferred
+            "dateCreated": pa.string(),
+        },
+        # WARNING: null_values REPLACES pyarrow defaults, not extends them.
+        # Add any default null strings you need (n/a, #N/A N/A, 1.#IND, etc.)
+        # or use strings_can_be_null=True to cover lowercase variants.
+        null_values=["", "NA", "NaN", "null", "NULL", "N/A", "n/a", "#N/A", "#N/A N/A", "-", "nan"],
+        strings_can_be_null=True,
+    ),
+)</code></pre>
+
+<p>With explicit <code>column_types</code>, pyarrow honors the declared type even when all values in the column are blank — producing a <code>float64</code> array of nulls, which is correctly typed and readable by Athena. We also added a post-rename validation that skips any file missing required columns, logging an error rather than writing corrupted Parquet silently.</p>
+
+<h2>The Incremental Checkpointing Pattern</h2>
+
+<p>With the five blockers resolved, the remaining design question was execution time. At approximately 200 seconds per file (reading 200MB–1.2GB CSV, converting to Parquet, writing to S3), 322 files takes 18 hours. The weekly CronJob had an 8-hour deadline. A single run cannot complete the backfill.</p>
+
+<p>The solution was already implied by the checkpoint fix: let the backfill run incrementally across multiple executions. The manifest records which files have been processed. Each run skips completed files and processes the next batch until the deadline approaches. The backfill Job (a one-shot Kubernetes Job for the initial load) has no <code>activeDeadlineSeconds</code> — it runs to completion across restarts, with <code>backoffLimit: 3</code>. The weekly CronJob continues the steady-state incremental updates.</p>
+
+<pre><code>apiVersion: batch/v1
+kind: Job
+metadata:
+  name: omicsagent-expression-backfill
+spec:
+  backoffLimit: 3
+  # No activeDeadlineSeconds — checkpointing allows safe partial runs
+  template:
+    spec:
+      containers:
+      - command:
+        - python
+        - -c
+        - |
+          from omicsagent.agents.data_ingestion_agent import _ingest_transcriptomics_bulk
+          _ingest_transcriptomics_bulk(s3, include_expression=True)</code></pre>
+
+<div class="highlight-box">
+<p><strong>Checkpoint every N files, not at the end:</strong> A function that writes 322 files and flushes its manifest once at the end loses all progress on any failure. Checkpointing every 30 files means a pod killed at hour 7 restarts from file 210, not from file 1. The cost is minimal — an S3 JSON read-modify-write every 30 iterations — and the recovery benefit is compounding.</p>
+</div>
+
+<h2>What We Learned</h2>
+
+<p>All five blockers shared a common root cause: the design was written from intent, not from observation. We knew what the system <em>should</em> do. We hadn't verified what it would <em>actually</em> do against the live AWS environment, the real data dimensions, and the existing IAM grants.</p>
+
+<p>The MSCK failure required checking the IAM policy against the AWS API documentation — not something most developers do for a standard table operation. The daily OOM required knowing that two CronJobs shared the same function. The checkpoint corruption required tracing the exact execution order of two loops within one function. The duplicate rows required understanding how S3 <code>put_object</code> differs from upsert. The silent NULLs required knowing pyarrow's type inference behavior for empty columns.</p>
+
+<p>None of these are exotic failure modes. They're exactly the kind of second-order effects that a thorough review finds — and that production incidents teach, expensively, after the fact.</p>
+
+<table>
+    <thead>
+        <tr><th>Blocker</th><th>Category</th><th>Silent?</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>MSCK REPAIR registers nothing</td><td>IAM / AWS behavior</td><td>Yes — returns SUCCEEDED</td><td>Injected partition projection</td></tr>
+        <tr><td>Daily CronJob OOM nightly</td><td>Resource misconfiguration</td><td>No — OOMKill visible</td><td><code>include_expression=False</code> default</td></tr>
+        <tr><td>Checkpoint corrupts pdata</td><td>Execution ordering</td><td>Yes — data lost permanently</td><td>Checkpoint only <code>expr/</code> keys</td></tr>
+        <tr><td>Re-analysis duplicates rows</td><td>S3 key design</td><td>Yes — Athena returns doubles</td><td>Key on <code>sample_id.parquet</code></td></tr>
+        <tr><td>Schema drift produces NULLs</td><td>Type inference</td><td>Yes — queries return no rows</td><td>Explicit <code>column_types</code></td></tr>
+    </tbody>
+</table>
+
+<p>Blockers 1, 3, 4, and 5 all would have been silent in production. The system would have appeared to work — CronJobs completing successfully, Athena queries returning results — while actually delivering incomplete, duplicate, or NULL data to the AI agent. The only sign would have been a researcher noticing that gene expression queries returned fewer results than expected, which might take weeks to surface and be correctly attributed.</p>
+
+<p>Pre-build review found all five in under an hour.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Probe before estimating.</strong> One ranged S3 GetObject request changed our storage estimate by 3×. Size your infrastructure from measurements, not arithmetic.</li>
+        <li><strong>MSCK REPAIR TABLE can silently succeed and do nothing.</strong> If you're missing <code>glue:BatchCreatePartition</code>, consider injected or enum partition projection instead — zero catalog writes, no IAM gap.</li>
+        <li><strong>Separate jobs must not share implicit state.</strong> When two CronJobs call the same function, gate the heavy path behind a parameter with a safe default. The wrong default will always surface at the worst time.</li>
+        <li><strong>Checkpoint only what is durably written.</strong> Flushing a manifest key before the corresponding file is written to S3 is data loss waiting to happen. Separate your key namespaces by artifact type.</li>
+        <li><strong>Never rely on type inference for multi-file ingestion.</strong> pyarrow infers <code>null</code> for empty columns. One file with an empty Z-score column and no explicit type declaration will silently corrupt that partition's analytics forever.</li>
+        <li><strong>Incremental checkpointing beats large deadlines.</strong> A job that records progress every 30 files can run safely on a machine with an 8-hour limit even when the full workload requires 18 hours. Let it restart.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Data Engineering</span>
+    <span class="tag">AWS Athena</span>
+    <span class="tag">Apache Parquet</span>
+    <span class="tag">Glue Catalog</span>
+    <span class="tag">Kubernetes</span>
+    <span class="tag">Production AI</span>
+    <span class="tag">Genomics</span>
+    <span class="tag">Data Pipeline</span>
+</div>
+
+</body>
+</html>

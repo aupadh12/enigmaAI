@@ -1,0 +1,151 @@
+<svg width="1200" height="627" viewBox="0 0 1200 627" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0f00"/>
+      <stop offset="35%" style="stop-color:#2d1a00"/>
+      <stop offset="100%" style="stop-color:#1a0f00"/>
+    </linearGradient>
+    <linearGradient id="lgA" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#d97706"/><stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="lgB" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7c3aed"/><stop offset="100%" style="stop-color:#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="lgC" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0d9488"/><stop offset="100%" style="stop-color:#2dd4bf"/>
+    </linearGradient>
+    <linearGradient id="lgD" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#dc2626"/><stop offset="100%" style="stop-color:#f87171"/>
+    </linearGradient>
+    <filter id="glow1">
+      <feGaussianBlur stdDeviation="60" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="rgba(252,211,77,0.7)"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="627" fill="url(#bg)"/>
+
+  <!-- Grid -->
+  <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="28" y2="0" stroke="rgba(217,119,6,0.04)" stroke-width="1"/>
+    <line x1="0" y1="0" x2="0" y2="28" stroke="rgba(217,119,6,0.04)" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="627" fill="url(#grid)"/>
+
+  <!-- Ambient blobs -->
+  <circle cx="900" cy="150" r="300" fill="#d97706" opacity="0.12" filter="url(#glow1)"/>
+  <circle cx="500" cy="500" r="200" fill="#7c3aed" opacity="0.08" filter="url(#glow1)"/>
+
+  <!-- Left panel -->
+  <rect x="40" y="80" width="380" height="490" rx="12" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.04)"/>
+
+  <!-- Badge -->
+  <rect x="60" y="104" width="90" height="22" rx="11" fill="url(#lgA)" opacity="0.9"/>
+  <text x="105" y="119" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="white" letter-spacing="1">LEARNING</text>
+
+  <!-- Title -->
+  <text x="60" y="160" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="white">Closing the</text>
+  <text x="60" y="196" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="white">Feedback</text>
+  <text x="60" y="232" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="#fcd34d">Loop</text>
+
+  <!-- Subtitle -->
+  <text x="60" y="268" font-family="Arial,sans-serif" font-size="13" fill="rgba(255,255,255,0.5)">The user corrected it.</text>
+  <text x="60" y="285" font-family="Arial,sans-serif" font-size="13" fill="rgba(255,255,255,0.5)">The next user didn't know.</text>
+
+  <!-- Stats row -->
+  <rect x="60" y="310" width="75" height="55" rx="6" fill="rgba(217,119,6,0.12)" stroke="rgba(252,211,77,0.2)"/>
+  <text x="97" y="338" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="800" fill="#fcd34d">4</text>
+  <text x="97" y="354" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.4)" letter-spacing="0.5">LAYERS</text>
+
+  <rect x="147" y="310" width="75" height="55" rx="6" fill="rgba(217,119,6,0.12)" stroke="rgba(252,211,77,0.2)"/>
+  <text x="184" y="338" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="800" fill="#fcd34d">≥3</text>
+  <text x="184" y="354" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.4)" letter-spacing="0.5">THRESHOLD</text>
+
+  <rect x="234" y="310" width="75" height="55" rx="6" fill="rgba(217,119,6,0.12)" stroke="rgba(252,211,77,0.2)"/>
+  <text x="271" y="338" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="800" fill="#fcd34d">5m</text>
+  <text x="271" y="354" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.4)" letter-spacing="0.5">SKILL TTL</text>
+
+  <!-- Author strip -->
+  <rect x="60" y="510" width="330" height="36" rx="4" fill="rgba(0,0,0,0.3)"/>
+  <circle cx="80" cy="528" r="11" fill="url(#lgA)"/>
+  <text x="80" y="532" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="white">A</text>
+  <text x="100" y="525" font-family="Arial,sans-serif" font-size="11" font-weight="600" fill="rgba(255,255,255,0.9)">Ashutosh Upadhyay</text>
+  <text x="100" y="538" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">Platform Engineering · J&amp;J Innovative Medicine</text>
+
+  <!-- Right panel: diagram -->
+  <text x="490" y="55" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="rgba(255,255,255,0.3)" letter-spacing="2">FOUR LAYERS OF AGENT LEARNING</text>
+
+  <!-- Layer 4 -->
+  <rect x="490" y="68" width="660" height="68" rx="8" fill="rgba(220,38,38,0.08)" stroke="rgba(248,113,113,0.35)" stroke-width="1.5"/>
+  <rect x="490" y="68" width="660" height="20" rx="8" fill="url(#lgD)" opacity="0.55"/>
+  <rect x="490" y="80" width="660" height="8" fill="url(#lgD)" opacity="0.55"/>
+  <text x="820" y="83" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="white">LAYER 4 — IN-SESSION FEEDBACK</text>
+  <text x="820" y="108" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.65)">User says "no, use X". Agent adapts immediately for this session only.</text>
+  <text x="820" y="124" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">Scope: 1 session · Speed: instant · Infra: none</text>
+
+  <line x1="820" y1="140" x2="820" y2="160" stroke="rgba(252,211,77,0.4)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Layer 2 -->
+  <rect x="455" y="163" width="730" height="68" rx="8" fill="rgba(124,58,237,0.08)" stroke="rgba(167,139,250,0.35)" stroke-width="1.5"/>
+  <rect x="455" y="163" width="730" height="20" rx="8" fill="url(#lgB)" opacity="0.55"/>
+  <rect x="455" y="175" width="730" height="8" fill="url(#lgB)" opacity="0.55"/>
+  <text x="820" y="178" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="white">LAYER 2 — PER-USER MEMORY (AgentCore)</text>
+  <text x="820" y="203" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.65)">Correction persists for that user across all future sessions.</text>
+  <text x="820" y="219" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">Scope: 1 user · Speed: ~25s extraction · Infra: AgentCore Memory</text>
+
+  <line x1="820" y1="235" x2="820" y2="255" stroke="rgba(252,211,77,0.4)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Layer 1 -->
+  <rect x="420" y="258" width="800" height="68" rx="8" fill="rgba(13,148,136,0.08)" stroke="rgba(45,212,191,0.35)" stroke-width="1.5"/>
+  <rect x="420" y="258" width="800" height="20" rx="8" fill="url(#lgC)" opacity="0.55"/>
+  <rect x="420" y="270" width="800" height="8" fill="url(#lgC)" opacity="0.55"/>
+  <text x="820" y="273" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="white">LAYER 1 — SKILL UPDATES (S3 — ≤5 min, all users)</text>
+  <text x="820" y="298" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.65)">Admin updates skill → all users benefit within 5 minutes. No release needed.</text>
+  <text x="820" y="314" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">Scope: ALL users · Speed: ≤5 min cache TTL · Infra: S3 + admin UI</text>
+
+  <line x1="820" y1="330" x2="820" y2="350" stroke="rgba(252,211,77,0.4)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Layer 3 -->
+  <rect x="385" y="353" width="870" height="68" rx="8" fill="rgba(217,119,6,0.08)" stroke="rgba(252,211,77,0.35)" stroke-width="1.5"/>
+  <rect x="385" y="353" width="870" height="20" rx="8" fill="url(#lgA)" opacity="0.55"/>
+  <rect x="385" y="365" width="870" height="8" fill="url(#lgA)" opacity="0.55"/>
+  <text x="820" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="white">LAYER 3 — PROMPT OPTIMIZATION (eval-gated, hours)</text>
+  <text x="820" y="393" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.65)">Systematic patterns → structured prompt improvement with eval gates.</text>
+  <text x="820" y="409" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">Scope: ALL users · Speed: hours (eval cycle) · Infra: eval harness required first</text>
+
+  <!-- Pipeline flow -->
+  <text x="820" y="450" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="rgba(252,211,77,0.6)" letter-spacing="1.5">WEEKLY CLUSTERING PIPELINE</text>
+
+  <rect x="430" y="460" width="140" height="42" rx="6" fill="rgba(217,119,6,0.1)" stroke="rgba(252,211,77,0.25)"/>
+  <text x="500" y="477" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.7)" font-weight="600">DynamoDB Scan</text>
+  <text x="500" y="492" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.35)">rating=-1 + comment</text>
+
+  <line x1="572" y1="481" x2="592" y2="481" stroke="rgba(252,211,77,0.45)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="594" y="460" width="140" height="42" rx="6" fill="rgba(217,119,6,0.1)" stroke="rgba(252,211,77,0.25)"/>
+  <text x="664" y="477" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.7)" font-weight="600">Haiku Clusters</text>
+  <text x="664" y="492" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.35)">≥3 threshold</text>
+
+  <line x1="736" y1="481" x2="756" y2="481" stroke="rgba(252,211,77,0.45)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="758" y="460" width="140" height="42" rx="6" fill="rgba(217,119,6,0.1)" stroke="rgba(252,211,77,0.25)"/>
+  <text x="828" y="477" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.7)" font-weight="600">Admin Review</text>
+  <text x="828" y="492" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.35)">Feedback Insights UI</text>
+
+  <line x1="900" y1="481" x2="920" y2="481" stroke="rgba(252,211,77,0.45)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <rect x="922" y="460" width="140" height="42" rx="6" fill="rgba(13,148,136,0.15)" stroke="rgba(45,212,191,0.35)"/>
+  <text x="992" y="477" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="rgba(45,212,191,0.9)" font-weight="600">S3 Skill Update</text>
+  <text x="992" y="492" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.35)">all users in ≤5 min</text>
+
+  <!-- UI bug -->
+  <rect x="430" y="520" width="720" height="44" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(248,113,113,0.25)"/>
+  <text x="790" y="539" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="rgba(252,165,165,0.85)">⚠  The UI Bug: 👎 auto-collapsed the comment bar</text>
+  <text x="790" y="555" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.3)">413 items · 2 thumbs-down · 3 comments · 0 with both → zero signal for months</text>
+
+  <text x="820" y="600" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="rgba(255,255,255,0.15)">J&amp;J INNOVATIVE MEDICINE · PLATFORM ENGINEERING · 2026</text>
+</svg>

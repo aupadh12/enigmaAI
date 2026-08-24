@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard">
+    <meta property="og:description" content="Every session starts cold. Users re-teach the same preferences. Here's how to give your agent real memory without creating a privacy disaster.">
+    <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/12-cross-session-agent-memory.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/12-cross-session-agent-memory.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard">
+    <meta name="twitter:description" content="Every session starts cold. Users re-teach the same preferences. Here's how to give your agent real memory without creating a privacy disaster.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/12-cross-session-agent-memory.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.8; color: #1a1a2e; background: #fafbfc; max-width: 780px; margin: 0 auto; padding: 40px 24px; }
+        .header-badge { display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px; }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8; }
+        .author-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #6d28d9); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 18px; }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #7c3aed; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box { background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-left: 4px solid #7c3aed; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0; }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0; }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box { background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0; }
+        .stale-box p:last-child { margin-bottom: 0; }
+        code { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        pre { background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px; overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6; }
+        pre code { background: none; padding: 0; color: inherit; }
+        table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        th { background: #f5f3ff; text-align: left; padding: 12px 14px; font-weight: 600; color: #4c1d95; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f5f3ff; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f5f3ff; border: 1px solid #c4b5fd; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #4c1d95; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image { width: 100%; height: auto; display: block; border-radius: 12px; margin-bottom: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-72QSEYC70K');</script>
+</head>
+<body>
+
+<img class="cover-image" src="covers/12-cross-session-agent-memory.svg" alt="Blog cover">
+
+<div class="header-badge">Memory</div>
+<h1>Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard</h1>
+<p class="subtitle">Every session starts cold. Users re-teach the same preferences. Here's how to give your agent real memory — without creating a privacy disaster in the process.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · Johnson &amp; Johnson Innovative Medicine · August 2026</div>
+    </div>
+</div>
+
+<h2>The Morning It Happened Again</h2>
+
+<p>A researcher opened our AI agent on a Tuesday morning and typed a question about gene dependency scores. The agent came back with RNAi-based scores. The researcher sighed, typed the same correction they had typed the previous Thursday: <em>"Use Chronos scores, not RNAi. Chronos is copy-number corrected."</em></p>
+
+<p>The agent apologized and switched to Chronos. It got the question right. The session ended. On Wednesday morning, the same researcher asked a similar question. The agent came back with RNAi scores again.</p>
+
+<p>This is not an edge case. This is what stateless agents do. Every session begins with a blank slate. Users who interact with an agent daily don't experience it as helpful — they experience it as a tool with amnesia that they have to re-train each morning at the cost of their own time and patience.</p>
+
+<p>We fixed it by implementing cross-session memory using AWS AgentCore. This post covers how we built it, what traps we hit, and — just as importantly — what we deliberately chose <em>not</em> to store.</p>
+
+<h2>The Problem with Stateless Agents</h2>
+
+<p>Most production AI agents are stateless by design. The LLM itself has no memory between calls. Session history is injected into each request as a messages array, and that history lives in a database that expires after N days. When the TTL fires, the context is gone.</p>
+
+<p>This architecture has real advantages: it's simple, it's cheap, and there are no cross-request data dependencies to manage. But it creates a specific kind of user experience that erodes trust over time. Users who use the agent regularly don't get better results over time. The agent never learns that this particular scientist prefers a specific scoring method, always pre-resolves cell lines before joining DepMap data, or has already confirmed that PLK1 is essential in the triple-negative breast cancer cell lines they work with.</p>
+
+<div class="stale-box">
+    <p><strong>The real cost of amnesia:</strong> It's not just friction. When a researcher has to correct the same methodological preference for the third time, they start to distrust the agent's answers more broadly. "If it gets this wrong every morning, what else is it quietly getting wrong?" Statelessness doesn't just waste time — it undermines the credibility of every response.</p>
+</div>
+
+<p>The obvious fix — just give it a longer session history — doesn't work at scale. A session history that extends weeks backwards is expensive in tokens, and more importantly, it's full of noise. Old tool results, exploratory queries that went nowhere, hallucinations that were corrected. You don't want any of that injected into every new session.</p>
+
+<p>What you want is the distilled signal: preferences, corrections, confirmed findings. Not a transcript — a profile.</p>
+
+<h2>How AgentCore Memory Works</h2>
+
+<p>AWS AgentCore Memory is a managed service that runs extraction strategies asynchronously in the background. The architecture has two components: raw events and extracted records.</p>
+
+<p>You write <strong>events</strong> to the memory store after each query. An event is a conversational exchange: the user's query and the agent's response. The service runs your configured strategies against these events asynchronously — AWS documents this as "a minute or more," though in practice USER_PREFERENCE records often appear in around 25 seconds. EPISODIC reflections may take longer since the service waits to detect a completed episode before generating them. The strategies extract structured records from the raw text: preferences, findings, factual corrections. Those extracted records are what you retrieve at the start of each new session.</p>
+
+<div class="highlight-box">
+    <p><strong>The key insight:</strong> You're not storing conversation history. You're storing extracted knowledge. The extraction step is what separates "agent memory" from "a very long session log."</p>
+</div>
+
+<h3>The Event Write Pattern</h3>
+
+<p>The payload format has a few non-obvious requirements that aren't clearly documented. The field name is <code>conversational</code> — not <code>conversationalMessage</code>, not <code>message</code>. And the content inside it must be a dict, not a list.</p>
+
+<pre><code># Correct payload format
+payload = [{
+    "conversational": {
+        "role": "USER",
+        "content": {"text": "query text here"}
+    }
+}]
+
+# create_event also requires an explicit event-timestamp
+import datetime
+event_ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+client.create_event(
+    memoryId=MEMORY_ID,
+    actorId=actor_id,        # sha256(email.lower())[:16]
+    sessionId=session_id,
+    eventTimestamp=event_ts,
+    payload=payload
+)</code></pre>
+
+<p>The <code>--event-timestamp</code> parameter is required — omitting it causes an error. And the template variables for namespace configuration are <code>{actorId}</code>, <code>{sessionId}</code>, and <code>{memoryStrategyId}</code>. Not <code>{userId}</code>. Using <code>{userId}</code> causes a silent failure where the template is treated as a literal string.</p>
+
+<h2>Three Strategy Types and When to Use Each</h2>
+
+<p>AgentCore Memory supports five strategy types, but three are most useful for production agent deployments:</p>
+
+<table>
+    <thead>
+        <tr><th>Strategy</th><th>What it extracts</th><th>Extracted structure</th><th>Best for</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>USER_PREFERENCE</strong></td>
+            <td>Workflow preferences expressed by the user</td>
+            <td><code>{"preference": "...", "context": "...", "categories": [...]}</code></td>
+            <td>Methodological corrections: scoring choices, tool sequencing, output format preferences</td>
+        </tr>
+        <tr>
+            <td><strong>EPISODIC</strong></td>
+            <td>Reflection records derived from completed episodes — each reflection distills recurring patterns across sessions into a reusable insight</td>
+            <td><code>{"title": "...", "hints": "...", "use_cases": [...], "confidence": ...}</code></td>
+            <td>Research findings a user has confirmed: "we established PLK1 as a dependency target in TNBC". Note: extraction waits until AWS detects a completed episode; extraction latency is longer than USER_PREFERENCE.</td>
+        </tr>
+        <tr>
+            <td><strong>SEMANTIC</strong></td>
+            <td>Factual domain knowledge and correction rules</td>
+            <td><code>{"fact": "...", "summary": "..."}</code></td>
+            <td>Factual corrections: data model rules, identifier format requirements</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>There is a critical constraint: <strong>you can only have one strategy of each type per memory resource.</strong> If you try to create two USER_PREFERENCE strategies, the API returns an error. This seems obvious in retrospect, but it's not prominently documented. The implication: you cannot have separate "preferences" and "corrections" strategies both typed as USER_PREFERENCE. You need to use SEMANTIC for corrections and USER_PREFERENCE for workflow preferences.</p>
+
+<h3>Namespace Configuration</h3>
+
+<p>Each strategy writes to a namespace path derived from template variables. Use <code>namespaceTemplates</code> in the strategy configuration — not <code>namespaces</code>. The path structure should scope to <code>{actorId}</code>:</p>
+
+<pre><code># Good: one namespaceTemplate per strategy (each strategy is a separate object)
+# USER_PREFERENCE strategy:
+namespaceTemplates: ["/omicsagent/preferences/{actorId}/"]
+
+# SEMANTIC strategy (corrections):
+namespaceTemplates: ["/omicsagent/corrections/{actorId}/"]
+
+# EPISODIC strategy (findings/reflections):
+namespaceTemplates: ["/omicsagent/findings/{actorId}/{sessionId}/"]
+
+# Bad: multiple templates in one strategy — API only accepts 1 template per strategy
+# Also bad: global namespace — returns ALL users' data on retrieve
+namespaceTemplates: ["/omicsagent/"]</code></pre>
+
+<p>The extracted content comes back as a <strong>JSON string inside <code>content.text</code></strong>, not plain text. Your retrieval code needs to <code>json.loads()</code> the content to access the structured fields. If you try to surface it directly as text, you'll inject raw JSON into the agent's context which it will attempt to parse itself, with unpredictable results.</p>
+
+<h2>The Cross-User Namespace Trap</h2>
+
+<p>This one deserves its own section because the failure mode is permanent and silent.</p>
+
+<p>When you retrieve memories, you pass a <code>namespacePath</code> prefix. AgentCore returns all records whose namespace starts with that prefix. If you pass <code>/omicsagent/</code>, you get records from <em>every user</em> who has ever interacted with the system. Researcher A's preferences show up in Researcher B's session context. This is not a hypothetical — we verified it against the live service before shipping.</p>
+
+<div class="stale-box">
+    <p><strong>The permanent leak risk:</strong> Extracted long-term records have <strong>no automatic TTL</strong>. The <code>eventExpiryDuration</code> setting governs only the raw event records, not what the strategies extract. A preference or correction record written with the wrong namespace scope will remain there indefinitely unless you explicitly delete it via <code>DeleteMemoryRecord</code>.</p>
+</div>
+
+<h3>Identity and the actorId</h3>
+
+<p>Never store the raw user email as the <code>actorId</code>. Instead, hash it:</p>
+
+<pre><code>import hashlib
+
+def _hash_actor(email: str) -> str:
+    # Fail close on empty/fallback identity
+    if not email or email.strip().lower() in ("", "anon", "anonymous"):
+        raise ValueError(
+            f"Cannot derive actorId from empty/fallback email: {email!r}"
+        )
+    return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]</code></pre>
+
+<p>The fail-close on empty identity is important. If your auth layer fails to inject a user email and your code falls back to an empty string or "anon", the SHA-256 of that string becomes a shared actorId for every unauthenticated request. Every preference and finding gets written to the same namespace. Every user gets every other user's context. And since extracted records have no TTL, this contamination persists until manually cleaned up.</p>
+
+<p>Raising an exception on empty identity is the correct behavior. Write no memory rather than write to a shared namespace.</p>
+
+<h2>The Feedback Pipeline: Closing the Loop</h2>
+
+<p>Writing events after every query is one half of the memory system. The other half is capturing explicit corrections from user feedback.</p>
+
+<p>In our system, users can give thumbs-up or thumbs-down ratings on agent responses, and optionally leave a comment. We route negative feedback with substantive comments to the SEMANTIC corrections namespace:</p>
+
+<pre><code># Only write corrections on explicit thumbs-down with a real comment
+if rating == -1 and comment and len(comment.strip()) > 20:
+    background_tasks.add_task(
+        write_correction,
+        actor_id=actor_id,
+        session_id=session_id,
+        content=comment.strip()
+    )
+
+# Only write preferences on thumbs-up with comment
+elif rating == 1 and comment:
+    background_tasks.add_task(
+        write_preference,
+        actor_id=actor_id,
+        session_id=session_id,
+        content=comment.strip()
+    )</code></pre>
+
+<p>This sounds simple. Before enabling the write path, we queried the feedback table to understand the baseline signal. What we found stopped us.</p>
+
+<h3>The UI Bug That Broke Everything</h3>
+
+<p>The AND condition in our write path — <code>rating = -1 AND comment IS NOT NULL</code> — had never been true once. 413 rows in the feedback table. 2 rows with <code>rating = -1</code>. 3 rows with a <code>comment</code>. Zero rows with both. The write path was unreachable, not broken.</p>
+
+<p>The problem was in the feedback UI. When a user clicked 👎, the feedback bar immediately collapsed to a "Thanks for your feedback!" message. The comment box — which was inside the now-collapsed bar — was gone. Users couldn't add a comment after clicking thumbs-down. They had to click the comment button <em>first</em>, then click thumbs-down, in a non-obvious sequence that nobody discovered.</p>
+
+<p>The fix was three lines of JavaScript: on thumbs-down, instead of collapsing the bar, auto-open the comment input and keep the bar visible. Only collapse after the comment is submitted. The entire corrections pipeline was gated on this UI state flag.</p>
+
+<div class="warn-box">
+    <p><strong>Lesson:</strong> Test the full feedback pipeline end-to-end against your production data before concluding it works. Checking that the write code is correct is not the same as checking that the write path is reachable. Query your actual table for co-occurring <code>rating = -1</code> AND <code>comment IS NOT NULL</code> rows. If you find zero, the problem is probably in your UI.</p>
+</div>
+
+<h2>What Not to Store</h2>
+
+<p>The temptation when building agent memory is to store everything. Tool results, intermediate calculations, data the agent retrieved, every conversation turn. Don't.</p>
+
+<p>Three rules we apply:</p>
+
+<ul>
+    <li><strong>No tool results.</strong> A gene essentiality score from a query last week is stale. Data changes, analysis conditions change. Storing specific numbers creates the risk that the agent cites an outdated value as if it were current.</li>
+    <li><strong>No intermediate analysis steps.</strong> "We tried this approach in session 3 and it didn't work" is not memory worth keeping — it's noise that dilutes the actual signal. If a finding was confirmed, store the finding. The path to get there is irrelevant.</li>
+    <li><strong>Remember: no auto-TTL on extracted records.</strong> Whatever you write to the extraction strategies will persist indefinitely. Design accordingly. Write only what should be true about this user a year from now: their methodological preferences, their confirmed scientific conclusions, their domain-specific corrections to your defaults.</li>
+</ul>
+
+<div class="highlight-box">
+    <p><strong>What belongs in memory:</strong> workflow corrections ("always use Chronos, not RNAi"), confirmed scientific findings ("PLK1 is a dependency in TNBC for this lab's work"), identifier format preferences ("use ProteinIds not GeneNames for bare identifiers"). What does not: specific numbers, intermediate results, exploratory queries that went nowhere.</p>
+</div>
+
+<h2>Session-Init Context Injection</h2>
+
+<p>The retrieval happens at session start, before the first user message. You inject the retrieved memories as synthetic conversational turns early in the messages array:</p>
+
+<pre><code># Retrieve BEFORE extending the messages array with session history
+# Returns a formatted string (not a list) — use directly in the text field
+_memory_context: str | None = get_session_memory_context(actor_id=actor_id, query=user_query)
+
+# Prepend as synthetic turns — content must be a list (Bedrock Converse format)
+if _memory_context:
+    prepend = [
+        {
+            "role": "user",
+            "content": [{"text": f"Prior context from past sessions:\n{_memory_context}"}]
+        },
+        {
+            "role": "assistant",
+            "content": [{"text": "Prior context loaded."}]
+        }
+    ]
+    messages = prepend + _load_messages_from_history(history)
+else:
+    messages = _load_messages_from_history(history)
+
+# IMPORTANT: capture prior_message_count AFTER the prepend
+prior_message_count = len(messages)</code></pre>
+
+<p>The ordering matters. If you insert the prepend <em>after</em> computing <code>prior_message_count</code>, those synthetic turns get counted in the delta slice and persisted to your session store. On the next request, they're loaded as history and injected again. Each session doubles the injected context. After ten sessions, the messages array contains twenty copies of the same prior context block.</p>
+
+<h2>Verification and What's Next</h2>
+
+<p>We verified the round-trip end-to-end using a synthetic event: write an event, wait, retrieve — the extracted USER_PREFERENCE record appeared correctly structured in the actor-scoped namespace in about 25 seconds. The infrastructure is in place; we're watching for the first real user-generated records to accumulate once the UI fix ships.</p>
+
+<p>Even before extraction data accumulates, the session-init context injection changes how the agent handles mid-session corrections. Simply having the agent instructions say "if you see prior context at the start of this session, treat it as established fact about this user's preferences" makes the agent acknowledge and apply corrections more consistently within the current session.</p>
+
+<p>The longer-term loop — corrections accumulating, being surfaced at the next session start, changing the agent's behavior permanently for that user — is enabled and we're watching for the first real records to flow through. The next layer is the cluster-level pattern: when three or more users make the same correction, that's a signal the agent's default behavior needs to change for everyone, not just those individuals. That's a skill update, not a memory write. The two mechanisms serve different scopes.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>Cross-session memory requires explicit event writes and retrieval — the LLM itself has no persistent state between sessions.</li>
+        <li>The <code>namespacePath</code> prefix must be scoped to <code>{actorId}</code>; a global prefix returns all users' data and constitutes a privacy violation.</li>
+        <li>The <code>actorId</code> should be a hash of the user's email, never the raw email. Fail close on empty identity — never hash an empty string.</li>
+        <li>Extracted records have no automatic TTL. Whatever you write to extraction strategies persists indefinitely. Design the write path accordingly.</li>
+        <li>One strategy of each type maximum per memory resource. Use SEMANTIC for factual corrections, USER_PREFERENCE for workflow preferences.</li>
+        <li>Verify your feedback pipeline against real data — check for co-occurring rating and comment rows. Zero results usually means a UI reachability bug, not a write-path bug.</li>
+        <li>Prepend the memory context <em>before</em> computing <code>prior_message_count</code>, or the synthetic turns accumulate across sessions.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">AWS AgentCore</span>
+    <span class="tag">Memory</span>
+    <span class="tag">Production AI</span>
+    <span class="tag">Privacy</span>
+    <span class="tag">Agent Architecture</span>
+    <span class="tag">Cross-Session</span>
+    <span class="tag">Amazon Bedrock</span>
+</div>
+
+</body>
+</html>

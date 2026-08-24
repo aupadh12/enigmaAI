@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Closing the Feedback Loop: How User Corrections Become Domain Knowledge</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Closing the Feedback Loop: How User Corrections Become Domain Knowledge">
+    <meta property="og:description" content="The agent was wrong. The user corrected it. The next user got the same wrong answer. Here's how to close the loop — without fine-tuning.">
+    <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/13-agent-feedback-loop.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/13-agent-feedback-loop.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.8; color: #1a1a2e; background: #fafbfc; max-width: 780px; margin: 0 auto; padding: 40px 24px; }
+        .header-badge { display: inline-block; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px; }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8; }
+        .author-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #d97706, #b45309); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 18px; }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #d97706; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-left: 4px solid #d97706; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0; }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box { background: #fef2f2; border-left: 4px solid #dc2626; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0; }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0; }
+        .stale-box p:last-child { margin-bottom: 0; }
+        code { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        pre { background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px; overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6; }
+        pre code { background: none; padding: 0; color: inherit; }
+        table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        th { background: #fef3c7; text-align: left; padding: 12px 14px; font-weight: 600; color: #78350f; border-bottom: 2px solid #fde68a; }
+        td { padding: 11px 14px; border-bottom: 1px solid #fef9ee; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #78350f; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image { width: 100%; height: auto; display: block; border-radius: 12px; margin-bottom: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    </style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-72QSEYC70K');</script>
+</head>
+<body>
+
+<img class="cover-image" src="covers/13-agent-feedback-loop.svg" alt="Blog cover">
+
+<div class="header-badge">Learning</div>
+<h1>Closing the Feedback Loop: How User Corrections Become Domain Knowledge</h1>
+<p class="subtitle">The agent was wrong. The user corrected it. The next user got the same wrong answer. Here's how to close the loop — without fine-tuning.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · Johnson &amp; Johnson Innovative Medicine · August 2026</div>
+    </div>
+</div>
+
+<h2>The Same Mistake, Three Times</h2>
+
+<p>A researcher on our proteomics team corrected the same agent behavior three times in one week. Every time they asked the agent to compare cell line sensitivity across compounds, it would join DepMap data to the RSC dataset directly — which runs without error, but silently drops most of the cell lines because the names don't match exactly across those two datasets. The agent then reports a low match rate as a caveat instead of fixing it. The right workflow is to call Cellosaurus first, build a name-to-ID mapping table, then join.</p>
+
+<p>The researcher corrected it each time: "you should pre-resolve cell lines with Cellosaurus before joining to DepMap, not after." Each time, the agent adapted. For the rest of that session, it got it right. The next session, it forgot. The next researcher who hit the same workflow never even knew there was a right way to do it.</p>
+
+<p>We had built a system that collected feedback. We had thumbs-up and thumbs-down buttons, a comment field, and a DynamoDB table logging everything. We had the infrastructure. We just hadn't closed the loop — the corrections died with the session, the table filled up, and nothing downstream ever read it.</p>
+
+<p>This is the default state for almost every production agent. The feedback infrastructure exists but the learning doesn't happen. This post is about four concrete layers for changing that, ordered from fastest to most durable.</p>
+
+<h2>Why Agents Don't Learn From Their Mistakes by Default</h2>
+
+<p>The fundamental problem is that LLMs are stateless. Every new conversation starts from the model weights, which change only when you fine-tune. Everything else — conversation history, system prompts, tool results, user corrections — lives in the context window and disappears when the session ends.</p>
+
+<p>The obvious fix is fine-tuning, but it has serious practical problems for domain corrections:</p>
+
+<ul>
+    <li><strong>It's irreversible.</strong> Once you fine-tune on a correction that turns out to be wrong, you've embedded the error into the model. There's no "undo" — you have to fine-tune again with the corrected correction.</li>
+    <li><strong>It requires curated datasets.</strong> You can't just pipe raw user corrections into a fine-tune job. Each example needs to be validated, deduped, reformatted, and balanced against existing knowledge.</li>
+    <li><strong>It's slow.</strong> Even with a fast fine-tuning pipeline, you're looking at hours to days between identifying a correction pattern and deploying the fix.</li>
+    <li><strong>It's opaque.</strong> When the fine-tuned model starts behaving differently, it's hard to trace which training examples caused which behaviors.</li>
+</ul>
+
+<p>For the class of corrections we care about most — systematic workflow errors, domain-specific identifier resolution, source-specific data handling — fine-tuning is the wrong tool. The corrections are precise, domain-specific, and can often be expressed as a short rule. There are much faster paths.</p>
+
+<h2>Four Layers of Agent Learning</h2>
+
+<p>Think of agent learning as a pyramid. The fastest layer is narrowest in scope. The most durable layer affects everyone. You want all four — not because any single layer is sufficient, but because they handle different timeframes and different failure modes.</p>
+
+<h3>Layer 4: In-Session Adaptation (instant, one user, one session)</h3>
+
+<p>This one is free. When a user says "no, use X instead of Y" mid-conversation, the correction lives in the conversation history. The LLM sees it when it processes the next turn and adapts immediately. No infrastructure required, no latency.</p>
+
+<p>The limitation is obvious: it ends with the session. But it's still worth thinking about explicitly, because some corrections don't need to be durable. A one-time clarification about a specific dataset shouldn't necessarily persist to every future user. Layer 4 handles transient corrections naturally.</p>
+
+<h3>Layer 2: Per-User Memory (minutes, one user, all sessions)</h3>
+
+<p>This is where AWS AgentCore Memory fits. When a user gives a thumbs-down with a substantive written comment (more than 20 characters), the correction is written to a user-scoped namespace in the memory store. The next time that user starts a session, the correction surfaces as part of the session initialization context. The agent sees it before the user says anything and adjusts its behavior accordingly.</p>
+
+<p>The key constraint is that this is per-user. If researcher A corrects the Cellosaurus workflow, researcher B still gets the wrong behavior until they correct it themselves. Per-user memory is powerful for persistent individual preferences — but it doesn't benefit the team.</p>
+
+<p>It also introduces a data architecture challenge. User corrections are stored under a namespaced actorId derived from their email. The namespace scoping is critical — one of the first bugs we hit in production was a namespace path that returned all users' corrections, not just the current user's. More on this in the companion post on cross-session memory.</p>
+
+<h3>Layer 1: Skill Updates (5 minutes, all users, no release)</h3>
+
+<p>This is the highest-leverage layer. Skills are domain knowledge documents stored in S3 that the agent fetches at query time via a <code>get_skills</code> tool call. They describe data sources, identifier resolution rules, workflow recommendations, common mistakes, and score interpretation guidance. When the agent is about to query a dataset it's uncertain about, it fetches the relevant skill and uses it to guide its approach.</p>
+
+<p>The critical property of skills is that S3 is the canonical source. The code dictionary in the application is a seed — it writes to S3 only when the S3 object doesn't exist. Once a skill exists in S3, code changes are ignored at runtime. Editing the Python file and deploying a new image has zero effect on the running skill.</p>
+
+<p>This means an admin can update a skill via a web UI — no code change, no image build, no deployment — and every pod picks it up within 5 minutes (the cache TTL). One correction, all users, near-instant.</p>
+
+<p>The Cellosaurus workflow correction is exactly the kind of thing that belongs in a skill. A one-sentence rule in the <code>cellosaurus</code> or <code>depmap</code> skill: "Always call cellosaurus_agent to resolve cell line names before joining RSC or DepMap data." That rule affects every user who queries those datasets, for every session, forever.</p>
+
+<h3>Layer 3: Prompt Optimization (hours, all users, eval-gated)</h3>
+
+<p>The most powerful and most expensive layer. When you have enough feedback signal to identify systematic patterns — the agent consistently misuses certain tools, systematically over-claims on incomplete data, routinely fails a specific class of query — those patterns may indicate gaps in the system prompt rather than the skill layer.</p>
+
+<p>Prompt optimization requires an eval harness as a prerequisite. You can't safely change a system prompt without measuring whether the change improved the problematic behavior and didn't regress anything else. This is the layer we haven't shipped yet — not because the approach is wrong, but because it requires an evaluation harness as a prerequisite. We're building toward it: Tier 1 deterministic trajectory evaluations running nightly, with prompt changes gated on all three tiers passing. Until the harness exists, this layer is designed but not deployed.</p>
+
+<p>This layer operates on a longer cadence than the others — hours to days rather than minutes — and should be reserved for patterns that recur across many users and many sessions. A correction that appears twice is noise. A correction that appears seventeen times across different users on the same data source pattern is a signal worth spending an eval cycle on.</p>
+
+<h2>The Weekly Clustering Pattern</h2>
+
+<p>Reading DynamoDB manually every week doesn't scale. The clustering job automates the signal extraction:</p>
+
+<pre><code># Weekly feedback review job
+# Scans omicsagent-prompts for user comments (any sentiment)
+# FilterExpression: begins_with(pk, "user#") AND attribute_exists(comment)
+# No timestamp filter — drop it; feedback timestamps aren't set at write time
+
+def scan_feedback_comments(table) -> list[dict]:
+    items = []
+    scan_kwargs = {
+        "FilterExpression": Attr("pk").begins_with("user#") & Attr("comment").exists(),
+    }
+    while len(items) < MAX_ITEMS:
+        resp = table.scan(**scan_kwargs)
+        items.extend(resp.get("Items", []))
+        if "LastEvaluatedKey" not in resp:
+            break
+        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
+    return items[:MAX_ITEMS]</code></pre>
+
+<p>The DynamoDB table at this scale — a few thousand rows — costs fractions of a cent to scan. No GSI needed, no pagination complexity beyond the <code>LastEvaluatedKey</code> loop.</p>
+
+<p>Once you have the comments, you send them to a fast model for clustering:</p>
+
+<pre><code>prompt = f"""
+You are reviewing {len(items)} feedback items for a bioinformatics AI.
+Group into 3-8 clusters by error topic.
+For each cluster with ≥{CLUSTER_MIN} items, write a specific rule
+that could be added to the agent's domain knowledge.
+Identify the most relevant skill ID from: {sorted(KNOWN_SKILL_IDS)}.
+
+Items:
+{chr(10).join(summaries)}
+
+Return JSON: {{"clusters": [{{"topic": "...", "count": N,
+  "related_skill_id": "...", "suggested_rule": "...",
+  "sample_corrections": [...]}}]}}
+"""</code></pre>
+
+<p>The threshold of ≥3 is a noise filter. One correction might be personal preference or a misunderstanding. Three corrections on the same topic from different users, in different sessions, is a pattern worth acting on.</p>
+
+<p>The output surfaces in an admin UI as candidate skill updates. An admin reads the cluster, edits the relevant skill via the web UI (or writes a new one), and the change propagates within 5 minutes to all pods. No code change, no deployment, no review cycle beyond the admin's judgment.</p>
+
+<div class="highlight-box">
+    <p><strong>The ≥3 threshold isn't magic.</strong> You'll need to tune it based on your user volume. At 50 active users, 3 corrections might represent noise. At 5 active users, 3 corrections might represent everyone who's tried that workflow. Track how often clustered corrections turn out to be valid skill updates, and adjust the threshold accordingly.</p>
+</div>
+
+<h2>The UI Bug That Made the Whole System Inert</h2>
+
+<p>We had this architecture designed and partially built for months before we realized the input signal was zero. The DynamoDB table had 413 items. Two had a thumbs-down rating. Three had a comment. Zero had both — not a single row where a user had rated the response negatively AND left a comment explaining why.</p>
+
+<p>The clustering job had nothing to cluster. The skills were never updated from user corrections. And the same bug silenced Layer 2 as well — per-user corrections are only written when a user gives a thumbs-down <em>with</em> a comment, which also had zero co-occurring pairs. The entire durable learning path — Layer 1 skill updates and Layer 2 per-user memory — was simultaneously disabled by one frontend state flag. The feedback infrastructure was complete and the learning loop was completely dead.</p>
+
+<div class="warn-box">
+    <p><strong>Root cause:</strong> When a user clicked 👎, the feedback bar immediately collapsed to a "Thanks for your feedback!" message, and the comment button disappeared. The comment input was inside an <code>{#if !feedbackSubmitted}</code> block. Clicking thumbs-down set <code>feedbackSubmitted = true</code>, which rendered the comment box unreachable forever. You could only leave a comment if you clicked 💬 first — before rating — which nobody did, because it wasn't the natural interaction flow.</p>
+</div>
+
+<p>The fix was a single behavioral change in the frontend: clicking 👎 now sets <code>feedbackRating</code> and auto-opens the comment box, but doesn't set <code>feedbackSubmitted = true</code>. That flag only gets set when the user submits a comment or explicitly rates positively. The feedback bar stays visible; the user can provide context for their correction.</p>
+
+<p>This is a pattern worth internalizing: feedback infrastructure without signal is invisible failure. The system looks operational — there's a table, there's a schema, there's a job — but if the UX doesn't naturally produce the data the job needs, the loop is open. Test your feedback collection path explicitly, not just your feedback processing path.</p>
+
+<h2>Why Skills Beat Fine-Tuning for Domain Corrections</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Dimension</th>
+            <th>Skill Update</th>
+            <th>Fine-Tuning</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Speed to production</strong></td>
+            <td>≤5 minutes (cache TTL)</td>
+            <td>Hours to days</td>
+        </tr>
+        <tr>
+            <td><strong>Reversibility</strong></td>
+            <td>Edit or delete the S3 object</td>
+            <td>Requires another fine-tune run</td>
+        </tr>
+        <tr>
+            <td><strong>Traceability</strong></td>
+            <td>Every skill has a version and audit trail</td>
+            <td>Hard to trace which examples caused which behaviors</td>
+        </tr>
+        <tr>
+            <td><strong>Infrastructure</strong></td>
+            <td>S3 bucket + admin UI</td>
+            <td>GPU compute + curated dataset + eval pipeline</td>
+        </tr>
+        <tr>
+            <td><strong>Scope</strong></td>
+            <td>Precise — only affects queries that fetch that skill</td>
+            <td>Global — affects all queries through that model</td>
+        </tr>
+        <tr>
+            <td><strong>Dataset requirements</strong></td>
+            <td>One rule, written in plain language</td>
+            <td>Hundreds of curated positive/negative examples</td>
+        </tr>
+        <tr>
+            <td><strong>Coverage</strong></td>
+            <td>Only when agent calls get_skills for that source</td>
+            <td>All queries, all models</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>Skills lose on coverage — if the agent doesn't call <code>get_skills</code> before a particular operation, the skill rule doesn't apply. For cross-cutting behavioral corrections that should apply everywhere (not just when querying a specific data source), skills are the wrong layer; that belongs in the system prompt.</p>
+
+<p>But for the class of corrections that actually generates the most user feedback — data source-specific workflows, identifier resolution rules, score interpretation thresholds — skills are dramatically faster, safer, and more maintainable than fine-tuning.</p>
+
+<h2>When Feedback Is Noise</h2>
+
+<p>Not every correction should persist. The clustering threshold filters most noise, but you still need human judgment in the loop before updating a skill. Some corrections that look systematic are actually:</p>
+
+<ul>
+    <li><strong>One-off data quality issues.</strong> "The DepMap data for this cell line looks wrong" — that might be a data issue, not a workflow issue. Don't encode a workaround into the skill for a transient data problem.</li>
+    <li><strong>Personal preferences in conflict.</strong> If two users have opposite preferences about how to handle missing values, encoding one preference as a skill rule will break it for the other user. Some things belong in per-user memory, not shared skills.</li>
+    <li><strong>Misunderstandings about the data.</strong> A researcher who's new to DepMap might correct the agent for "not accounting for tissue type" when the query was deliberately pan-cancer. The correction might reflect a gap in the user's understanding, not the agent's.</li>
+    <li><strong>Context-specific adaptations.</strong> "For this specific project, we're using RNAi scores not Chronos" — that's project-specific and shouldn't generalize to all sessions.</li>
+</ul>
+
+<p>The admin review step isn't bureaucracy. It's the filter that keeps corrections from being self-referentially wrong. The clustering job surfaces candidates; a human with domain expertise decides what's systematic enough to encode.</p>
+
+<div class="stale-box">
+    <p><strong>The loop isn't fully closed yet.</strong> The clustering job surfaces candidates to the admin UI, and an admin can approve them into a skill update. But the skill update doesn't flow back into the eval harness to verify it fixed the original correction pattern. That feedback — "did updating this skill actually reduce corrections on this topic?" — is the next iteration. We're building toward it, but it requires the Tier 2 evaluation pipeline first.</p>
+</div>
+
+<h2>What a Complete Feedback Architecture Looks Like</h2>
+
+<p>Putting it together: a correction that a user makes today should flow through the system in order of urgency and durability.</p>
+
+<p>If it's a one-time contextual correction, Layer 4 handles it. The session history carries it forward for the rest of that session. Nothing persists, nothing needs to.</p>
+
+<p>If it's a repeated correction for that specific user — the same workflow mistake they've pointed out before — Layer 2 catches it. The per-user corrections namespace surfaces it at the start of their next session. The agent knows, before the user says anything, that this user has a specific preference about cell line resolution order.</p>
+
+<p>If it's a pattern that appears across multiple users on the same topic — ≥3 corrections with the same underlying error — Layer 1 handles it. The admin sees the cluster, edits the relevant skill, and all users benefit within 5 minutes.</p>
+
+<p>If the pattern is systemic enough that it can't be captured in a skill — it's about how the agent reasons about a class of problems, not just how it handles a specific data source — it becomes a prompt optimization candidate, gates on the eval harness, and deploys as a system prompt change.</p>
+
+<p>None of this requires fine-tuning. All of it is reversible. The fastest path (skill update) takes 5 minutes from identifying the pattern to every user benefiting. The slowest path (prompt optimization) runs on a weekly cycle with eval gates. Both are dramatically faster and safer than fine-tuning for the corrections that matter most in practice.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>Feedback infrastructure without signal is invisible failure — verify that your UX actually produces the data your processing pipeline needs</li>
+        <li>The UI bug was one line: 👎 setting <code>feedbackSubmitted = true</code> before the user had a chance to explain. One behavioral change restored the entire feedback loop</li>
+        <li>Skills (S3-served domain knowledge) beat fine-tuning for domain corrections on every dimension except coverage — use them for data source-specific workflow rules</li>
+        <li>The ≥3 threshold on clustering is a noise filter, not a rule — tune it based on your user volume and the base rate of valid corrections</li>
+        <li>Keep a human in the loop between clustering candidates and skill updates — not every pattern is worth encoding, and some corrections conflict with each other</li>
+        <li>Per-user memory and shared skill updates are complementary, not competing — personal preferences belong in memory, systematic workflow rules belong in skills</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Feedback Loops</span>
+    <span class="tag">Agent Learning</span>
+    <span class="tag">Skills</span>
+    <span class="tag">DynamoDB</span>
+    <span class="tag">Production AI</span>
+    <span class="tag">UX Patterns</span>
+    <span class="tag">Domain Knowledge</span>
+    <span class="tag">AWS AgentCore</span>
+</div>
+
+</body>
+</html>

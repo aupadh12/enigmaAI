@@ -1,0 +1,191 @@
+<svg viewBox="0 0 1200 627" xmlns="http://www.w3.org/2000/svg" width="1200" height="627">
+  <defs>
+    <linearGradient id="bg14" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#020c1b"/>
+      <stop offset="50%" style="stop-color:#031a3a"/>
+      <stop offset="100%" style="stop-color:#020c1b"/>
+    </linearGradient>
+    <linearGradient id="bG1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1d4ed8"/><stop offset="100%" style="stop-color:#60a5fa"/>
+    </linearGradient>
+    <linearGradient id="bG2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#dc2626"/><stop offset="100%" style="stop-color:#f87171"/>
+    </linearGradient>
+    <linearGradient id="bG3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#16a34a"/><stop offset="100%" style="stop-color:#4ade80"/>
+    </linearGradient>
+    <filter id="glow14">
+      <feGaussianBlur stdDeviation="60" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arr14" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="rgba(147,197,253,0.7)"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="627" fill="url(#bg14)"/>
+  <!-- Grid -->
+  <pattern id="grid14" width="28" height="28" patternUnits="userSpaceOnUse">
+    <path d="M 28 0 L 0 0 0 28" fill="none" stroke="rgba(37,99,235,0.04)" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="627" fill="url(#grid14)"/>
+
+  <!-- Glow orbs -->
+  <circle cx="800" cy="150" r="280" fill="#2563eb" opacity="0.08" filter="url(#glow14)"/>
+  <circle cx="400" cy="500" r="200" fill="#7c3aed" opacity="0.06" filter="url(#glow14)"/>
+
+  <!-- Left panel: title text -->
+  <rect x="0" y="0" width="400" height="627" fill="rgba(0,0,0,0.2)"/>
+  <rect x="50" y="60" width="90" height="28" rx="14" fill="url(#bG1)" opacity="0.9"/>
+  <text x="95" y="79" text-anchor="middle" font-size="12" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif" letter-spacing="1">DATA ENGINEERING</text>
+  <text x="60" y="140" font-size="38" font-weight="800" fill="white" font-family="system-ui, -apple-system, sans-serif" letter-spacing="-1">Five Blockers</text>
+  <text x="60" y="185" font-size="38" font-weight="800" font-family="system-ui, -apple-system, sans-serif" letter-spacing="-1">
+    <tspan fill="#93c5fd">Before Build</tspan>
+  </text>
+  <text x="60" y="240" font-size="14" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif" xml:space="preserve">MSCK silently registered nothing.</text>
+  <text x="60" y="260" font-size="14" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">The daily job would OOM nightly.</text>
+  <text x="60" y="280" font-size="14" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">Checkpoints corrupted records.</text>
+  <text x="60" y="300" font-size="14" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">Here's what we changed.</text>
+
+  <!-- Stats row -->
+  <rect x="55" y="360" width="75" height="60" rx="6" fill="rgba(37,99,235,0.15)" stroke="rgba(96,165,250,0.3)" stroke-width="1"/>
+  <text x="92" y="390" text-anchor="middle" font-size="28" font-weight="800" fill="#93c5fd" font-family="system-ui, -apple-system, sans-serif">5</text>
+  <text x="92" y="408" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)" font-family="system-ui, -apple-system, sans-serif" letter-spacing="0.5">BLOCKERS</text>
+
+  <rect x="145" y="360" width="90" height="60" rx="6" fill="rgba(37,99,235,0.15)" stroke="rgba(96,165,250,0.3)" stroke-width="1"/>
+  <text x="190" y="390" text-anchor="middle" font-size="28" font-weight="800" fill="#93c5fd" font-family="system-ui, -apple-system, sans-serif">20GB</text>
+  <text x="190" y="408" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)" font-family="system-ui, -apple-system, sans-serif" letter-spacing="0.5">PARQUET</text>
+
+  <rect x="250" y="360" width="80" height="60" rx="6" fill="rgba(37,99,235,0.15)" stroke="rgba(96,165,250,0.3)" stroke-width="1"/>
+  <text x="290" y="390" text-anchor="middle" font-size="28" font-weight="800" fill="#93c5fd" font-family="system-ui, -apple-system, sans-serif">34</text>
+  <text x="290" y="408" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)" font-family="system-ui, -apple-system, sans-serif" letter-spacing="0.5">STUDIES</text>
+
+  <!-- Right panel: diagram -->
+  <!-- Pipeline flow row -->
+  <text x="470" y="70" font-size="11" font-weight="700" fill="rgba(255,255,255,0.25)" font-family="system-ui, -apple-system, sans-serif" letter-spacing="2">DATA PIPELINE — SOURCE TO AGENT</text>
+
+  <!-- Source box -->
+  <rect x="430" y="90" width="130" height="65" rx="8" fill="rgba(37,99,235,0.08)" stroke="rgba(96,165,250,0.35)" stroke-width="1.5"/>
+  <text x="495" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="rgba(147,197,253,0.9)" font-family="system-ui, -apple-system, sans-serif">SOURCE CSV</text>
+  <text x="495" y="134" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">322 run folders</text>
+  <text x="495" y="148" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">14.4M rows each</text>
+
+  <line x1="560" y1="123" x2="605" y2="123" stroke="rgba(147,197,253,0.5)" stroke-width="1.5" marker-end="url(#arr14)"/>
+
+  <!-- Probe box -->
+  <rect x="605" y="90" width="130" height="65" rx="8" fill="rgba(22,163,74,0.08)" stroke="rgba(74,222,128,0.35)" stroke-width="1.5"/>
+  <text x="670" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="rgba(74,222,128,0.9)" font-family="system-ui, -apple-system, sans-serif">PROBE FIRST</text>
+  <text x="670" y="134" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">129 GB not 387 GB</text>
+  <text x="670" y="148" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">3× estimate wrong</text>
+
+  <line x1="735" y1="123" x2="780" y2="123" stroke="rgba(147,197,253,0.5)" stroke-width="1.5" marker-end="url(#arr14)"/>
+
+  <!-- S3 Parquet -->
+  <rect x="780" y="90" width="130" height="65" rx="8" fill="rgba(37,99,235,0.08)" stroke="rgba(96,165,250,0.35)" stroke-width="1.5"/>
+  <text x="845" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="rgba(147,197,253,0.9)" font-family="system-ui, -apple-system, sans-serif">S3 PARQUET</text>
+  <text x="845" y="134" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">~20 GB total</text>
+  <text x="845" y="148" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">study_id={study} partitions</text>
+
+  <line x1="910" y1="123" x2="955" y2="123" stroke="rgba(147,197,253,0.5)" stroke-width="1.5" marker-end="url(#arr14)"/>
+
+  <!-- Athena -->
+  <rect x="955" y="90" width="130" height="65" rx="8" fill="rgba(37,99,235,0.08)" stroke="rgba(96,165,250,0.35)" stroke-width="1.5"/>
+  <text x="1020" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="rgba(147,197,253,0.9)" font-family="system-ui, -apple-system, sans-serif">ATHENA</text>
+  <text x="1020" y="134" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">injected projection</text>
+  <text x="1020" y="148" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">no MSCK needed</text>
+
+  <!-- Five blocker rows -->
+  <text x="470" y="200" font-size="10" font-weight="700" fill="rgba(255,255,255,0.25)" font-family="system-ui, -apple-system, sans-serif" letter-spacing="1.5">FIVE BLOCKERS CAUGHT BEFORE BUILD</text>
+
+  <!-- B1 -->
+  <rect x="430" y="215" width="142" height="78" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(248,113,113,0.4)" stroke-width="1.5"/>
+  <rect x="430" y="215" width="142" height="20" rx="6" fill="url(#bG2)" opacity="0.7"/>
+  <rect x="430" y="228" width="142" height="7" fill="url(#bG2)" opacity="0.7"/>
+  <text x="501" y="229" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif">BLOCKER 1</text>
+  <text x="501" y="250" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(252,165,165,0.9)" font-family="system-ui, -apple-system, sans-serif">MSCK REPAIR</text>
+  <text x="501" y="264" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">returns SUCCEEDED</text>
+  <text x="501" y="278" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">registers nothing</text>
+  <text x="501" y="286" text-anchor="middle" font-size="8" fill="rgba(74,222,128,0.8)" font-family="system-ui, -apple-system, sans-serif">→ injected projection</text>
+
+  <!-- B2 -->
+  <rect x="585" y="215" width="142" height="78" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(248,113,113,0.4)" stroke-width="1.5"/>
+  <rect x="585" y="215" width="142" height="20" rx="6" fill="url(#bG2)" opacity="0.7"/>
+  <rect x="585" y="228" width="142" height="7" fill="url(#bG2)" opacity="0.7"/>
+  <text x="656" y="229" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif">BLOCKER 2</text>
+  <text x="656" y="250" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(252,165,165,0.9)" font-family="system-ui, -apple-system, sans-serif">DAILY JOB OOM</text>
+  <text x="656" y="264" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">4 Gi / 4h limit</text>
+  <text x="656" y="278" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">every night</text>
+  <text x="656" y="286" text-anchor="middle" font-size="8" fill="rgba(74,222,128,0.8)" font-family="system-ui, -apple-system, sans-serif">→ include_expression flag</text>
+
+  <!-- B3 -->
+  <rect x="740" y="215" width="142" height="78" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(248,113,113,0.4)" stroke-width="1.5"/>
+  <rect x="740" y="215" width="142" height="20" rx="6" fill="url(#bG2)" opacity="0.7"/>
+  <rect x="740" y="228" width="142" height="7" fill="url(#bG2)" opacity="0.7"/>
+  <text x="811" y="229" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif">BLOCKER 3</text>
+  <text x="811" y="250" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(252,165,165,0.9)" font-family="system-ui, -apple-system, sans-serif">CHECKPOINT CORRUPTION</text>
+  <text x="811" y="264" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">pdata marked ingested</text>
+  <text x="811" y="278" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">before file written</text>
+  <text x="811" y="286" text-anchor="middle" font-size="8" fill="rgba(74,222,128,0.8)" font-family="system-ui, -apple-system, sans-serif">→ expr/ keys only</text>
+
+  <!-- B4 -->
+  <rect x="895" y="215" width="142" height="78" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(248,113,113,0.4)" stroke-width="1.5"/>
+  <rect x="895" y="215" width="142" height="20" rx="6" fill="url(#bG2)" opacity="0.7"/>
+  <rect x="895" y="228" width="142" height="7" fill="url(#bG2)" opacity="0.7"/>
+  <text x="966" y="229" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif">BLOCKER 4</text>
+  <text x="966" y="250" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(252,165,165,0.9)" font-family="system-ui, -apple-system, sans-serif">DUPLICATE ROWS</text>
+  <text x="966" y="264" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">re-analysis adds file</text>
+  <text x="966" y="278" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">not overwrites</text>
+  <text x="966" y="286" text-anchor="middle" font-size="8" fill="rgba(74,222,128,0.8)" font-family="system-ui, -apple-system, sans-serif">→ key on sample_id</text>
+
+  <!-- B5 -->
+  <rect x="1050" y="215" width="105" height="78" rx="6" fill="rgba(220,38,38,0.08)" stroke="rgba(248,113,113,0.4)" stroke-width="1.5"/>
+  <rect x="1050" y="215" width="105" height="20" rx="6" fill="url(#bG2)" opacity="0.7"/>
+  <rect x="1050" y="228" width="105" height="7" fill="url(#bG2)" opacity="0.7"/>
+  <text x="1102" y="229" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif">BLOCKER 5</text>
+  <text x="1102" y="250" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(252,165,165,0.9)" font-family="system-ui, -apple-system, sans-serif">SILENT NULLs</text>
+  <text x="1102" y="264" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.45)" font-family="system-ui, -apple-system, sans-serif">schema drift</text>
+  <text x="1102" y="278" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.35)" font-family="system-ui, -apple-system, sans-serif">infers null type</text>
+  <text x="1102" y="286" text-anchor="middle" font-size="8" fill="rgba(74,222,128,0.8)" font-family="system-ui, -apple-system, sans-serif">→ explicit types</text>
+
+  <!-- Incremental pattern -->
+  <rect x="430" y="315" width="725" height="72" rx="8" fill="rgba(22,163,74,0.06)" stroke="rgba(74,222,128,0.25)" stroke-width="1.5"/>
+  <rect x="430" y="315" width="725" height="18" rx="8" fill="url(#bG3)" opacity="0.55"/>
+  <rect x="430" y="326" width="725" height="7" fill="url(#bG3)" opacity="0.55"/>
+  <text x="792" y="327" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif">INCREMENTAL CHECKPOINT PATTERN — 30 FILES PER CHECKPOINT</text>
+
+  <text x="545" y="348" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(74,222,128,0.9)" font-family="system-ui, -apple-system, sans-serif">Run 1 (Sat)</text>
+  <text x="545" y="362" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">files 1–90 → checkpoint</text>
+  <text x="545" y="375" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.3)" font-family="system-ui, -apple-system, sans-serif">manifest flushed (expr/ only)</text>
+
+  <line x1="625" y1="357" x2="660" y2="357" stroke="rgba(74,222,128,0.3)" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <text x="735" y="348" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(74,222,128,0.9)" font-family="system-ui, -apple-system, sans-serif">Run 2 (Sat +1)</text>
+  <text x="735" y="362" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">skips 1–90, does 91–210</text>
+  <text x="735" y="375" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.3)" font-family="system-ui, -apple-system, sans-serif">incremental checkpoint</text>
+
+  <line x1="815" y1="357" x2="850" y2="357" stroke="rgba(74,222,128,0.3)" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <text x="955" y="348" text-anchor="middle" font-size="9" font-weight="600" fill="rgba(74,222,128,0.9)" font-family="system-ui, -apple-system, sans-serif">Run 3+ → Complete</text>
+  <text x="955" y="362" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">skips processed, finishes 322</text>
+  <text x="955" y="375" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.3)" font-family="system-ui, -apple-system, sans-serif">no activeDeadlineSeconds on Job</text>
+
+  <!-- Agent query layer -->
+  <rect x="430" y="405" width="725" height="55" rx="8" fill="rgba(37,99,235,0.06)" stroke="rgba(96,165,250,0.25)" stroke-width="1.5"/>
+  <text x="792" y="430" text-anchor="middle" font-size="10" font-weight="700" fill="rgba(147,197,253,0.9)" font-family="system-ui, -apple-system, sans-serif">AI AGENT — Athena UNLOAD → pyarrow → JSON response</text>
+  <text x="792" y="449" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)" font-family="system-ui, -apple-system, sans-serif">get_expression(study_id, gene_ids) · find_regulated_genes(study_id, z_score_threshold)</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="591" width="1200" height="36" fill="rgba(0,0,0,0.35)"/>
+  <circle cx="30" cy="609" r="11" fill="url(#bG1)" opacity="0.9"/>
+  <text x="30" y="614" text-anchor="middle" font-size="9" font-weight="700" fill="white" font-family="system-ui, -apple-system, sans-serif">A</text>
+  <text x="52" y="611" font-size="11" font-weight="600" fill="rgba(255,255,255,0.9)" font-family="system-ui, -apple-system, sans-serif">Ashutosh Upadhyay</text>
+  <text x="185" y="611" font-size="10" fill="rgba(255,255,255,0.4)" font-family="system-ui, -apple-system, sans-serif">· Platform Engineering, J&amp;J Innovative Medicine</text>
+
+  <rect x="890" y="598" width="90" height="20" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="935" y="612" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">Data Engineering</text>
+  <rect x="990" y="598" width="55" height="20" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="1018" y="612" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">Athena</text>
+  <rect x="1055" y="598" width="100" height="20" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="1105" y="612" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.5)" font-family="system-ui, -apple-system, sans-serif">Production AI</text>
+</svg>

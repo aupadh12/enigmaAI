@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EKS or Managed Agent Runtime? A Framework for the Decision You'll Face Twice</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="EKS or Managed Agent Runtime? A Framework for the Decision You'll Face Twice">
+    <meta property="og:description" content="The migration looked straightforward. Then we found five categories of blockers. Here's the framework we wish we'd had before we started.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/17-eks-vs-managed-runtime.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/17-eks-vs-managed-runtime.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="EKS or Managed Agent Runtime? A Framework for the Decision You'll Face Twice">
+    <meta name="twitter:description" content="The migration looked straightforward. Then we found five categories of blockers. Here's the framework we wish we'd had before we started.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/17-eks-vs-managed-runtime.svg">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+</head>
+<body>
+
+<img class="cover-image" src="covers/17-eks-vs-managed-runtime.svg" alt="Blog cover">
+
+<div class="header-badge">Architecture</div>
+<h1>EKS or Managed Agent Runtime? A Framework for the Decision You'll Face Twice</h1>
+<p class="subtitle">The migration looked straightforward. Then we found five categories of blockers. Here's the framework we wish we'd had before we started.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · Johnson &amp; Johnson Innovative Medicine · August 2026</div>
+    </div>
+</div>
+
+<p>We run a production multi-agent AI research system on self-managed EKS. It handles a 4-stage pipeline — Data Scout, Analyst, Synthesizer, Critic — each running in its own Kubernetes pod, communicating over HTTP with circuit breakers, instrumented with OpenTelemetry traces flowing through an ADOT sidecar into both CloudWatch and a Langfuse instance we control.</p>
+
+<p>When a managed agent runtime became available, the pitch was compelling: no Kubernetes manifests, no Karpenter NodePools, no HPA tuning, built-in session state, managed identity, automatic scaling. We spent two weeks building a structured comparison. We found five categories of blockers that weren't in any AWS documentation. This is the framework.</p>
+
+<h2>What "Managed Runtime" Actually Means</h2>
+
+<p>Before getting to the blockers, it's worth being precise about what you're trading. Most teams entering this comparison have a fuzzy mental model that leads to surprises in both directions.</p>
+
+<p>What you give up:</p>
+<ul>
+    <li>The control plane — no more <code>deployment.yaml</code>, no Karpenter, no HPA, no custom node configuration</li>
+    <li>The execution environment — you can't add a sidecar, can't mount a volume, can't run an init container</li>
+    <li>Port adjacency — your admin endpoints, monitoring scrapers, and background workers that live alongside the agent pod on EKS need a new home</li>
+</ul>
+
+<p>What you gain:</p>
+<ul>
+    <li>Managed session lifecycle — the runtime handles turn state, session expiry, concurrent request management</li>
+    <li>Built-in tool execution sandbox — isolated compute for code execution tools</li>
+    <li>Vendor-managed scaling — no HPA policy to tune, no warm pool to size</li>
+    <li>Simplified deployment — push code, runtime handles rollout</li>
+</ul>
+
+<p>What stays your problem regardless of which path you take:</p>
+<ul>
+    <li>Your tool logic and data access patterns</li>
+    <li>Your prompt management strategy</li>
+    <li>Your evaluation harness</li>
+    <li>Your LLM provider configuration and cost controls</li>
+    <li>Your downstream data pipelines</li>
+</ul>
+
+<div class="highlight-box">
+    <p><strong>The key insight:</strong> the hard parts of running an AI agent system are mostly in your tool code, your prompts, and your data pipelines. The managed/self-managed boundary sits above all of that. Don't expect a runtime migration to simplify the parts that are actually hard.</p>
+</div>
+
+<h2>The Five Blocker Categories</h2>
+
+<p>We categorize blockers by what they require to resolve, not by how alarming they sound. A blocker that requires a two-line IAM change is different from one that requires re-architecting your observability stack.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Blocker</th>
+            <th>Category</th>
+            <th>Severity</th>
+            <th>Resolution Cost</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>① Framework flattening</td>
+            <td>Multi-agent orchestration</td>
+            <td class="decision-cell-red">High</td>
+            <td>Validate against your specific framework before any migration work</td>
+        </tr>
+        <tr>
+            <td>② Observability routing</td>
+            <td>Backend fan-out constraint</td>
+            <td class="decision-cell-yellow">Medium</td>
+            <td>Choose CloudWatch (default) or custom backend; dual in-process export unverified</td>
+        </tr>
+        <tr>
+            <td>③ Admin API surface</td>
+            <td>Operational workflow disruption</td>
+            <td class="decision-cell-yellow">Medium</td>
+            <td>Separate deployment for admin services, new authentication wiring</td>
+        </tr>
+        <tr>
+            <td>④ Identity federation</td>
+            <td>IAM trust policy change</td>
+            <td class="decision-cell-yellow">Medium</td>
+            <td>Add service principal to existing role; update only resource-policy-gated services (S3, KMS)</td>
+        </tr>
+        <tr>
+            <td>⑤ Cold start</td>
+            <td>Latency regression risk</td>
+            <td class="decision-cell-yellow">Medium</td>
+            <td>Session reuse via runtimeSessionId eliminates within-session cold starts; benchmark across sessions</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Blocker 1: Multi-Agent Migration Cost</h3>
+
+<p>If your agent uses an orchestration framework — Strands, LangGraph, CrewAI, or a custom multi-agent pattern — the managed runtime does support multi-agent architectures, but the migration is not a simple port. Our system runs a four-stage pipeline where each stage is a separate pod: Data Scout gathers evidence from 20+ data sources, Analyst runs statistical analysis, Synthesizer integrates evidence, Critic adversarially verifies the synthesis before it reaches the user.</p>
+
+<p>In a managed runtime, four pipeline stages map to four runtimes — each needing its own ECR image, its own execution role, and its own deploy artifact. The first-class A2A (Agent-to-Agent) protocol is supported natively (port 9000, agent cards at <code>/.well-known/agent-card.json</code>), and sessions can be co-located for collaboration. But the in-cluster HTTP mesh with custom circuit breakers becomes <code>InvokeAgentRuntime</code> API calls whose retry semantics you don't own. That's real migration cost — multiplied by N stages — even though the architecture isn't fundamentally flattened.</p>
+
+<div class="stale-box">
+    <p><strong>Check before you start:</strong> Map your multi-agent topology to the managed runtime's execution model before writing a single line of migration code. If your stages have different tool registries, different LLM models, or different concurrency policies, count the number of runtimes × images × roles you'll need to maintain. The architecture survives; the operational surface multiplies.</p>
+</div>
+
+<h3>Blocker 2: Observability Routing Choice</h3>
+
+<p>ADOT (AWS Distro for OpenTelemetry) <em>is</em> supported inside the managed runtime — you add <code>aws-opentelemetry-distro&gt;=0.10.0</code> to your requirements and instrument with <code>opentelemetry-instrument python main.py</code>. What is <em>not</em> supported is the ADOT Collector sidecar, because there's no pod to attach it to.</p>
+
+<p>The constraint this creates is routing: the collector sidecar pattern lets you fan-out to multiple backends simultaneously — CloudWatch for infra metrics, Langfuse for LLM traces, X-Ray for distributed tracing — from a single collector config. Without the sidecar, you must choose. The runtime's default ADOT configuration exports to CloudWatch. If you want a different backend (Langfuse, Honeycomb, Grafana Cloud), set <code>DISABLE_ADOT_OBSERVABILITY=true</code> and export directly from your application using an instrumentation library. AWS explicitly supports OpenInference, Openllmetry, OpenLit, and Traceloop — all of which are Langfuse-ingestible.</p>
+
+<p>Dual in-process exporters (CloudWatch <em>and</em> Langfuse simultaneously via code) are undocumented and unverified at scale. If you've built your debugging workflow around correlating Langfuse LLM spans with CloudWatch infra metrics, you'll need to validate that the in-process pattern replicates that correlation before committing to migration.</p>
+
+<h3>Blocker 3: Admin API Routes</h3>
+
+<p>Production agent systems accumulate operational APIs alongside the core agent: prompt editing interfaces, skill management, usage dashboards, feedback review, rate limit controls. On EKS, these run as routes on the same FastAPI app or as separate services in the same namespace, all sharing the pod's IRSA credentials and reachable via the same ingress.</p>
+
+<p>In a managed runtime, there is no "same pod." Your admin endpoints need their own deployment — a separate service with its own authentication, its own scaling policy, and its own path through your VPN/proxy. The operational burden doesn't disappear; it moves to a second surface you now have to maintain separately from the agent.</p>
+
+<h3>Blocker 4: Identity Federation</h3>
+
+<p>On EKS, IRSA (IAM Roles for Service Accounts) works by attaching a role annotation to the Kubernetes service account. The trust policy on the IAM role names the EKS cluster's OIDC provider as the trusted principal.</p>
+
+<pre><code># EKS IRSA: pod assumes role via OIDC web identity
+"Action": "sts:AssumeRoleWithWebIdentity",
+"Principal": {
+    "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/oidc.eks.REGION.amazonaws.com/id/CLUSTER_ID"
+},
+"Condition": {
+    "StringEquals": {
+        "oidc.eks.REGION.amazonaws.com/id/CLUSTER_ID:sub": "system:serviceaccount:NAMESPACE:SERVICEACCOUNT"
+    }
+}</code></pre>
+
+<p>In a managed runtime, the trusted principal is the runtime service itself, not an OIDC provider:</p>
+
+<pre><code># Managed runtime: service assumes role directly
+"Action": "sts:AssumeRole",
+"Principal": {
+    "Service": "bedrock-agentcore.amazonaws.com"
+},
+"Condition": {
+    "StringEquals": {
+        "aws:SourceAccount": "ACCOUNT_ID"
+    },
+    "ArnLike": {
+        # Use wildcard at creation time — runtime ID isn't known yet (chicken-and-egg)
+        "aws:SourceArn": "arn:aws:bedrock-agentcore:REGION:ACCOUNT_ID:*"
+    }
+}</code></pre>
+
+<p>The key difference: EKS uses <code>sts:AssumeRoleWithWebIdentity</code> via OIDC; managed runtime uses <code>sts:AssumeRole</code> directly from the service principal. You can keep the same role ARN — just add <code>bedrock-agentcore.amazonaws.com</code> as a second trusted principal. Most downstream identity-based policies (DynamoDB, Bedrock) need no changes at all since the role ARN stays the same. The only services that typically require updates are those with resource-based policies that name the role explicitly — S3 bucket policies, KMS key policies. Athena workgroups have no resource policy. Count the actual resource-policy-gated services before estimating migration cost; it's usually far fewer than the full list of AWS services your agent touches.</p>
+
+<h3>Blocker 5: Cold Start</h3>
+
+<p>EKS pods are always warm as long as they're running — no first-request penalty per turn. The first invocation to a new managed runtime session loads the execution environment, which adds latency. For research-oriented workloads where queries take 30–120 seconds, a cold start is negligible. For conversational agents with a &lt;2 second response SLA, it matters.</p>
+
+<p>AgentCore's mitigation is <strong>session reuse</strong>: a dedicated microVM is kept alive for invocations that share the same <code>runtimeSessionId</code>. While a session is active, subsequent turns skip the cold start entirely. The practical implication: design your session lifecycle carefully — a session that idles out forces the next turn to cold-start. Benchmark your actual p50/p95 latency across session boundaries before committing to a latency SLA. Published AWS numbers are upper bounds, not guarantees for your specific tool payload and container size.</p>
+
+<h2>What Changes and What Doesn't</h2>
+
+<p>The managed runtime genuinely improves a specific set of problems:</p>
+
+<ul>
+    <li><strong>Node patching and K8s upgrades</strong> — you stop being on the hook for EKS version management</li>
+    <li><strong>Scaling policy tuning</strong> — no more HPA target utilization debates or warm pool sizing spreadsheets</li>
+    <li><strong>Pod disruption during maintenance</strong> — vendor handles rollout, you focus on the agent</li>
+    <li><strong>Session state</strong> — built-in turn management rather than DynamoDB-backed session handling</li>
+</ul>
+
+<p>What doesn't change:</p>
+
+<ul>
+    <li>Your tool code is still Python (or whatever language), running your logic, making your API calls</li>
+    <li>Your prompts still need engineering, versioning, and S3-based management for hot updates</li>
+    <li>Your data pipelines (S3 ingestion, Athena queries, DynamoDB writes) are identical</li>
+    <li>Your evaluation harness for measuring response quality needs to be built regardless</li>
+    <li>Your on-call rotation for when the agent gives a wrong answer hasn't changed</li>
+</ul>
+
+<div class="warn-box">
+    <p><strong>The managed runtime solves infrastructure operations, not agent quality.</strong> If your team spends most of its time on K8s operations, you'll get significant relief. If your team spends most of its time on prompt engineering, tool correctness, and evaluation, the managed runtime doesn't move that needle.</p>
+</div>
+
+<h2>The Hybrid Answer</h2>
+
+<p>For most production teams with existing EKS investments, the right answer isn't "migrate" or "don't migrate" — it's hybrid.</p>
+
+<p>Use the managed runtime for its Gateway component: expose a subset of your agent's tools as an MCP (Model Context Protocol) server. Other agents — internal tools, partner integrations, automated pipelines — can call your agent's capabilities without needing direct API access. The Gateway layer handles authentication, rate limiting, and tool schema publication. Your core agent keeps running on EKS where you have full observability and control.</p>
+
+<div class="green-box">
+    <p><strong>The hybrid pattern in practice:</strong> managed Gateway exposes 3–5 high-value tools (your primary query interface, a key data source, a synthesis capability) as MCP endpoints. Policy and guardrails attach to the Gateway layer. Your main agent on EKS calls the Gateway when acting as an <em>agent consumer</em>, and the Gateway calls back into EKS when external agents need your capabilities. You get the ecosystem integration benefits without the migration risk.</p>
+</div>
+
+<p>This is the pattern we're building toward: AgentCore Gateway as the MCP exposure layer, the core research agent staying on EKS until the remaining blockers either resolve or become irrelevant for our workload.</p>
+
+<h2>The Decision Matrix</h2>
+
+<p>Use this to locate yourself in the decision space. For each dimension, the cells indicate which migration path is appropriate — not as an absolute rule, but as a starting signal.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Dimension</th>
+            <th>Migrate Now</th>
+            <th>Hybrid</th>
+            <th>Stay on EKS</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Cold start tolerance</strong></td>
+            <td class="decision-cell-green">✓ &gt;5s acceptable</td>
+            <td class="decision-cell-yellow">≈ session reuse covers within-session turns</td>
+            <td class="decision-cell-red">✗ &lt;2s SLA required</td>
+        </tr>
+        <tr>
+            <td><strong>Observability stack</strong></td>
+            <td class="decision-cell-green">✓ CloudWatch-only is fine</td>
+            <td class="decision-cell-yellow">≈ re-instrument non-critical paths</td>
+            <td class="decision-cell-red">✗ CloudWatch+Langfuse fan-out via single collector non-negotiable</td>
+        </tr>
+        <tr>
+            <td><strong>Multi-agent framework</strong></td>
+            <td class="decision-cell-green">✓ Single-agent or simple</td>
+            <td class="decision-cell-yellow">≈ Gateway for tool exposure</td>
+            <td class="decision-cell-red">✗ Complex pipeline with separate pods</td>
+        </tr>
+        <tr>
+            <td><strong>Admin API surface</strong></td>
+            <td class="decision-cell-green">✓ Minimal or none</td>
+            <td class="decision-cell-yellow">≈ acceptable to split deployment</td>
+            <td class="decision-cell-red">✗ Heavy operational UI on same surface</td>
+        </tr>
+        <tr>
+            <td><strong>Identity model</strong></td>
+            <td class="decision-cell-green">✓ Simple, few downstream services</td>
+            <td class="decision-cell-yellow">≈ re-wire in phases</td>
+            <td class="decision-cell-red">✗ Complex OIDC federation across many services</td>
+        </tr>
+        <tr>
+            <td><strong>Team K8s burden</strong></td>
+            <td class="decision-cell-green">✓ &gt;20% of time on infra ops</td>
+            <td class="decision-cell-yellow">≈ moderate K8s overhead</td>
+            <td class="decision-cell-red">✗ &lt;5% time on K8s, features dominate</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>When to Migrate: Clear Signals</h2>
+
+<p>There are scenarios where a full migration is the right call:</p>
+
+<ul>
+    <li><strong>Your agent is architecturally simple</strong> — single-agent, modest tool count, no custom multi-stage pipeline</li>
+    <li><strong>You're starting fresh</strong> — no existing observability investment, no legacy admin UI, no complex IAM entanglement</li>
+    <li><strong>Your team is K8s-overloaded</strong> — more than 20% of engineering time goes to infrastructure rather than agent quality</li>
+    <li><strong>Your identity model is straightforward</strong> — the agent touches few AWS services, role re-wiring is mechanical and fast</li>
+    <li><strong>Your latency requirements are relaxed</strong> — research workflows, async analysis, batch pipelines where 5-second cold starts are invisible</li>
+</ul>
+
+<p>Do not migrate if:</p>
+<ul>
+    <li>You have a multi-agent pipeline where each stage has differentiated tool registries, models, or concurrency policies</li>
+    <li>You require simultaneous CloudWatch + custom backend (e.g. Langfuse) fan-out via a single collector — in-process dual export is undocumented and unverified at scale</li>
+    <li>You have latency SLAs under 2 seconds on conversational turns</li>
+    <li>Your agent system has accumulated significant operational tooling (prompt editors, skill managers, feedback dashboards) that lives alongside the agent pod</li>
+</ul>
+
+<h2>The Blockers We Didn't Expect</h2>
+
+<p>The five categories above come from documentation gaps. But we also found issues that weren't documentation problems — they were architectural assumptions we'd made that the managed runtime invalidates.</p>
+
+<p><strong>Atomic data location flips.</strong> Our S3-backed data tables use an <code>active_version.json</code> pointer pattern: new data lands in a versioned prefix, and the Glue table location is atomically updated by flipping the pointer. This gives us zero-downtime data updates with instant rollback. A managed runtime with a fixed execution environment doesn't have an equivalent pattern — you'd need to re-think the atomic update mechanism entirely.</p>
+
+<p><strong>Port-forwarded admin access.</strong> We use <code>kubectl port-forward</code> to access internal admin endpoints from local machines during debugging. In a managed runtime, port-forwarding doesn't exist. You need a proper bastion or VPN path to every management endpoint before you migrate — not after.</p>
+
+<p><strong>PrivateLink setup timeline.</strong> Managed runtimes use PrivateLink + VPC Lattice for private connectivity. In practice, provisioning the necessary VPC endpoints, service policies, and DNS records requires networking team involvement and takes 3–5 working days at most enterprise organizations. Budget for this in your migration timeline, not as a same-day task.</p>
+
+<p><strong>Governance sign-off.</strong> In a managed runtime, conversation data flows through a vendor-managed execution environment. For healthcare and pharmaceutical organizations, this requires explicit governance review of where data lands, who can access it, and how it's retained. The correct technical answer depends on the compute type: with the <strong>Instances</strong> compute type, workloads run on EC2 in your account and your VPC. With the default <strong>serverless microVM</strong> type, compute is AWS-managed — your data and model calls stay within your account boundary, but the execution environment itself is vendor-run. Start the governance review early and be precise about which compute type you're evaluating.</p>
+
+<h2>Looking Back</h2>
+
+<p>The two weeks we spent on the comparison matrix weren't wasted — they surfaced decisions that would have taken months to find in production. The hybrid answer we landed on (Gateway for MCP exposure, EKS for the core agent) is better architecture than either pure option would have been, precisely because the comparison forced us to articulate what we actually need from each layer.</p>
+
+<p>The managed runtime is genuinely good for the problems it solves. It just doesn't solve the problems that are actually hard. For teams evaluating this decision: be honest about where your operational burden lives. If it's in Kubernetes, you'll get significant relief. If it's in agent quality — prompt reliability, tool correctness, evaluation — you'll be just as busy after the migration as before, with a different infrastructure to learn.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>The managed runtime solves infrastructure operations — not agent quality. The hard parts of your system stay hard.</li>
+        <li>Five blocker categories to evaluate before committing: framework flattening, observability gap, admin API surface, identity federation model, cold start latency.</li>
+        <li>Framework flattening is the highest-severity blocker — validate against your specific orchestration pattern before writing migration code.</li>
+        <li>The hybrid answer captures most of the managed runtime benefits without the migration risk: Gateway/MCP on managed, core agent on EKS.</li>
+        <li>Budget 3–5 working days for PrivateLink/VPC Lattice provisioning and governance review before your timeline — not as same-day tasks.</li>
+        <li>The IAM trust policy change is mechanical: add the service principal to your existing role. Most downstream services need no changes — only those with resource-based policies (S3 buckets, KMS keys) naming the role explicitly. Count those, not your total AWS service footprint.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">AWS EKS</span>
+    <span class="tag">Agent Runtime</span>
+    <span class="tag">Architecture</span>
+    <span class="tag">Multi-Agent</span>
+    <span class="tag">IAM</span>
+    <span class="tag">Migration</span>
+    <span class="tag">Kubernetes</span>
+    <span class="tag">Observability</span>
+</div>
+
+</body>
+</html>

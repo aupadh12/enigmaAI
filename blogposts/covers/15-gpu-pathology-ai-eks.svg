@@ -1,0 +1,137 @@
+<svg width="1200" height="627" viewBox="0 0 1200 627" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#030f08"/>
+      <stop offset="50%" style="stop-color:#061a0f"/>
+      <stop offset="100%" style="stop-color:#030f08"/>
+    </linearGradient>
+    <linearGradient id="gG1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#059669"/><stop offset="100%" style="stop-color:#34d399"/>
+    </linearGradient>
+    <linearGradient id="gG2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#dc2626"/><stop offset="100%" style="stop-color:#f87171"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="40" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="rgba(110,231,183,0.7)"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="627" fill="url(#bg)"/>
+  <!-- Grid -->
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M 28 0 L 0 0 0 28" fill="none" stroke="rgba(5,150,105,0.04)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="627" fill="url(#grid)"/>
+
+  <!-- Glow orbs -->
+  <circle cx="900" cy="100" r="300" fill="#059669" opacity="0.08" filter="url(#glow)"/>
+  <circle cx="700" cy="500" r="200" fill="#7c3aed" opacity="0.06" filter="url(#glow)"/>
+
+  <!-- Left: Text panel -->
+  <rect x="40" y="0" width="380" height="627" fill="rgba(0,0,0,0)"/>
+
+  <!-- Badge -->
+  <rect x="52" y="60" width="80" height="24" rx="12" fill="url(#gG1)"/>
+  <text x="92" y="77" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="white" letter-spacing="1">MLOPS</text>
+
+  <!-- Title -->
+  <text x="52" y="120" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="white">GPU Pathology AI:</text>
+  <text x="52" y="160" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="white">When Jobs Run on</text>
+  <text x="52" y="200" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="#6ee7b7">Wrong Hardware</text>
+
+  <!-- Subtitle -->
+  <text x="52" y="240" font-family="Arial, sans-serif" font-size="13" fill="rgba(255,255,255,0.5)">Burst GPU workloads, silent Karpenter</text>
+  <text x="52" y="258" font-family="Arial, sans-serif" font-size="13" fill="rgba(255,255,255,0.5)">version traps, and why your SQS</text>
+  <text x="52" y="276" font-family="Arial, sans-serif" font-size="13" fill="rgba(255,255,255,0.5)">consumer should never be a ScaledJob.</text>
+
+  <!-- Stats -->
+  <text x="52" y="330" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="#6ee7b7">3</text>
+  <text x="52" y="348" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)" letter-spacing="1">VERSION TRAPS</text>
+  <text x="130" y="330" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="#6ee7b7">45s</text>
+  <text x="130" y="348" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)" letter-spacing="1">COLD START</text>
+  <text x="230" y="330" font-family="Arial, sans-serif" font-size="32" font-weight="800" fill="#6ee7b7">1</text>
+  <text x="230" y="348" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)" letter-spacing="1">PERSISTENT CONSUMER</text>
+
+  <!-- Right: Architecture diagram -->
+  <!-- SQS Queue -->
+  <rect x="450" y="60" width="140" height="70" rx="8" fill="rgba(5,150,105,0.1)" stroke="rgba(52,211,153,0.4)" stroke-width="1.5"/>
+  <text x="520" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="rgba(110,231,183,0.9)">SQS Queue</text>
+  <text x="520" y="108" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">slide batches</text>
+  <rect x="462" y="116" width="16" height="8" rx="2" fill="rgba(110,231,183,0.5)"/>
+  <rect x="484" y="116" width="16" height="8" rx="2" fill="rgba(110,231,183,0.5)"/>
+  <rect x="506" y="116" width="16" height="8" rx="2" fill="rgba(110,231,183,0.4)"/>
+  <rect x="528" y="116" width="16" height="8" rx="2" fill="rgba(110,231,183,0.3)"/>
+
+  <line x1="590" y1="95" x2="650" y2="95" stroke="rgba(110,231,183,0.5)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- KEDA -->
+  <rect x="650" y="60" width="140" height="70" rx="8" fill="rgba(5,150,105,0.1)" stroke="rgba(52,211,153,0.4)" stroke-width="1.5"/>
+  <text x="720" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="rgba(110,231,183,0.9)">KEDA ScaledJob</text>
+  <text x="720" y="108" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">1 Job per 8 slides</text>
+
+  <line x1="790" y1="95" x2="850" y2="95" stroke="rgba(110,231,183,0.5)" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Job Pods -->
+  <rect x="850" y="48" width="110" height="30" rx="5" fill="rgba(5,150,105,0.12)" stroke="rgba(52,211,153,0.35)"/>
+  <text x="905" y="68" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(110,231,183,0.85)">Job Pod ×1</text>
+  <rect x="850" y="85" width="110" height="30" rx="5" fill="rgba(5,150,105,0.12)" stroke="rgba(52,211,153,0.35)"/>
+  <text x="905" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(110,231,183,0.85)">Job Pod ×2</text>
+  <rect x="970" y="65" width="110" height="30" rx="5" fill="rgba(5,150,105,0.12)" stroke="rgba(52,211,153,0.35)"/>
+  <text x="1025" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(110,231,183,0.85)">Job Pod ×3</text>
+
+  <!-- Karpenter -->
+  <rect x="850" y="140" width="230" height="45" rx="8" fill="rgba(5,150,105,0.08)" stroke="rgba(52,211,153,0.3)"/>
+  <text x="965" y="158" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="rgba(110,231,183,0.8)">Karpenter NodePool</text>
+  <text x="965" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.4)">provisions GPU nodes on demand</text>
+
+  <!-- Trap 1 Warning -->
+  <rect x="450" y="220" width="700" height="75" rx="8" fill="rgba(220,38,38,0.08)" stroke="rgba(239,68,68,0.5)" stroke-width="1.5"/>
+  <rect x="450" y="220" width="700" height="22" rx="8" fill="url(#gG2)" opacity="0.7"/>
+  <rect x="450" y="234" width="700" height="8" fill="url(#gG2)" opacity="0.7"/>
+  <text x="800" y="237" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="white">⚠  KARPENTER 1.0.1 — NVIDIA/NEURON AMI INVERSION</text>
+  <text x="800" y="262" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="rgba(252,165,165,0.9)">Jobs requesting nvidia.com/gpu scheduled on AWS Inferentia (Neuron) nodes</text>
+  <text x="800" y="281" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">Pod: Running ✓ · CUDA calls: device error · Workload: silently failed · Fix: amiFamily: AL2</text>
+
+  <!-- Trap 2 Warning -->
+  <rect x="450" y="315" width="700" height="75" rx="8" fill="rgba(220,38,38,0.08)" stroke="rgba(239,68,68,0.5)" stroke-width="1.5"/>
+  <rect x="450" y="315" width="700" height="22" rx="8" fill="url(#gG2)" opacity="0.7"/>
+  <rect x="450" y="329" width="700" height="8" fill="url(#gG2)" opacity="0.7"/>
+  <text x="800" y="332" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="white">⚠  KEDA 2.12 — SILENT identityOwner FIELD PRUNING</text>
+  <text x="800" y="357" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="rgba(252,165,165,0.9)">identityOwner: operator silently removed · ScaledJob pods lost IAM identity · AccessDenied on S3</text>
+  <text x="800" y="376" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">No error on apply · No warning in logs · Fix: pod-level IRSA annotation on ServiceAccount</text>
+
+  <!-- ScaledJob vs Persistent comparison -->
+  <rect x="450" y="410" width="330" height="140" rx="8" fill="rgba(5,150,105,0.06)" stroke="rgba(52,211,153,0.3)"/>
+  <text x="615" y="433" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="rgba(110,231,183,0.9)">SCALEDJOB ✓  (stateless burst)</text>
+  <text x="615" y="455" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">Each item retries independently</text>
+  <text x="615" y="473" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">True scale-to-zero between batches</text>
+  <text x="615" y="491" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">Cold start cost amortized per batch</text>
+  <text x="615" y="525" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(110,231,183,0.6)">→ parallel image inference batches</text>
+
+  <rect x="820" y="410" width="330" height="140" rx="8" fill="rgba(124,58,237,0.06)" stroke="rgba(167,139,250,0.3)"/>
+  <text x="985" y="433" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="rgba(216,180,254,0.9)">PERSISTENT CONSUMER ✓</text>
+  <text x="985" y="455" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">Model loaded once, amortized</text>
+  <text x="985" y="473" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">State maintained across messages</text>
+  <text x="985" y="491" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">5× faster for small frequent units</text>
+  <text x="985" y="525" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(216,180,254,0.6)">→ ordered analysis pipelines</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="591" width="1200" height="36" fill="rgba(0,0,0,0.4)"/>
+  <circle cx="54" cy="609" r="11" fill="url(#gG1)"/>
+  <text x="54" y="614" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="white">A</text>
+  <text x="74" y="613" font-family="Arial, sans-serif" font-size="11" font-weight="600" fill="rgba(255,255,255,0.9)">Ashutosh Upadhyay</text>
+  <text x="200" y="613" font-family="Arial, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">· Platform Engineering, J&amp;J Innovative Medicine</text>
+  <rect x="900" y="600" width="60" height="18" rx="9" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)"/>
+  <text x="930" y="613" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">KEDA</text>
+  <rect x="970" y="600" width="80" height="18" rx="9" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)"/>
+  <text x="1010" y="613" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">Karpenter</text>
+  <rect x="1060" y="600" width="50" height="18" rx="9" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)"/>
+  <text x="1085" y="613" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="rgba(255,255,255,0.5)">GPU</text>
+</svg>

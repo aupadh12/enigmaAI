@@ -1,0 +1,159 @@
+<svg width="1200" height="627" viewBox="0 0 1200 627" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg17" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a14"/>
+      <stop offset="35%" style="stop-color:#12122a"/>
+      <stop offset="100%" style="stop-color:#0a0a14"/>
+    </linearGradient>
+    <linearGradient id="g17a" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#475569"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="g17b" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0d9488"/>
+      <stop offset="100%" style="stop-color:#2dd4bf"/>
+    </linearGradient>
+    <filter id="glow17">
+      <feGaussianBlur stdDeviation="60" result="cb"/>
+      <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="627" fill="url(#bg17)"/>
+
+  <!-- Grid -->
+  <line x1="0" y1="0" x2="1200" y2="0" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="28" x2="1200" y2="28" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="56" x2="1200" y2="56" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="84" x2="1200" y2="84" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="112" x2="1200" y2="112" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="140" x2="1200" y2="140" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="168" x2="1200" y2="168" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="196" x2="1200" y2="196" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="224" x2="1200" y2="224" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="252" x2="1200" y2="252" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="280" x2="1200" y2="280" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="308" x2="1200" y2="308" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="336" x2="1200" y2="336" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="364" x2="1200" y2="364" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="392" x2="1200" y2="392" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="420" x2="1200" y2="420" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="448" x2="1200" y2="448" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="476" x2="1200" y2="476" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="504" x2="1200" y2="504" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="532" x2="1200" y2="532" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="560" x2="1200" y2="560" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="588" x2="1200" y2="588" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+  <line x1="0" y1="616" x2="1200" y2="616" stroke="rgba(99,102,241,0.04)" stroke-width="1"/>
+
+  <!-- Ambient glows -->
+  <circle cx="900" cy="200" r="300" fill="#6366f1" opacity="0.08" filter="url(#glow17)"/>
+  <circle cx="700" cy="500" r="200" fill="#0d9488" opacity="0.06" filter="url(#glow17)"/>
+
+  <!-- Left text panel -->
+  <rect x="0" y="0" width="420" height="627" fill="rgba(0,0,0,0.3)"/>
+
+  <!-- Badge -->
+  <rect x="60" y="80" width="120" height="28" rx="14" fill="url(#g17a)" opacity="0.9"/>
+  <text x="120" y="99" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="white" letter-spacing="1.5">ARCHITECTURE</text>
+
+  <!-- Title -->
+  <text x="60" y="158" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="38" font-weight="800" fill="white">EKS or</text>
+  <text x="60" y="205" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="38" font-weight="800" fill="white">Managed</text>
+  <text x="60" y="252" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="38" font-weight="800" fill="url(#g17a)">Runtime?</text>
+
+  <!-- Subtitle -->
+  <text x="60" y="295" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="rgba(255,255,255,0.5)">Five blockers the docs don't mention.</text>
+  <text x="60" y="315" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="rgba(255,255,255,0.5)">A framework for the decision</text>
+  <text x="60" y="335" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" fill="rgba(255,255,255,0.5)">you'll face — probably twice.</text>
+
+  <!-- Stats -->
+  <text x="60" y="390" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="800" fill="#a5b4fc">5</text>
+  <text x="60" y="412" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.35)" letter-spacing="1">BLOCKER CATEGORIES</text>
+
+  <text x="160" y="390" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="800" fill="#a5b4fc">2</text>
+  <text x="160" y="412" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.35)" letter-spacing="1">RUNTIMES</text>
+
+  <text x="260" y="390" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="800" fill="#a5b4fc">1</text>
+  <text x="260" y="412" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" font-weight="600" fill="rgba(255,255,255,0.35)" letter-spacing="1">DECISION MATRIX</text>
+
+  <!-- Author -->
+  <circle cx="76" cy="550" r="18" fill="url(#g17a)"/>
+  <text x="76" y="556" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" font-weight="700" fill="white">A</text>
+  <text x="104" y="546" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600" fill="rgba(255,255,255,0.9)">Ashutosh Upadhyay</text>
+  <text x="104" y="562" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" fill="rgba(255,255,255,0.4)">Platform Engineering · J&amp;J Innovative Medicine</text>
+
+  <!-- Right panel: EKS vs Managed side by side -->
+  <!-- EKS column -->
+  <rect x="460" y="50" width="310" height="500" rx="12" fill="rgba(99,102,241,0.06)" stroke="rgba(99,102,241,0.2)" stroke-width="1.5"/>
+  <rect x="460" y="50" width="310" height="36" rx="12" fill="url(#g17a)" opacity="0.8"/>
+  <rect x="460" y="74" width="310" height="12" fill="url(#g17a)" opacity="0.8"/>
+  <text x="615" y="74" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="white">SELF-MANAGED EKS</text>
+
+  <rect x="476" y="102" width="278" height="54" rx="6" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.25)"/>
+  <text x="615" y="124" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(165,180,252,0.9)">Multi-Agent Pipeline</text>
+  <text x="615" y="142" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">Scout → Analyst → Synthesizer → Critic</text>
+
+  <rect x="476" y="168" width="278" height="54" rx="6" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.25)"/>
+  <text x="615" y="190" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(165,180,252,0.9)">ADOT → Langfuse Traces</text>
+  <text x="615" y="208" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">full OpenTelemetry pipeline</text>
+
+  <rect x="476" y="234" width="278" height="54" rx="6" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.25)"/>
+  <text x="615" y="256" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(165,180,252,0.9)">Admin APIs (same pod)</text>
+  <text x="615" y="274" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">prompt editor, skill manager, dashboard</text>
+
+  <rect x="476" y="300" width="278" height="54" rx="6" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.25)"/>
+  <text x="615" y="322" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(165,180,252,0.9)">IRSA via EKS OIDC</text>
+  <text x="615" y="340" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">eks.amazonaws.com principal</text>
+
+  <rect x="476" y="366" width="278" height="54" rx="6" fill="rgba(13,148,136,0.1)" stroke="rgba(45,212,191,0.25)"/>
+  <text x="615" y="388" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(94,234,212,0.9)">Always-Warm Pods</text>
+  <text x="615" y="406" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">&lt;200ms overhead per request</text>
+
+  <rect x="476" y="432" width="278" height="54" rx="6" fill="rgba(99,102,241,0.1)" stroke="rgba(99,102,241,0.25)"/>
+  <text x="615" y="454" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(165,180,252,0.9)">Karpenter + HPA</text>
+  <text x="615" y="472" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">you configure, you debug</text>
+
+  <!-- Managed Runtime column -->
+  <rect x="810" y="50" width="310" height="500" rx="12" fill="rgba(13,148,136,0.06)" stroke="rgba(45,212,191,0.2)" stroke-width="1.5"/>
+  <rect x="810" y="50" width="310" height="36" rx="12" fill="url(#g17b)" opacity="0.8"/>
+  <rect x="810" y="74" width="310" height="12" fill="url(#g17b)" opacity="0.8"/>
+  <text x="965" y="74" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="white">MANAGED RUNTIME</text>
+
+  <rect x="826" y="102" width="278" height="54" rx="6" fill="rgba(220,38,38,0.1)" stroke="rgba(248,113,113,0.35)"/>
+  <text x="965" y="124" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(252,165,165,0.9)">① Framework Flattening</text>
+  <text x="965" y="142" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">pipeline may not map to execution model</text>
+
+  <rect x="826" y="168" width="278" height="54" rx="6" fill="rgba(220,38,38,0.1)" stroke="rgba(248,113,113,0.35)"/>
+  <text x="965" y="190" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(252,165,165,0.9)">② CloudWatch Only</text>
+  <text x="965" y="208" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">ADOT / Langfuse unsupported</text>
+
+  <rect x="826" y="234" width="278" height="54" rx="6" fill="rgba(220,38,38,0.1)" stroke="rgba(248,113,113,0.35)"/>
+  <text x="965" y="256" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(252,165,165,0.9)">③ Separate Admin Surface</text>
+  <text x="965" y="274" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">re-route or rebuild operational APIs</text>
+
+  <rect x="826" y="300" width="278" height="54" rx="6" fill="rgba(220,38,38,0.1)" stroke="rgba(248,113,113,0.35)"/>
+  <text x="965" y="322" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(252,165,165,0.9)">④ New IAM Trust Model</text>
+  <text x="965" y="340" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">bedrock-agentcore.amazonaws.com</text>
+
+  <rect x="826" y="366" width="278" height="54" rx="6" fill="rgba(217,119,6,0.1)" stroke="rgba(252,211,77,0.25)"/>
+  <text x="965" y="388" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(252,211,77,0.9)">⑤ Cold Start Penalty</text>
+  <text x="965" y="406" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">benchmark before committing to SLA</text>
+
+  <rect x="826" y="432" width="278" height="54" rx="6" fill="rgba(13,148,136,0.1)" stroke="rgba(45,212,191,0.25)"/>
+  <text x="965" y="454" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="600" fill="rgba(94,234,212,0.9)">Vendor-Managed Scaling</text>
+  <text x="965" y="472" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.4)">no HPA policy to tune</text>
+
+  <!-- Hybrid bridge box -->
+  <rect x="741" y="540" width="140" height="40" rx="8" fill="rgba(99,102,241,0.15)" stroke="rgba(165,180,252,0.4)" stroke-width="1.5"/>
+  <text x="811" y="556" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="700" fill="rgba(165,180,252,0.9)">HYBRID ANSWER</text>
+  <text x="811" y="572" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(94,234,212,0.7)">Gateway on managed · Agent on EKS</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="591" width="1200" height="36" fill="rgba(0,0,0,0.4)"/>
+  <rect x="0" y="591" width="1200" height="1" fill="rgba(255,255,255,0.06)"/>
+  <text x="60" y="614" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="600" fill="rgba(255,255,255,0.8)">Ashutosh Upadhyay</text>
+  <text x="200" y="614" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.35)">· Platform Engineering, J&amp;J Innovative Medicine</text>
+  <text x="1100" y="614" text-anchor="end" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" fill="rgba(255,255,255,0.3)">August 2026</text>
+</svg>
