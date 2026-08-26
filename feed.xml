@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Field Notes — Ashutosh Upadhyay</title>
+    <link>https://aupadh12.github.io/enigmaAI/</link>
+    <description>Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works.</description>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 26 Aug 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://aupadh12.github.io/enigmaAI/feed.xml" rel="self" type="application/rss+xml"/>
+
+    <item>
+      <title>EKS or Managed Agent Runtime? A Framework for the Decision You'll Face Twice</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/17-eks-vs-managed-runtime.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/17-eks-vs-managed-runtime.html</guid>
+      <pubDate>Tue, 26 Aug 2025 00:00:00 +0000</pubDate>
+      <description>The migration looked straightforward. Then we found five categories of blockers. Here's the framework we wish we'd had before we started.</description>
+      <category>Architecture</category>
+    </item>
+
+    <item>
+      <title>Multi-Tenant FinOps: The Three Silent Bugs That Made Our AWS Cost Data Untrustworthy</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/16-multi-tenant-finops.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/16-multi-tenant-finops.html</guid>
+      <pubDate>Tue, 26 Aug 2025 00:00:00 +0000</pubDate>
+      <description>We built the join, ran it, got 1.8% coverage. It looked like a data problem. It was a .lower() call — and two more silent bugs followed.</description>
+      <category>FinOps</category>
+    </item>
+
+    <item>
+      <title>GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/15-gpu-pathology-ai-eks.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/15-gpu-pathology-ai-eks.html</guid>
+      <pubDate>Tue, 26 Aug 2025 00:00:00 +0000</pubDate>
+      <description>Burst GPU workloads, silent Karpenter version traps, and why your SQS consumer should never be a ScaledJob.</description>
+      <category>MLOps</category>
+    </item>
+
+    <item>
+      <title>Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/14-billion-row-data-pipeline.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/14-billion-row-data-pipeline.html</guid>
+      <pubDate>Mon, 18 Aug 2025 00:00:00 +0000</pubDate>
+      <description>We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.</description>
+      <category>Data Engineering</category>
+    </item>
+
+    <item>
+      <title>Closing the Feedback Loop: How User Corrections Become Domain Knowledge</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/13-agent-feedback-loop.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/13-agent-feedback-loop.html</guid>
+      <pubDate>Wed, 06 Aug 2025 00:00:00 +0000</pubDate>
+      <description>The agent was wrong. The user corrected it. The next user got the same wrong answer. Here's how to close the loop — without fine-tuning.</description>
+      <category>Learning</category>
+    </item>
+
+    <item>
+      <title>Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/12-cross-session-agent-memory.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/12-cross-session-agent-memory.html</guid>
+      <pubDate>Mon, 28 Jul 2025 00:00:00 +0000</pubDate>
+      <description>Every session starts cold. Users re-teach the same preferences. Here's how to give your agent real memory without creating a privacy disaster.</description>
+      <category>Memory</category>
+    </item>
+
+    <item>
+      <title>Observability for AI Agents: Beyond Langfuse Traces</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/11-observability-for-agents.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/11-observability-for-agents.html</guid>
+      <pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate>
+      <description>Langfuse catches bad tool data. Prometheus catches the stuck pod. CloudWatch catches the $12 session. Here's how three layers work together — and where each one falls short alone.</description>
+      <category>Observability</category>
+    </item>
+
+    <item>
+      <title>Teaching an Agent to Think Like a Domain Expert — Without Fine-Tuning</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/10-teaching-agent-domain-expertise.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/10-teaching-agent-domain-expertise.html</guid>
+      <pubDate>Sun, 22 Jun 2025 00:00:00 +0000</pubDate>
+      <description>Not fine-tuning. Not prompt-stuffing. A skills system that retrieves domain heuristics at query time — and the failure modes that shaped it.</description>
+      <category>Domain AI</category>
+    </item>
+
+    <item>
+      <title>Releasing an AI System Is Not Like Releasing Software</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html</guid>
+      <pubDate>Thu, 05 Jun 2025 00:00:00 +0000</pubDate>
+      <description>A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like.</description>
+      <category>Release Engineering</category>
+    </item>
+
+    <item>
+      <title>Your Agent Is Only As Good As Its Data Pipeline</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/8-data-pipeline-for-agents.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/8-data-pipeline-for-agents.html</guid>
+      <pubDate>Mon, 19 May 2025 00:00:00 +0000</pubDate>
+      <description>The agent gets the credit. The data pipeline does the work. Here's the production ingestion architecture that keeps a 19-source research agent reliable.</description>
+      <category>Data Engineering</category>
+    </item>
+
+    <item>
+      <title>Managed Agent Runtimes: Read the Fine Print</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/7-kubernetes-to-managed-agent-runtime.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/7-kubernetes-to-managed-agent-runtime.html</guid>
+      <pubDate>Fri, 02 May 2025 00:00:00 +0000</pubDate>
+      <description>I run agents on Kubernetes and evaluated moving them to a managed agent platform. Here's what genuinely improves, what quietly becomes your problem, and why a hybrid split was the honest answer.</description>
+      <category>Platform Migration</category>
+    </item>
+
+    <item>
+      <title>Your Agent Is a Confused Deputy</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html</guid>
+      <pubDate>Mon, 14 Apr 2025 00:00:00 +0000</pubDate>
+      <description>Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data — including a cross-tenant vulnerability I shipped, found, and closed.</description>
+      <category>AI Security</category>
+    </item>
+
+    <item>
+      <title>Every Public Benchmark Is Useless to You</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/5-benchmarking-llms-in-the-enterprise.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/5-benchmarking-llms-in-the-enterprise.html</guid>
+      <pubDate>Wed, 26 Mar 2025 00:00:00 +0000</pubDate>
+      <description>Building a standing internal evaluation suite — and the four ways my harness broke before it produced a single trustworthy number.</description>
+      <category>LLM Evaluation</category>
+    </item>
+
+    <item>
+      <title>What Your AI Agent Actually Costs</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/4-finops-for-agentic-ai.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/4-finops-for-agentic-ai.html</guid>
+      <pubDate>Sat, 08 Mar 2025 00:00:00 +0000</pubDate>
+      <description>Your invoice tells you the total. It never tells you who spent it, which tokens were wasted, or whether the last model upgrade paid for itself.</description>
+      <category>FinOps for AI</category>
+    </item>
+
+    <item>
+      <title>Multi-Agent AI Collaboration</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/3-multi-agent-collaboration.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/3-multi-agent-collaboration.html</guid>
+      <pubDate>Thu, 20 Feb 2025 00:00:00 +0000</pubDate>
+      <description>Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work, with full observability via Langfuse.</description>
+      <category>Multi-Agent AI</category>
+    </item>
+
+    <item>
+      <title>From Chatbot to Autonomous Research System</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/2-agentic-ai-systems.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/2-agentic-ai-systems.html</guid>
+      <pubDate>Mon, 03 Feb 2025 00:00:00 +0000</pubDate>
+      <description>How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>Building AI With AI on Claude Code</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/1-claude-code-for-agentic-development.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/1-claude-code-for-agentic-development.html</guid>
+      <pubDate>Wed, 15 Jan 2025 00:00:00 +0000</pubDate>
+      <description>How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.</description>
+      <category>AI-Assisted Development</category>
+    </item>
+
+  </channel>
+</rss>

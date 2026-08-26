@@ -20,47 +20,78 @@
   <meta name="twitter:description"
     content="Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works.">
   <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/site-cover.png">
+  <link rel="alternate" type="application/rss+xml" title="Field Notes RSS" href="feed.xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   <style>
+    /* ========== DESIGN TOKENS ========== */
     :root {
       --bg: #fdfcfa;
-      --paper: #ffffff;
+      --bg-elevated: #ffffff;
+      --bg-search: #f7f5f2;
       --line: #e9e3dd;
       --fg: #201c1a;
       --fg-dim: #706a64;
+      --fg-muted: #9e958d;
       --red: #d71600;
       --red-soft: #fbeae7;
+      --red-hover: #b81300;
+      --accent-glow: rgba(215, 22, 0, 0.08);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+      --shadow-lg: 0 8px 24px -4px rgba(0,0,0,0.12);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 100px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f1117;
+      --bg-elevated: #1a1d27;
+      --bg-search: #1e2130;
+      --line: #2a2d3a;
+      --fg: #e8e6e3;
+      --fg-dim: #9a9490;
+      --fg-muted: #6b6560;
+      --red: #ff4433;
+      --red-soft: rgba(255, 68, 51, 0.12);
+      --red-hover: #ff6655;
+      --accent-glow: rgba(255, 68, 51, 0.1);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.25);
+      --shadow-lg: 0 8px 24px -4px rgba(0,0,0,0.4);
     }
 
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    h1,
-    h2,
-    h3,
-    .about-mark,
-    .post-idx {
+    h1, h2, h3, .about-mark, .post-idx {
       font-variant-ligatures: none;
       font-feature-settings: "liga" 0, "dlig" 0, "calt" 0;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      margin: 0;
       background: var(--bg);
       color: var(--fg);
       font-family: 'Lora', Georgia, serif;
       line-height: 1.7;
       -webkit-font-smoothing: antialiased;
+      transition: background var(--transition), color var(--transition);
     }
 
-    a {
-      color: inherit;
-    }
+    a { color: inherit; }
 
     .wrap {
       max-width: 700px;
@@ -68,8 +99,51 @@
       padding: 0 24px;
     }
 
-    /* ---------- Header ---------- */
+    /* ========== DARK MODE TOGGLE ========== */
+    .theme-toggle {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 1000;
+      width: 48px;
+      height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      color: var(--fg);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
 
+    .theme-toggle:hover {
+      transform: scale(1.1) rotate(15deg);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--red);
+    }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .theme-toggle:hover svg {
+      transform: rotate(-15deg);
+    }
+
+    .theme-toggle .icon-sun,
+    .theme-toggle .icon-moon { display: none; }
+
+    [data-theme="light"] .theme-toggle .icon-moon { display: block; }
+    [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+
+    /* ========== HEADER ========== */
     header {
       padding: 72px 0 40px;
     }
@@ -82,6 +156,36 @@
       letter-spacing: 0.12em;
       text-transform: uppercase;
       margin: 0 0 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .rss-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--fg-dim);
+      text-decoration: none;
+      padding: 3px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
+      transition: all var(--transition);
+    }
+
+    .rss-link:hover {
+      color: var(--red);
+      border-color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .rss-link svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
     }
 
     h1 {
@@ -93,7 +197,7 @@
       letter-spacing: -0.01em;
     }
 
-    header>.wrap>p {
+    header > .wrap > p {
       font-family: 'Lora', Georgia, serif;
       font-style: italic;
       color: var(--fg-dim);
@@ -110,8 +214,7 @@
       margin: 28px 0 0;
     }
 
-    /* ---------- About ---------- */
-
+    /* ========== ABOUT ========== */
     .about {
       display: flex;
       gap: 24px;
@@ -158,8 +261,8 @@
       margin-top: 14px;
       padding: 6px 12px;
       border: 1px solid #0a66c2;
-      border-radius: 100px;
-      transition: background 0.15s ease, color 0.15s ease;
+      border-radius: var(--radius-pill);
+      transition: background var(--transition), color var(--transition);
     }
 
     .linkedin-link:hover {
@@ -184,7 +287,7 @@
     .about h2 a {
       text-decoration: none;
       border-bottom: 1px solid transparent;
-      transition: border-color 0.15s ease, color 0.15s ease;
+      transition: border-color var(--transition), color var(--transition);
     }
 
     .about h2 a:hover {
@@ -208,13 +311,9 @@
       max-width: 58ch;
     }
 
-    .about p.bio:last-of-type {
-      margin-bottom: 0;
-    }
+    .about p.bio:last-of-type { margin-bottom: 0; }
 
-    .about p.bio em {
-      color: var(--fg-dim);
-    }
+    .about p.bio em { color: var(--fg-dim); }
 
     .about-tags {
       display: flex;
@@ -229,18 +328,98 @@
       font-weight: 500;
       color: var(--red);
       background: var(--red-soft);
-      border-radius: 100px;
+      border-radius: var(--radius-pill);
       padding: 5px 12px;
     }
 
     @media (max-width: 480px) {
-      .about {
-        flex-direction: column;
-      }
+      .about { flex-direction: column; }
     }
 
-    /* ---------- Post list ---------- */
+    /* ========== SEARCH & FILTER ========== */
+    .search-filter-bar {
+      padding: 28px 0 0;
+    }
 
+    .search-box {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      color: var(--fg-muted);
+      pointer-events: none;
+      transition: color var(--transition);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 14px 16px 14px 46px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--fg);
+      background: var(--bg-search);
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius-md);
+      outline: none;
+      transition: all var(--transition);
+    }
+
+    .search-input::placeholder {
+      color: var(--fg-muted);
+    }
+
+    .search-input:focus {
+      border-color: var(--red);
+      background: var(--bg-elevated);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .search-input:focus ~ svg {
+      color: var(--red);
+    }
+
+    .tag-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-bottom: 4px;
+    }
+
+    .tag-pill {
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--fg-dim);
+      background: var(--bg-search);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .tag-pill:hover {
+      color: var(--red);
+      border-color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .tag-pill.active {
+      color: #fff;
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    /* ========== POST LIST ========== */
     main {
       padding: 8px 0 80px;
     }
@@ -264,7 +443,7 @@
       text-decoration: none;
       border-bottom: 1px solid var(--line);
       padding: 26px 0;
-      transition: opacity 0.15s ease;
+      transition: opacity var(--transition), transform var(--transition);
     }
 
     .post:hover {
@@ -293,6 +472,27 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .post-meta .meta-sep {
+      color: var(--fg-muted);
+      font-weight: 400;
+    }
+
+    .post-date {
+      color: var(--fg-muted);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .post-reading-time {
+      color: var(--fg-muted);
+      text-transform: none;
+      letter-spacing: 0;
     }
 
     .post h3 {
@@ -318,21 +518,143 @@
       color: var(--red);
     }
 
+    /* ========== NO RESULTS ========== */
+    .no-results {
+      text-align: center;
+      padding: 60px 20px;
+      display: none;
+    }
+
+    .no-results.visible {
+      display: block;
+      animation: fadeInUp 0.4s ease;
+    }
+
+    .no-results-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .no-results h3 {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--fg);
+      margin-bottom: 8px;
+    }
+
+    .no-results p {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: var(--fg-dim);
+    }
+
+    /* ========== SCROLL ANIMATIONS ========== */
+    .animate-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .animate-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ========== BACK TO TOP ========== */
+    .back-to-top {
+      position: fixed;
+      bottom: 32px;
+      right: 24px;
+      z-index: 999;
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      color: var(--fg-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(12px);
+      transition: all var(--transition);
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .back-to-top:hover {
+      color: var(--red);
+      border-color: var(--red);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .back-to-top svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* ========== SITE COVER ========== */
     .site-cover {
       width: 100%;
       height: auto;
       display: block;
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       margin-bottom: 48px;
-      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12);
+      box-shadow: var(--shadow-lg);
     }
 
+    /* ========== FOOTER ========== */
     footer {
       border-top: 1px solid var(--line);
       padding: 32px 0 64px;
       font-family: 'Inter', sans-serif;
       font-size: 12.5px;
       color: var(--fg-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    footer .rss-link { font-size: 12px; }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 480px) {
+      .theme-toggle {
+        top: 16px;
+        right: 16px;
+        width: 42px;
+        height: 42px;
+      }
+
+      .back-to-top {
+        bottom: 20px;
+        right: 16px;
+        width: 40px;
+        height: 40px;
+      }
+
+      .search-input {
+        font-size: 16px; /* Prevent zoom on iOS */
+      }
     }
   </style>
   <!-- Google Analytics -->
@@ -347,17 +669,42 @@
 
 <body>
 
+  <!-- Dark Mode Toggle -->
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+    <!-- Sun icon (shown in dark mode) -->
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <!-- Moon icon (shown in light mode) -->
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
+  <!-- Back to Top -->
+  <button class="back-to-top" id="backToTop" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="18 15 12 9 6 15"/>
+    </svg>
+  </button>
+
   <div class="wrap">
-    <img class="site-cover" src="site-cover.png"
+    <img class="site-cover animate-in" src="site-cover.png"
       alt="Agentic AI &amp; Platform Engineering — Field Notes by Ashutosh Upadhyay">
     <header>
-      <p class="eyebrow">Field Notes</p>
+      <p class="eyebrow">
+        Field Notes
+        <a class="rss-link" href="feed.xml" title="RSS Feed">
+          <svg viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg>
+          RSS
+        </a>
+      </p>
       <p>Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what
         actually works.</p>
       <hr class="rule">
     </header>
 
-    <section class="about">
+    <section class="about animate-in">
       <div class="about-mark">
         <img src="profile.jpeg" alt="Ashutosh Upadhyay"
           onerror="this.style.display='none';this.parentElement.textContent='A'">
@@ -399,22 +746,60 @@
       </div>
     </section>
 
+    <!-- Search & Tag Filter -->
+    <div class="search-filter-bar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input class="search-input" type="text" id="searchInput" placeholder="Search posts by title, topic, or keyword…" autocomplete="off">
+      </div>
+      <div class="tag-filter" id="tagFilter">
+        <span class="tag-pill active" data-tag="all">All</span>
+        <span class="tag-pill" data-tag="ai-assisted-development">AI Dev</span>
+        <span class="tag-pill" data-tag="agentic-ai">Agentic AI</span>
+        <span class="tag-pill" data-tag="multi-agent-ai">Multi-Agent</span>
+        <span class="tag-pill" data-tag="finops">FinOps</span>
+        <span class="tag-pill" data-tag="llm-evaluation">LLM Eval</span>
+        <span class="tag-pill" data-tag="ai-security">Security</span>
+        <span class="tag-pill" data-tag="platform-migration">Platform</span>
+        <span class="tag-pill" data-tag="data-engineering">Data Eng</span>
+        <span class="tag-pill" data-tag="release-engineering">Release</span>
+        <span class="tag-pill" data-tag="domain-ai">Domain AI</span>
+        <span class="tag-pill" data-tag="observability">Observability</span>
+        <span class="tag-pill" data-tag="memory">Memory</span>
+        <span class="tag-pill" data-tag="learning">Learning</span>
+        <span class="tag-pill" data-tag="mlops">MLOps</span>
+        <span class="tag-pill" data-tag="architecture">Architecture</span>
+      </div>
+    </div>
+
     <main>
       <div class="list-head">
         <span>Posts</span>
         <span id="post-count">17 entries</span>
       </div>
 
-      <!-- ============================================================
-         EDIT ME: descriptions below are placeholders — swap in your
-         real summary for each post. Duplicate a <a class="post">
-         block if you add more articles later.
-         ============================================================ -->
+      <!-- No Results State -->
+      <div class="no-results" id="noResults">
+        <div class="no-results-icon">🔍</div>
+        <h3>No posts found</h3>
+        <p>Try a different search term or clear your filters.</p>
+      </div>
 
-      <a class="post" href="blogposts/1-claude-code-for-agentic-development.html">
+      <a class="post animate-in" href="blogposts/1-claude-code-for-agentic-development.html"
+         data-tag="ai-assisted-development"
+         data-title="building ai with ai on claude code"
+         data-desc="how i use claude code agent system to build ai systems with a mandatory advisor that catches production bugs persistent memory that compounds across sessions and a full eks deployment architecture">
         <span class="post-idx">01</span>
         <div class="post-body">
-          <div class="post-meta">AI-Assisted Development</div>
+          <div class="post-meta">
+            <span>AI-Assisted Development</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Jan 15, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">10 min read</span>
+          </div>
           <h3>Building AI With AI on Claude Code</h3>
           <p>How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production
             bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.</p>
@@ -422,10 +807,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/2-agentic-ai-systems.html">
+      <a class="post animate-in" href="blogposts/2-agentic-ai-systems.html"
+         data-tag="agentic-ai"
+         data-title="from chatbot to autonomous research system"
+         data-desc="how i built a 33 tool ai agent that autonomously queries databases builds knowledge graphs and generates research reports running on kubernetes">
         <span class="post-idx">02</span>
         <div class="post-body">
-          <div class="post-meta">Agentic AI</div>
+          <div class="post-meta">
+            <span>Agentic AI</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Feb 3, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">7 min read</span>
+          </div>
           <h3>From Chatbot to Autonomous Research System</h3>
           <p>How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates
             research reports — running on Kubernetes.</p>
@@ -433,10 +827,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/3-multi-agent-collaboration.html">
+      <a class="post animate-in" href="blogposts/3-multi-agent-collaboration.html"
+         data-tag="multi-agent-ai"
+         data-title="multi agent ai collaboration"
+         data-desc="why one agent isnt enough and how to build a team of ai specialists that research analyze synthesize and critique each others work with full observability via langfuse">
         <span class="post-idx">03</span>
         <div class="post-body">
-          <div class="post-meta">Multi-Agent AI</div>
+          <div class="post-meta">
+            <span>Multi-Agent AI</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Feb 20, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">9 min read</span>
+          </div>
           <h3>Multi-Agent AI Collaboration</h3>
           <p>Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize,
             and critique each other's work, with full observability via Langfuse.</p>
@@ -444,10 +847,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/4-finops-for-agentic-ai.html">
+      <a class="post animate-in" href="blogposts/4-finops-for-agentic-ai.html"
+         data-tag="finops"
+         data-title="what your ai agent actually costs"
+         data-desc="your invoice tells you the total it never tells you who spent it which tokens were wasted or whether the last model upgrade paid for itself">
         <span class="post-idx">04</span>
         <div class="post-body">
-          <div class="post-meta">FinOps for AI</div>
+          <div class="post-meta">
+            <span>FinOps for AI</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Mar 8, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">16 min read</span>
+          </div>
           <h3>What Your AI Agent Actually Costs</h3>
           <p>Your invoice tells you the total. It never tells you who spent it, which tokens were wasted, or whether the
             last model upgrade paid for itself.</p>
@@ -455,10 +867,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/5-benchmarking-llms-in-the-enterprise.html">
+      <a class="post animate-in" href="blogposts/5-benchmarking-llms-in-the-enterprise.html"
+         data-tag="llm-evaluation"
+         data-title="every public benchmark is useless to you"
+         data-desc="building a standing internal evaluation suite and the four ways my harness broke before it produced a single trustworthy number">
         <span class="post-idx">05</span>
         <div class="post-body">
-          <div class="post-meta">LLM Evaluation</div>
+          <div class="post-meta">
+            <span>LLM Evaluation</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Mar 26, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">20 min read</span>
+          </div>
           <h3>Every Public Benchmark Is Useless to You</h3>
           <p>Building a standing internal evaluation suite — and the four ways my harness broke before it produced a
             single trustworthy number.</p>
@@ -466,10 +887,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/6-securing-agentic-ai.html">
+      <a class="post animate-in" href="blogposts/6-securing-agentic-ai.html"
+         data-tag="ai-security"
+         data-title="your agent is a confused deputy"
+         data-desc="security lessons from putting an autonomous tool calling agent in front of regulated enterprise data including a cross tenant vulnerability i shipped found and closed">
         <span class="post-idx">06</span>
         <div class="post-body">
-          <div class="post-meta">AI Security</div>
+          <div class="post-meta">
+            <span>AI Security</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Apr 14, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">20 min read</span>
+          </div>
           <h3>Your Agent Is a Confused Deputy</h3>
           <p>Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data —
             including a cross-tenant vulnerability I shipped, found, and closed.</p>
@@ -477,10 +907,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/7-kubernetes-to-managed-agent-runtime.html">
+      <a class="post animate-in" href="blogposts/7-kubernetes-to-managed-agent-runtime.html"
+         data-tag="platform-migration"
+         data-title="managed agent runtimes read the fine print"
+         data-desc="i run agents on kubernetes and evaluated moving them to a managed agent platform heres what genuinely improves what quietly becomes your problem and why a hybrid split was the honest answer">
         <span class="post-idx">07</span>
         <div class="post-body">
-          <div class="post-meta">Platform Migration</div>
+          <div class="post-meta">
+            <span>Platform Migration</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">May 2, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">18 min read</span>
+          </div>
           <h3>Managed Agent Runtimes: Read the Fine Print</h3>
           <p>I run agents on Kubernetes and evaluated moving them to a managed agent platform. Here's what genuinely
             improves, what quietly becomes your problem, and why a hybrid split was the honest answer.</p>
@@ -488,10 +927,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/8-data-pipeline-for-agents.html">
+      <a class="post animate-in" href="blogposts/8-data-pipeline-for-agents.html"
+         data-tag="data-engineering"
+         data-title="your agent is only as good as its data pipeline"
+         data-desc="the agent gets the credit the data pipeline does the work heres the production ingestion architecture that keeps a 19 source research agent reliable">
         <span class="post-idx">08</span>
         <div class="post-body">
-          <div class="post-meta">Data Engineering</div>
+          <div class="post-meta">
+            <span>Data Engineering</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">May 19, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">11 min read</span>
+          </div>
           <h3>Your Agent Is Only As Good As Its Data Pipeline</h3>
           <p>The agent gets the credit. The data pipeline does the work. Here's the production ingestion architecture
             that keeps a 19-source research agent reliable.</p>
@@ -499,10 +947,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/9-releasing-ai-systems.html">
+      <a class="post animate-in" href="blogposts/9-releasing-ai-systems.html"
+         data-tag="release-engineering"
+         data-title="releasing an ai system is not like releasing software"
+         data-desc="a tag only image bump left the ui presentation and diagrams five versions stale none of it errored heres what a real ai system release checklist looks like">
         <span class="post-idx">09</span>
         <div class="post-body">
-          <div class="post-meta">Release Engineering</div>
+          <div class="post-meta">
+            <span>Release Engineering</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Jun 5, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">10 min read</span>
+          </div>
           <h3>Releasing an AI System Is Not Like Releasing Software</h3>
           <p>A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored.
             Here's what a real AI system release checklist looks like.</p>
@@ -510,10 +967,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/10-teaching-agent-domain-expertise.html">
+      <a class="post animate-in" href="blogposts/10-teaching-agent-domain-expertise.html"
+         data-tag="domain-ai"
+         data-title="teaching an agent to think like a domain expert without fine tuning"
+         data-desc="not fine tuning not prompt stuffing a skills system that retrieves domain heuristics at query time and the failure modes that shaped it">
         <span class="post-idx">10</span>
         <div class="post-body">
-          <div class="post-meta">Domain AI</div>
+          <div class="post-meta">
+            <span>Domain AI</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Jun 22, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">10 min read</span>
+          </div>
           <h3>Teaching an Agent to Think Like a Domain Expert — Without Fine-Tuning</h3>
           <p>Not fine-tuning. Not prompt-stuffing. A skills system that retrieves domain heuristics at query time —
             and the failure modes that shaped it.</p>
@@ -521,10 +987,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/11-observability-for-agents.html">
+      <a class="post animate-in" href="blogposts/11-observability-for-agents.html"
+         data-tag="observability"
+         data-title="observability for ai agents beyond langfuse traces"
+         data-desc="langfuse catches bad tool data prometheus catches the stuck pod cloudwatch catches the 12 dollar session heres how three layers work together and where each one falls short alone">
         <span class="post-idx">11</span>
         <div class="post-body">
-          <div class="post-meta">Observability</div>
+          <div class="post-meta">
+            <span>Observability</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Jul 10, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">11 min read</span>
+          </div>
           <h3>Observability for AI Agents: Beyond Langfuse Traces</h3>
           <p>Langfuse catches bad tool data. Prometheus catches the stuck pod. CloudWatch catches the $12 session.
             Here's how three layers work together — and where each one falls short alone.</p>
@@ -532,10 +1007,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/12-cross-session-agent-memory.html">
+      <a class="post animate-in" href="blogposts/12-cross-session-agent-memory.html"
+         data-tag="memory"
+         data-title="cross session agent memory what persists what shouldnt and why its hard"
+         data-desc="every session starts cold users re teach the same preferences heres how to give your agent real memory without creating a privacy disaster">
         <span class="post-idx">12</span>
         <div class="post-body">
-          <div class="post-meta">Memory</div>
+          <div class="post-meta">
+            <span>Memory</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Jul 28, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">12 min read</span>
+          </div>
           <h3>Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard</h3>
           <p>Every session starts cold. Users re-teach the same preferences. Here's how to give your agent real memory
             without creating a privacy disaster.</p>
@@ -543,10 +1027,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/13-agent-feedback-loop.html">
+      <a class="post animate-in" href="blogposts/13-agent-feedback-loop.html"
+         data-tag="learning"
+         data-title="closing the feedback loop how user corrections become domain knowledge"
+         data-desc="the agent was wrong the user corrected it the next user got the same wrong answer heres how to close the loop without fine tuning">
         <span class="post-idx">13</span>
         <div class="post-body">
-          <div class="post-meta">Learning</div>
+          <div class="post-meta">
+            <span>Learning</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 6, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">14 min read</span>
+          </div>
           <h3>Closing the Feedback Loop: How User Corrections Become Domain Knowledge</h3>
           <p>The agent was wrong. The user corrected it. The next user got the same wrong answer. Here's how to close
             the loop — without fine-tuning.</p>
@@ -554,10 +1047,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/14-billion-row-data-pipeline.html">
+      <a class="post animate-in" href="blogposts/14-billion-row-data-pipeline.html"
+         data-tag="data-engineering"
+         data-title="ingesting 129 gb for an ai agent five design mistakes caught before build"
+         data-desc="we had a design the advisor caught five blockers before a single line was written heres what changed and why it mattered">
         <span class="post-idx">14</span>
         <div class="post-body">
-          <div class="post-meta">Data Engineering</div>
+          <div class="post-meta">
+            <span>Data Engineering</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 18, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">12 min read</span>
+          </div>
           <h3>Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build</h3>
           <p>We had a design. The advisor caught five blockers before a single line was written. Here's what changed
             and why it mattered.</p>
@@ -565,10 +1067,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/15-gpu-pathology-ai-eks.html">
+      <a class="post animate-in" href="blogposts/15-gpu-pathology-ai-eks.html"
+         data-tag="mlops"
+         data-title="gpu digital pathology ai on kubernetes what keda scaledjobs actually do under load"
+         data-desc="burst gpu workloads silent karpenter version traps and why your sqs consumer should never be a scaledjob">
         <span class="post-idx">15</span>
         <div class="post-body">
-          <div class="post-meta">MLOps</div>
+          <div class="post-meta">
+            <span>MLOps</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 26, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">13 min read</span>
+          </div>
           <h3>GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</h3>
           <p>Burst GPU workloads, silent Karpenter version traps, and why your SQS consumer should never be a
             ScaledJob.</p>
@@ -576,10 +1087,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/16-multi-tenant-finops.html">
+      <a class="post animate-in" href="blogposts/16-multi-tenant-finops.html"
+         data-tag="finops"
+         data-title="multi tenant finops the three silent bugs that made our aws cost data untrustworthy"
+         data-desc="we built the join ran it got 1.8 percent coverage it looked like a data problem it was a lower call and two more silent bugs followed">
         <span class="post-idx">16</span>
         <div class="post-body">
-          <div class="post-meta">FinOps</div>
+          <div class="post-meta">
+            <span>FinOps</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 26, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">12 min read</span>
+          </div>
           <h3>Multi-Tenant FinOps: The Three Silent Bugs That Made Our AWS Cost Data Untrustworthy</h3>
           <p>We built the join, ran it, got 1.8% coverage. It looked like a data problem. It was a .lower() call —
             and two more silent bugs followed.</p>
@@ -587,10 +1107,19 @@
         </div>
       </a>
 
-      <a class="post" href="blogposts/17-eks-vs-managed-runtime.html">
+      <a class="post animate-in" href="blogposts/17-eks-vs-managed-runtime.html"
+         data-tag="architecture"
+         data-title="eks or managed agent runtime a framework for the decision youll face twice"
+         data-desc="the migration looked straightforward then we found five categories of blockers heres the framework we wish wed had before we started">
         <span class="post-idx">17</span>
         <div class="post-body">
-          <div class="post-meta">Architecture</div>
+          <div class="post-meta">
+            <span>Architecture</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 26, 2025</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">13 min read</span>
+          </div>
           <h3>EKS or Managed Agent Runtime? A Framework for the Decision You'll Face Twice</h3>
           <p>The migration looked straightforward. Then we found five categories of blockers. Here's the framework we
             wish we'd had before we started.</p>
@@ -601,10 +1130,150 @@
     </main>
 
     <footer>
-      Built with GitHub Pages · updated manually
+      <span>Built with GitHub Pages · updated manually</span>
+      <a class="rss-link" href="feed.xml" title="RSS Feed">
+        <svg viewBox="0 0 24 24" width="12" height="12"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="19" r="1" fill="currentColor"/></svg>
+        RSS Feed
+      </a>
     </footer>
   </div>
 
+  <script>
+    /* ========== DARK MODE ========== */
+    (function() {
+      const html = document.documentElement;
+      const toggle = document.getElementById('themeToggle');
+      const stored = localStorage.getItem('theme');
+      const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      const theme = stored || preferred;
+      html.setAttribute('data-theme', theme);
+
+      toggle.addEventListener('click', () => {
+        const current = html.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+      });
+    })();
+
+    /* ========== SEARCH & TAG FILTER ========== */
+    (function() {
+      const searchInput = document.getElementById('searchInput');
+      const tagFilter = document.getElementById('tagFilter');
+      const posts = document.querySelectorAll('.post');
+      const postCount = document.getElementById('post-count');
+      const noResults = document.getElementById('noResults');
+      let activeTag = 'all';
+
+      function filterPosts() {
+        const query = searchInput.value.toLowerCase().trim();
+        let visible = 0;
+
+        posts.forEach(post => {
+          const title = post.getAttribute('data-title') || '';
+          const desc = post.getAttribute('data-desc') || '';
+          const tag = post.getAttribute('data-tag') || '';
+          const category = post.querySelector('.post-meta span:first-child')?.textContent.toLowerCase() || '';
+
+          const matchesSearch = !query ||
+            title.includes(query) ||
+            desc.includes(query) ||
+            category.includes(query) ||
+            tag.includes(query);
+
+          const matchesTag = activeTag === 'all' || tag === activeTag;
+
+          if (matchesSearch && matchesTag) {
+            post.style.display = '';
+            visible++;
+          } else {
+            post.style.display = 'none';
+          }
+        });
+
+        postCount.textContent = visible === 1 ? '1 entry' : `${visible} entries`;
+
+        if (visible === 0) {
+          noResults.classList.add('visible');
+        } else {
+          noResults.classList.remove('visible');
+        }
+      }
+
+      searchInput.addEventListener('input', filterPosts);
+
+      tagFilter.addEventListener('click', (e) => {
+        const pill = e.target.closest('.tag-pill');
+        if (!pill) return;
+
+        tagFilter.querySelectorAll('.tag-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeTag = pill.getAttribute('data-tag');
+        filterPosts();
+      });
+    })();
+
+    /* ========== SCROLL ANIMATIONS ========== */
+    (function() {
+      const elements = document.querySelectorAll('.animate-in');
+      if (!('IntersectionObserver' in window)) {
+        elements.forEach(el => el.classList.add('is-visible'));
+        return;
+      }
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry, index) => {
+          if (entry.isIntersecting) {
+            // Stagger the animation slightly for posts
+            const delay = entry.target.classList.contains('post')
+              ? Math.min(index * 60, 300)
+              : 0;
+            setTimeout(() => {
+              entry.target.classList.add('is-visible');
+            }, delay);
+            observer.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.08,
+        rootMargin: '0px 0px -40px 0px'
+      });
+
+      elements.forEach(el => observer.observe(el));
+    })();
+
+    /* ========== BACK TO TOP ========== */
+    (function() {
+      const btn = document.getElementById('backToTop');
+      let ticking = false;
+
+      window.addEventListener('scroll', () => {
+        if (!ticking) {
+          requestAnimationFrame(() => {
+            if (window.scrollY > 400) {
+              btn.classList.add('visible');
+            } else {
+              btn.classList.remove('visible');
+            }
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+
+      btn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    })();
+  </script>
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-72QSEYC70K');
+  </script>
 </body>
 
 </html>
