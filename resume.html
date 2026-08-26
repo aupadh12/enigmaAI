@@ -398,6 +398,39 @@
       font-weight: 700;
     }
 
+    /* ---- Nested sub-roles (promotions within same company) ---- */
+    .exp-subrole {
+      border-left: 2px solid var(--line);
+      padding-left: 14px;
+      margin-bottom: 20px;
+    }
+
+    .exp-subrole:last-child { margin-bottom: 0; }
+
+    .exp-subrole-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .exp-subrole-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--fg);
+    }
+
+    .exp-subrole-date {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--fg-muted);
+      white-space: nowrap;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+
     /* ========== SIDEBAR ========== */
     .sidebar .section { margin-bottom: 36px; }
 
@@ -658,7 +691,7 @@
 
     <!-- Action Bar -->
     <div class="action-bar fade-in">
-      <a class="back-link" href="index.html">
+      <a class="back-link" href="https://aupadh12.github.io/enigmaAI/">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
@@ -680,7 +713,7 @@
       <div>
         <h1 class="hero-name">Ashutosh Upadhyay</h1>
         <p class="hero-title">Principal Engineer — Agentic AI &amp; Cloud Platform</p>
-        <p class="hero-org">Johnson &amp; Johnson Innovative Medicine · New Jersey, USA</p>
+        <p class="hero-org">Johnson &amp; Johnson Innovative Medicine · Antwerpen, Belgium</p>
         <div class="hero-contacts">
           <a class="contact-chip linkedin" href="https://www.linkedin.com/in/ashutosh2206/" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
@@ -690,9 +723,13 @@
             <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             Field Notes Blog
           </a>
+          <a class="contact-chip" href="https://www.credly.com/users/ashutosh-upadhyay.0c4a1548/badges/credly" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M8.21 13.89 7 23l5-3 5 3-1.21-9.12"/></svg>
+            Credly Badges
+          </a>
           <span class="contact-chip">
             <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            New Jersey, USA
+            Antwerpen, Belgium
           </span>
         </div>
       </div>
@@ -733,94 +770,203 @@
 
           <div class="exp-item">
             <div class="exp-header">
-              <span class="exp-role">Principal Engineer — Agentic AI &amp; Platform</span>
-              <span class="exp-date">2021 – Present</span>
+              <span class="exp-role">Principal Engineer</span>
+              <span class="exp-date">Dec 2025 – Present</span>
             </div>
-            <div class="exp-company">Johnson &amp; Johnson Innovative Medicine</div>
+            <div class="exp-company">Johnson &amp; Johnson Innovative Medicine · Beerse, Belgium</div>
             <ul class="exp-desc">
-              <li>Architecting and deploying Agentic AI systems for pharmaceutical drug discovery on AWS, enabling autonomous research workflows across omics, imaging, and clinical data.</li>
-              <li>Built a 33-tool autonomous research agent that queries databases, constructs knowledge graphs, and generates structured reports — running on Kubernetes (EKS).</li>
-              <li>Designed multi-agent collaboration frameworks with specialized AI roles (researcher, analyst, synthesizer, critic) with full LLM observability via Langfuse.</li>
-              <li>Established FinOps practices for multi-tenant AI workloads: per-session token attribution, cost anomaly detection, and model-upgrade ROI tracking.</li>
-              <li>Built a standing internal LLM evaluation harness to benchmark models against domain-specific pharmaceutical tasks before production promotion.</li>
-              <li>Implemented cross-session agent memory systems with privacy-safe persistence tiers (ephemeral, session, long-term) on AWS.</li>
-              <li>Led GPU digital pathology AI deployment on EKS with KEDA ScaledJobs, Karpenter node provisioning, and SQS-backed burst workloads.</li>
-              <li>Designed agent security architecture addressing confused deputy attacks, prompt injection, and cross-tenant data isolation for regulated enterprise data.</li>
+              <li>Architecting next-generation AI/ML platform infrastructure for global R&amp;D, enabling scientists and biologists to run large-scale data analytics and ML workloads on AWS EKS.</li>
+              <li>Driving adoption of Agentic AI workflows, leveraging Claude Code and LLM-assisted development to accelerate internal tooling and pipeline development.</li>
+              <li>Collaborating cross-functionally with bioinformatics teams, data scientists, platform security, and R&amp;D leadership to define platform standards and enable self-service capabilities.</li>
             </ul>
           </div>
 
           <div class="exp-item">
             <div class="exp-header">
-              <span class="exp-role">Senior Cloud Platform Engineer</span>
-              <span class="exp-date">2018 – 2021</span>
+              <span class="exp-role">Solutions Architect (Partner)</span>
+              <span class="exp-date">Dec 2024 – Dec 2025</span>
             </div>
-            <div class="exp-company">Johnson &amp; Johnson</div>
+            <div class="exp-company">Amazon Web Services (AWS) · Brussels, Belgium</div>
             <ul class="exp-desc">
-              <li>Received Technical Achievement Award (Sep 2018) for platform contributions to J&amp;J's cloud infrastructure.</li>
-              <li>Designed and maintained production AWS infrastructure for R&amp;D workloads including EKS clusters, Argo Workflows, and GitOps pipelines.</li>
-              <li>Migrated critical bioinformatics pipelines from legacy HPC to cloud-native Kubernetes architecture.</li>
-              <li>Collaborated closely with scientists, biologists, data engineers, and R&amp;D leadership to bridge infrastructure and scientific outcomes.</li>
-              <li>Received Inspire Award – Spotlight (Dec 2021) and Inspire Award – Celebrate (Nov 2021) for platform impact.</li>
+              <li>Owned technical engagement and delivery success on partner implementation projects, developing deep expertise across AWS technologies and how applications are constructed on the platform.</li>
+              <li>Defined implementation architectures and responded to RFPs, applying solution-design best practices and cloud-native use cases.</li>
+              <li>Acted as strategic technical lead in the field, providing architectural guidance to accelerate partner engagements worldwide.</li>
+              <li>Led deep architectural design reviews to ensure world-class, cloud-native solutions ready for production deployment.</li>
+              <li>Managed customer and partner relationships through design, build, and migration to the AWS platform, driving strategic partnerships and cross-team collaboration.</li>
             </ul>
           </div>
 
           <div class="exp-item">
             <div class="exp-header">
-              <span class="exp-role">Cloud &amp; Platform Engineer</span>
-              <span class="exp-date">2015 – 2018</span>
+              <span class="exp-role">Johnson &amp; Johnson Innovative Medicine</span>
+              <span class="exp-date">Sep 2020 – Dec 2024 · 4 yrs 4 mos</span>
             </div>
-            <div class="exp-company">Capgemini</div>
+            <div class="exp-company">Beerse, Belgium</div>
+
+            <div class="exp-subrole">
+              <div class="exp-subrole-header">
+                <span class="exp-subrole-title">Principal Engineer</span>
+                <span class="exp-subrole-date">Nov 2023 – Dec 2024</span>
+              </div>
+              <ul class="exp-desc">
+                <li>Led the setup of AWS platforms used by scientists and biologists for data analytics and modeling, ensuring efficient and secure data processing.</li>
+                <li>Implemented cost optimization strategies across 12 AWS accounts, delivering annual savings of over $1.5M.</li>
+                <li>Established Well-Architected Framework reviews across multiple projects, embedding security and architecture best practices.</li>
+                <li>Partnered with AWS on testing and contributing to the Karpenter open-source autoscaler, saving over $500K annually on EKS workloads.</li>
+                <li>Built a proteomics data-analysis pipeline on AWS EKS for the Bioinformatics team.</li>
+                <li>Developed a platform for running Shiny applications (R, Python, Streamlit) on AWS EKS using open-source tooling.</li>
+                <li>Led an ETL migration of HPC data from MongoDB to RDS PostgreSQL, powering PowerBI reporting and analytics.</li>
+              </ul>
+            </div>
+
+            <div class="exp-subrole">
+              <div class="exp-subrole-header">
+                <span class="exp-subrole-title">Lead Engineer</span>
+                <span class="exp-subrole-date">Oct 2021 – Oct 2023</span>
+              </div>
+              <ul class="exp-desc">
+                <li>Led setup of AWS platforms used by scientists and biologists for data analytics and modeling.</li>
+                <li>Delivered cost optimization across multiple AWS accounts, generating significant annual savings.</li>
+                <li>Established well-architected frameworks across projects to embed security and architecture best practices.</li>
+                <li>Piloted new open-source technologies in collaboration with central platform teams.</li>
+                <li>Implemented AWS DataSync to move data from on-prem NAS and instrument PCs into S3.</li>
+                <li>Deployed Karpenter on EKS workloads for faster autoscaling and further cost optimization.</li>
+                <li>Selected for the AWS Subject Matter Expert (SME) program to develop exam items for the AWS Solutions Architect Professional and AWS DevOps Engineer Professional certifications.</li>
+                <li>Led an ETL migration of HPC data out of MongoDB into RDS PostgreSQL with PowerBI dashboards, informing workload analysis and helping secure project funding.</li>
+              </ul>
+            </div>
+
+            <div class="exp-subrole">
+              <div class="exp-subrole-header">
+                <span class="exp-subrole-title">Senior IT Analyst</span>
+                <span class="exp-subrole-date">Sep 2020 – Oct 2021</span>
+              </div>
+              <ul class="exp-desc">
+                <li>Containerized applications on AWS EKS, ECS, and Kubernetes across EC2 and on-prem instances.</li>
+                <li>Deployed R and Python Shiny applications on Kubernetes via ShinyProxy.</li>
+                <li>Implemented Kustomize and Helm charts for containerized workloads.</li>
+                <li>Built GitOps workflows using ArgoCD, Argo Rollouts, and Argo Events.</li>
+                <li>Designed cost-effective, performance-optimized, and secure solutions, including end-to-end encryption at rest and in transit and application-level authentication/authorization.</li>
+                <li>Implemented observability with Prometheus and Grafana.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="exp-item">
+            <div class="exp-header">
+              <span class="exp-role">LTI — Larsen &amp; Toubro Infotech</span>
+              <span class="exp-date">Oct 2017 – Sep 2020 · 3 yrs</span>
+            </div>
+            <div class="exp-company">Navi Mumbai, India → Beerse, Belgium</div>
+
+            <div class="exp-subrole">
+              <div class="exp-subrole-header">
+                <span class="exp-subrole-title">Senior Software Engineer — Beerse, Belgium</span>
+                <span class="exp-subrole-date">Jan 2019 – Sep 2020</span>
+              </div>
+              <ul class="exp-desc">
+                <li>Worked as AWS Technical Specialist embedded at J&amp;J (Belgium) for the EMEA region, with expertise in Redshift, EC2, S3, ETL (Talend), and Athena.</li>
+                <li>Applied solution design and BI subject-matter expertise on the AWS platform, improving architecture and reducing total cost of ownership.</li>
+                <li>Led migration of the entire AWS production environment to a new account, including Redshift, S3, EC2, RDS, EMR, and SWF domains.</li>
+              </ul>
+            </div>
+
+            <div class="exp-subrole">
+              <div class="exp-subrole-header">
+                <span class="exp-subrole-title">Senior Software Engineer — Navi Mumbai, India</span>
+                <span class="exp-subrole-date">Oct 2017 – Jan 2019</span>
+              </div>
+              <ul class="exp-desc">
+                <li>Worked as AWS and ETL developer, improving AWS architecture and reducing total cost of ownership.</li>
+                <li>Identified opportunities to introduce AWS services for better platform performance.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="exp-item">
+            <div class="exp-header">
+              <span class="exp-role">Business Intelligence Developer</span>
+              <span class="exp-date">May 2017 – Oct 2017</span>
+            </div>
+            <div class="exp-company">Amdocs · Pune, India</div>
             <ul class="exp-desc">
-              <li>Delivered cloud platform engineering engagements for enterprise clients on AWS.</li>
-              <li>Recognized with PAT on the Back Award (Jan 2016) for client delivery excellence.</li>
-              <li>Designed infrastructure automation and DevOps pipelines accelerating client time-to-deploy.</li>
+              <li>Built data-virtualization views across Teradata, Oracle, Redshift, Vertica, HDFS, and flat files using Cisco Composite for a multi-source BI project.</li>
             </ul>
           </div>
 
           <div class="exp-item">
             <div class="exp-header">
-              <span class="exp-role">Software / Platform Engineer</span>
-              <span class="exp-date">2013 – 2015</span>
+              <span class="exp-role">Cloud Engineer</span>
+              <span class="exp-date">Dec 2016 – May 2017</span>
             </div>
-            <div class="exp-company">IGATE Global Solutions</div>
+            <div class="exp-company">BlazeClan Technologies · Pune, India</div>
             <ul class="exp-desc">
-              <li>Supported 24×7 GDW platform operations with on-time, quality-focused resolutions.</li>
-              <li>Received Pat on the Back Award (Sep 2015) for effective quantitative contributions as a 24×7 team member.</li>
+              <li>Delivered AWS cloud architecture and data profiling for a petrochemical operational-dashboard project using Talend, Redshift, and Tableau.</li>
             </ul>
+          </div>
+
+          <div class="exp-item">
+            <div class="exp-header">
+              <span class="exp-role">Capgemini</span>
+              <span class="exp-date">Apr 2014 – Dec 2016 · 2 yrs 9 mos</span>
+            </div>
+            <div class="exp-company">Pune, India</div>
+
+            <div class="exp-subrole">
+              <div class="exp-subrole-header">
+                <span class="exp-subrole-title">Senior Software Engineer</span>
+                <span class="exp-subrole-date">Apr 2015 – Dec 2016</span>
+              </div>
+              <ul class="exp-desc">
+                <li>Built and maintained ETL pipelines (Datastage, Teradata BTEQ/MLOAD/FLOAD) and resolved production issues via root-cause impact analysis.</li>
+                <li>Automated a manual job, cutting runtime from 45 hours to 30 minutes with improved accuracy.</li>
+              </ul>
+            </div>
+
+            <div class="exp-subrole">
+              <div class="exp-subrole-header">
+                <span class="exp-subrole-title">Software Engineer</span>
+                <span class="exp-subrole-date">Apr 2014 – Apr 2015</span>
+              </div>
+              <ul class="exp-desc">
+                <li>Early-career ETL development role.</li>
+              </ul>
+            </div>
           </div>
         </section>
+
 
         <!-- Selected Writing -->
         <section class="section fade-in">
           <div class="section-label">Selected Writing</div>
           <div style="display:flex; flex-direction:column; gap:14px;">
             <div class="writing-item">
-              <div class="writing-title"><a href="blogposts/15-gpu-pathology-ai-eks.html">GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</a></div>
-              <div class="writing-meta">MLOps · Aug 2025</div>
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/blogposts/15-gpu-pathology-ai-eks.html">GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</a></div>
+              <div class="writing-meta">MLOps · Aug 2026</div>
             </div>
             <div class="writing-item">
-              <div class="writing-title"><a href="blogposts/12-cross-session-agent-memory.html">Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard</a></div>
-              <div class="writing-meta">Memory Systems · Jul 2025</div>
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/blogposts/12-cross-session-agent-memory.html">Cross-Session Agent Memory: What Persists, What Shouldn't, and Why It's Hard</a></div>
+              <div class="writing-meta">Memory Systems · Jul 2026</div>
             </div>
             <div class="writing-item">
-              <div class="writing-title"><a href="blogposts/11-observability-for-agents.html">Observability for AI Agents: Beyond Langfuse Traces</a></div>
-              <div class="writing-meta">Observability · Jul 2025</div>
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/blogposts/11-observability-for-agents.html">Observability for AI Agents: Beyond Langfuse Traces</a></div>
+              <div class="writing-meta">Observability · Jul 2026</div>
             </div>
             <div class="writing-item">
-              <div class="writing-title"><a href="blogposts/6-securing-agentic-ai.html">Your Agent Is a Confused Deputy</a></div>
-              <div class="writing-meta">AI Security · Apr 2025</div>
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html">Your Agent Is a Confused Deputy</a></div>
+              <div class="writing-meta">AI Security · Apr 2026</div>
             </div>
             <div class="writing-item">
-              <div class="writing-title"><a href="blogposts/5-benchmarking-llms-in-the-enterprise.html">Every Public Benchmark Is Useless to You</a></div>
-              <div class="writing-meta">LLM Evaluation · Mar 2025</div>
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/blogposts/5-benchmarking-llms-in-the-enterprise.html">Every Public Benchmark Is Useless to You</a></div>
+              <div class="writing-meta">LLM Evaluation · Mar 2026</div>
             </div>
             <div class="writing-item">
-              <div class="writing-title"><a href="blogposts/4-finops-for-agentic-ai.html">What Your AI Agent Actually Costs</a></div>
-              <div class="writing-meta">FinOps · Mar 2025</div>
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/blogposts/4-finops-for-agentic-ai.html">What Your AI Agent Actually Costs</a></div>
+              <div class="writing-meta">FinOps · Mar 2026</div>
             </div>
             <div class="writing-item">
-              <div class="writing-title"><a href="index.html">17 posts total — view all on Field Notes</a></div>
-              <div class="writing-meta">2025 – present</div>
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/">17 posts total — view all on Field Notes</a></div>
+              <div class="writing-meta">2026 – present</div>
             </div>
           </div>
         </section>
@@ -888,9 +1034,9 @@
         <section class="section fade-in">
           <div class="section-label">Education</div>
           <div class="edu-item">
-            <div class="edu-degree">B.E. — Electronics &amp; Telecommunication</div>
-            <div class="edu-school">University of Mumbai</div>
-            <div class="edu-year">Graduated 2013</div>
+            <div class="edu-degree">B.E. — Electronics &amp; Telecommunication Engineering</div>
+            <div class="edu-school">Mgm College of Engineering &amp; Technology</div>
+            <div class="edu-year">2009 – 2013</div>
           </div>
         </section>
 
@@ -898,44 +1044,119 @@
         <section class="section fade-in">
           <div class="section-label">Certifications</div>
 
-          <div class="cert-item">
-            <div class="cert-icon">
-              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            </div>
-            <div>
-              <div class="cert-name">AWS Well-Architected Framework</div>
-              <div class="cert-issuer">Amazon Web Services</div>
-            </div>
-          </div>
-
-          <div class="cert-item">
-            <div class="cert-icon">
-              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <div>
-              <div class="cert-name">Advanced SQL for Data Scientists</div>
-              <div class="cert-issuer">LinkedIn Learning · Apr 2020</div>
-            </div>
-          </div>
-
-          <div class="cert-item">
-            <div class="cert-icon">
-              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <div>
-              <div class="cert-name">Advanced SQL: Query Tuning &amp; Performance Optimization</div>
-              <div class="cert-issuer">LinkedIn Learning · Apr 2020</div>
+          <div class="skill-group">
+            <div class="skill-group-label">AWS Certifications</div>
+            <div class="skill-tags">
+              <span class="skill-tag highlight">Solutions Architect – Professional</span>
+              <span class="skill-tag highlight">DevOps Engineer – Professional</span>
+              <span class="skill-tag highlight">Generative AI Developer – Professional</span>
+              <span class="skill-tag">Machine Learning – Specialty</span>
+              <span class="skill-tag">Advanced Networking – Specialty</span>
+              <span class="skill-tag">Data Analytics – Specialty</span>
+              <span class="skill-tag">Database – Specialty</span>
+              <span class="skill-tag">Security – Specialty</span>
+              <span class="skill-tag">Data Engineer – Associate</span>
+              <span class="skill-tag">Machine Learning Engineer – Associate</span>
+              <span class="skill-tag">Solutions Architect – Associate</span>
+              <span class="skill-tag">SysOps Administrator – Associate</span>
+              <span class="skill-tag">Developer – Associate</span>
+              <span class="skill-tag">AI Practitioner</span>
+              <span class="skill-tag">Cloud Practitioner</span>
+              <span class="skill-tag">Technical Professional</span>
+              <span class="skill-tag">Business Professional</span>
             </div>
           </div>
 
-          <div class="cert-item">
-            <div class="cert-icon">
-              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <div class="skill-group">
+            <div class="skill-group-label">AWS SME &amp; Partner Credentials</div>
+            <div class="skill-tags">
+              <span class="skill-tag highlight">Certification SME – Foundational</span>
+              <span class="skill-tag">SME – Professional</span>
+              <span class="skill-tag">SME – Associate</span>
+              <span class="skill-tag">Partner: Technical Accredited</span>
+              <span class="skill-tag">Partner: Agentic AI Technical Learning Plan Assessment</span>
+              <span class="skill-tag">Partner: Agentic AI Essentials</span>
+              <span class="skill-tag">Partner: Generative AI Essentials</span>
+              <span class="skill-tag">Partner: Cloud Economics Essentials</span>
             </div>
-            <div>
-              <div class="cert-name">SQL for Statistics Essential Training</div>
-              <div class="cert-issuer">LinkedIn Learning · Apr 2020</div>
+          </div>
+
+          <div class="skill-group">
+            <div class="skill-group-label">AWS Agentic AI &amp; Generative AI</div>
+            <div class="skill-tags">
+              <span class="skill-tag">Generative AI Developer – Professional Early Adopter</span>
+              <span class="skill-tag">Agentic AI Demonstrated</span>
+              <span class="skill-tag">Generative AI Technical Intermediate (L200)</span>
+              <span class="skill-tag">Generative AI Foundational (L100)</span>
+              <span class="skill-tag">Cloud Quest: Generative AI Architect</span>
+              <span class="skill-tag">Cloud Quest: Generative AI Practitioner</span>
+              <span class="skill-tag">Serverless Demonstrated</span>
             </div>
+          </div>
+
+          <div class="skill-group">
+            <div class="skill-group-label">AWS Knowledge &amp; Industry Badges</div>
+            <div class="skill-tags">
+              <span class="skill-tag">AI Practitioner Early Adopter</span>
+              <span class="skill-tag">Machine Learning Engineer – Associate Early Adopter</span>
+              <span class="skill-tag">Knowledge: Architecting</span>
+              <span class="skill-tag">Knowledge: Amazon EKS</span>
+              <span class="skill-tag">Learning: Serverless</span>
+              <span class="skill-tag">Learning: Storage Core</span>
+              <span class="skill-tag">Learning: Block Storage</span>
+              <span class="skill-tag">Learning: File Storage</span>
+              <span class="skill-tag">Learning: Object Storage</span>
+              <span class="skill-tag">Healthcare L200 Technical</span>
+              <span class="skill-tag">Life Sciences L200 Technical</span>
+              <span class="skill-tag">Community Builder</span>
+            </div>
+          </div>
+
+          <div class="skill-group">
+            <div class="skill-group-label">Linux Foundation / CNCF</div>
+            <div class="skill-tags">
+              <span class="skill-tag highlight">CAPA: Certified Argo Project Associate</span>
+              <span class="skill-tag">CKAD: Certified Kubernetes Application Developer</span>
+              <span class="skill-tag">KCA: Kyverno Certified Associate</span>
+              <span class="skill-tag">Exam Developer: Cloud Native Platform Engineering Associate</span>
+              <span class="skill-tag">LFS169: Introduction to GitOps</span>
+            </div>
+          </div>
+
+          <div class="skill-group">
+            <div class="skill-group-label">Other Platforms &amp; Tools</div>
+            <div class="skill-tags">
+              <span class="skill-tag highlight">SnowPro Core Certification — Snowflake</span>
+              <span class="skill-tag">HashiCorp Certified: Terraform Associate</span>
+              <span class="skill-tag">Gremlin Certified Chaos Engineering Practitioner</span>
+              <span class="skill-tag">Aviatrix Certified Engineer – Multi-Cloud Network Associate</span>
+              <span class="skill-tag">NetApp Accredited: Amazon FSx for NetApp ONTAP Associate</span>
+              <span class="skill-tag">GitOps at Scale — Codefresh</span>
+              <span class="skill-tag">GitOps Fundamentals — Codefresh</span>
+              <span class="skill-tag">Tableau Author</span>
+              <span class="skill-tag">Tableau Consumer</span>
+            </div>
+          </div>
+
+          <div class="skill-group">
+            <div class="skill-group-label">Data &amp; Learning</div>
+            <div class="skill-tags">
+              <span class="skill-tag">Amplify AI Fluency Badge — Udacity</span>
+              <span class="skill-tag">Data Engineering Nanodegree — Udacity</span>
+              <span class="skill-tag">Building Production-Quality Shiny Applications</span>
+              <span class="skill-tag">Shiny for Python</span>
+              <span class="skill-tag">SQL Advanced — HackerRank</span>
+              <span class="skill-tag">Advanced SQL for Data Scientists — LinkedIn</span>
+              <span class="skill-tag">Advanced SQL: Query Tuning &amp; Performance Optimization — LinkedIn</span>
+              <span class="skill-tag">SQL for Statistics Essential Training — LinkedIn</span>
+              <span class="skill-tag">EFSET English Certificate (79/100) C2 Proficient</span>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;">
+            <a href="https://www.credly.com/users/ashutosh-upadhyay.0c4a1548/badges/credly" target="_blank" rel="noopener" style="font-size:12px; font-weight:600; color:var(--red);">
+              View all verified badges on Credly →
+            </a>
           </div>
         </section>
 
@@ -947,42 +1168,39 @@
             <div class="award-dot"></div>
             <div>
               <div class="award-name">Inspire Award — Bravo</div>
-              <div class="award-org">Johnson &amp; Johnson · Dec 2024</div>
+              <div class="award-org">Johnson &amp; Johnson Innovative Medicine</div>
             </div>
           </div>
           <div class="award-item">
             <div class="award-dot"></div>
             <div>
               <div class="award-name">Inspire Award — Spotlight</div>
-              <div class="award-org">Johnson &amp; Johnson · Dec 2021</div>
+              <div class="award-org">Johnson &amp; Johnson Innovative Medicine</div>
             </div>
           </div>
           <div class="award-item">
             <div class="award-dot"></div>
             <div>
               <div class="award-name">Inspire Award — Celebrate</div>
-              <div class="award-org">Johnson &amp; Johnson · Nov 2021</div>
+              <div class="award-org">Johnson &amp; Johnson Innovative Medicine</div>
             </div>
           </div>
           <div class="award-item">
             <div class="award-dot"></div>
             <div>
               <div class="award-name">Technical Achievement Award</div>
-              <div class="award-org">Johnson &amp; Johnson · Sep 2018</div>
-            </div>
-          </div>
-          <div class="award-item">
-            <div class="award-dot"></div>
-            <div>
-              <div class="award-name">PAT on the Back Award</div>
-              <div class="award-org">Capgemini · Jan 2016</div>
             </div>
           </div>
           <div class="award-item">
             <div class="award-dot"></div>
             <div>
               <div class="award-name">Pat on the Back Award</div>
-              <div class="award-org">IGATE Global Solutions · Sep 2015</div>
+            </div>
+          </div>
+          <div class="award-item">
+            <div class="award-dot"></div>
+            <div>
+              <div class="award-name">Pat on the Back Award</div>
             </div>
           </div>
         </section>
