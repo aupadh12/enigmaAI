@@ -214,8 +214,8 @@
       font-family: 'Lora', Georgia, serif;
       font-style: italic;
       color: var(--fg-dim);
-      font-size: 18px;
-      max-width: 48ch;
+      font-size: 17px;
+      max-width: 50ch;
       margin: 0;
     }
 
@@ -230,7 +230,7 @@
     /* ========== ABOUT ========== */
     .about {
       display: flex;
-      gap: 24px;
+      gap: 28px;
       padding: 40px 0;
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
@@ -239,8 +239,8 @@
 
     .about-mark {
       flex: 0 0 auto;
-      width: 72px;
-      height: 72px;
+      width: 88px;
+      height: 88px;
       border-radius: 50%;
       background: var(--red);
       color: #fff;
@@ -249,10 +249,17 @@
       justify-content: center;
       font-family: 'Lora', Georgia, serif;
       font-weight: 700;
-      font-size: 19px;
+      font-size: 22px;
       overflow: hidden;
       border: 3px solid var(--line);
       flex-shrink: 0;
+      box-shadow: var(--shadow-md), 0 0 0 5px var(--bg), 0 0 0 6px var(--line);
+      transition: box-shadow var(--transition), transform var(--transition);
+    }
+
+    .about-mark:hover {
+      box-shadow: var(--shadow-lg), 0 0 0 5px var(--bg), 0 0 0 6px var(--red);
+      transform: scale(1.04);
     }
 
     .about-mark img {
@@ -260,6 +267,44 @@
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+
+    /* identity chips row */
+    .identity-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 8px 0 14px;
+    }
+
+    .id-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--fg-dim);
+      background: var(--bg-search);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
+      padding: 4px 10px;
+    }
+
+    .id-chip svg {
+      width: 12px;
+      height: 12px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      flex-shrink: 0;
+    }
+
+    .id-chip.highlight {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: transparent;
+      font-weight: 600;
     }
 
     .linkedin-link {
@@ -382,6 +427,158 @@
       .about {
         flex-direction: column;
       }
+    }
+
+    /* ========== STATS ROW ========== */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 32px 0 0;
+    }
+
+    .stat-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px 16px;
+      text-align: center;
+      transition: all var(--transition);
+    }
+
+    .stat-card:hover {
+      border-color: var(--red);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .stat-number {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--red);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--fg-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ========== FEATURED POSTS ========== */
+    .featured-section {
+      padding: 36px 0 0;
+    }
+
+    .section-eyebrow {
+      font-family: 'Inter', sans-serif;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-eyebrow::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .featured-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .featured-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-row {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .stat-card {
+        padding: 14px 10px;
+      }
+
+      .stat-number {
+        font-size: 22px;
+      }
+    }
+
+    .featured-card {
+      display: block;
+      text-decoration: none;
+      background: var(--bg-elevated);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .featured-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--red);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform var(--transition);
+    }
+
+    .featured-card:hover {
+      border-color: var(--red);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-3px);
+    }
+
+    .featured-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .featured-tag {
+      font-family: 'Inter', sans-serif;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+
+    .featured-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--fg);
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+
+    .featured-desc {
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      color: var(--fg-dim);
+      line-height: 1.6;
     }
 
     /* ========== SEARCH & FILTER ========== */
@@ -762,7 +959,7 @@
       alt="Agentic AI &amp; Platform Engineering — Field Notes by Ashutosh Upadhyay">
     <header>
       <p class="eyebrow">
-        Field Notes
+        Ashutosh Upadhyay · Field Notes
         <a class="rss-link" href="feed.xml" title="RSS Feed">
           <svg viewBox="0 0 24 24">
             <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" fill="none" stroke="currentColor" stroke-width="2"
@@ -772,8 +969,9 @@
           RSS
         </a>
       </p>
-      <p>Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what
-        actually works.</p>
+      <h1>Agentic AI &amp;<br>Platform Engineering</h1>
+      <p>Production notes from the intersection of drug discovery, cloud infrastructure, and autonomous AI — what
+        actually ships.</p>
       <hr class="rule">
     </header>
 
@@ -785,19 +983,33 @@
       <div>
         <h2><a href="https://www.linkedin.com/in/ashutosh2206/" target="_blank" rel="noopener">Ashutosh Upadhyay</a>
         </h2>
-        <p class="about-role">Principal Engineer @ Johnson &amp; Johnson Innovative Medicine — Building Agentic AI for
-          Drug Discovery | Imaging, Omics, AWS, GitOps, Kubernetes, Multi-LLM Agentic Systems (Bedrock, Claude, OpenAI)
-        </p>
+        <div class="identity-chips">
+          <span class="id-chip highlight">
+            <svg viewBox="0 0 24 24">
+              <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            </svg>
+            Principal Engineer — Agentic AI &amp; Cloud Platform
+          </span>
+          <span class="id-chip">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            Johnson &amp; Johnson Innovative Medicine
+          </span>
+          <span class="id-chip">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            Antwerpen, Belgium
+          </span>
+        </div>
         <p class="bio">I build the platforms that let scientists focus on curing disease instead of fighting
-          infrastructure.</p>
-        <p class="bio">As a Principal Engineer with 12 years in enterprise cloud, I specialize in implementing Agentic
-          AI and production-grade platform engineering for pharmaceutical R&amp;D on AWS. My current focus is on
-          embedding AI agents and LLM-assisted workflows, including Claude Code, into drug discovery pipelines,
-          compressing development cycles and unlocking capabilities that were previously out of reach for science teams.
-        </p>
-        <p class="bio">I've architected bioinformatics and MLOps platforms on AWS EKS, and migrated critical research
-          pipelines to production-grade Argo Workflows. I work closely with scientists, biologists, data engineers, and
-          R&amp;D leadership, bridging the gap between infrastructure and scientific outcomes.</p>
+          infrastructure. 12 years in enterprise cloud, specializing in Agentic AI and production-grade platform
+          engineering for pharmaceutical R&amp;D on AWS — embedding AI agents and LLM-assisted workflows into drug
+          discovery pipelines.</p>
         <p class="bio"><em>My edge: I don't just build platforms. I make them disappear so the science can move
             faster.</em></p>
         <div class="about-tags">
@@ -809,7 +1021,7 @@
           <span>Imaging</span>
           <span>Multi-LLM Systems</span>
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:16px;">
           <a class="linkedin-link" href="https://www.linkedin.com/in/ashutosh2206/" target="_blank" rel="noopener"
             style="margin-top:0;">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -827,11 +1039,52 @@
               <line x1="16" y1="17" x2="8" y2="17" />
               <polyline points="10 9 9 9 8 9" />
             </svg>
-            View Resume
+            View Full Resume
           </a>
         </div>
       </div>
     </section>
+
+    <!-- Stats Row -->
+    <div class="stats-row animate-in">
+      <div class="stat-card">
+        <div class="stat-number">12+</div>
+        <div class="stat-label">Years in Enterprise Cloud</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">17</div>
+        <div class="stat-label">Published Technical Posts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">33+</div>
+        <div class="stat-label">Tools Built for AI Agents</div>
+      </div>
+    </div>
+
+    <!-- Featured Posts -->
+    <div class="featured-section animate-in">
+      <p class="section-eyebrow">Featured</p>
+      <div class="featured-grid">
+        <a class="featured-card" href="blogposts/5-benchmarking-llms-in-the-enterprise.html">
+          <div class="featured-tag">LLM Evaluation</div>
+          <div class="featured-title">Every Public Benchmark Is Useless to You</div>
+          <div class="featured-desc">Building a standing internal evaluation suite — and the four ways my harness
+            broke before it produced a single trustworthy number.</div>
+        </a>
+        <a class="featured-card" href="blogposts/6-securing-agentic-ai.html">
+          <div class="featured-tag">AI Security</div>
+          <div class="featured-title">Your Agent Is a Confused Deputy</div>
+          <div class="featured-desc">Security lessons from putting an autonomous, tool-calling agent in front of
+            regulated enterprise data — including a vulnerability I shipped, found, and closed.</div>
+        </a>
+        <a class="featured-card" href="blogposts/11-observability-for-agents.html">
+          <div class="featured-tag">Observability</div>
+          <div class="featured-title">Observability for AI Agents: Beyond Langfuse Traces</div>
+          <div class="featured-desc">Langfuse catches bad tool data. Prometheus catches the stuck pod. CloudWatch
+            catches the $12 session. Three layers — and where each falls short alone.</div>
+        </a>
+      </div>
+    </div>
 
     <!-- Search & Tag Filter -->
     <div class="search-filter-bar">
@@ -890,7 +1143,8 @@
             <span class="post-reading-time">10 min read</span>
           </div>
           <h3>Building AI With AI on Claude Code</h3>
-          <p>How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches production
+          <p>How I use Claude Code's agent system to build AI systems — with a mandatory Advisor that catches
+            production
             bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.</p>
           <span class="read-more">Read →</span>
         </div>
@@ -909,7 +1163,8 @@
             <span class="post-reading-time">7 min read</span>
           </div>
           <h3>From Chatbot to Autonomous Research System</h3>
-          <p>How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates
+          <p>How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and
+            generates
             research reports — running on Kubernetes.</p>
           <span class="read-more">Read →</span>
         </div>
@@ -928,7 +1183,8 @@
             <span class="post-reading-time">9 min read</span>
           </div>
           <h3>Multi-Agent AI Collaboration</h3>
-          <p>Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize,
+          <p>Why one agent isn't enough — and how to build a team of AI specialists that research, analyze,
+            synthesize,
             and critique each other's work, with full observability via Langfuse.</p>
           <span class="read-more">Read →</span>
         </div>
@@ -947,7 +1203,8 @@
             <span class="post-reading-time">16 min read</span>
           </div>
           <h3>What Your AI Agent Actually Costs</h3>
-          <p>Your invoice tells you the total. It never tells you who spent it, which tokens were wasted, or whether the
+          <p>Your invoice tells you the total. It never tells you who spent it, which tokens were wasted, or whether
+            the
             last model upgrade paid for itself.</p>
           <span class="read-more">Read →</span>
         </div>
@@ -1203,7 +1460,9 @@
     </main>
 
     <footer>
-      <span>Built with GitHub Pages · updated manually</span>
+      <span>© 2026 Ashutosh Upadhyay · <a href="resume.html" style="color:var(--red);font-weight:600;">Resume</a> · <a
+          href="https://www.linkedin.com/in/ashutosh2206/" target="_blank" rel="noopener"
+          style="color:var(--red);font-weight:600;">LinkedIn</a></span>
       <a class="rss-link" href="feed.xml" title="RSS Feed">
         <svg viewBox="0 0 24 24" width="12" height="12">
           <path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" fill="none" stroke="currentColor" stroke-width="2"
