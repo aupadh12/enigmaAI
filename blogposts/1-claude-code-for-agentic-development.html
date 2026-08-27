@@ -401,7 +401,7 @@
 
     <h2>The Meta-Problem: Building AI With AI</h2>
 
-    <p>I've built and deployed a production multi-agent AI system — 33 tools, 4 specialized agent roles, running on EKS
+    <p>I've built and deployed a production multi-agent AI system — 35 tools, 4 specialized agent roles, running on EKS
         with full Langfuse observability. But here's the meta question: <strong>how do you actually build and deploy
             these systems efficiently?</strong></p>
 
@@ -434,7 +434,7 @@ description: Senior architecture reviewer. Must be invoked before
   any significant decision, before finalizing plans, and after every
   code change.
 model: opus
-tools: [Read, Grep, Bash]  # Read-only — never modifies code
+tools: Read, Grep, Bash  # Bash included for log/status reads; prompt instructs no file writes
 ---
 
 You are a senior technical reviewer. You receive a structured summary
@@ -832,9 +832,9 @@ kind: ConfigMap
 metadata:
   name: agent-config
 data:
-  SCOUT_MODEL: "us.anthropic.claude-sonnet-4-6-v1"
-  SYNTHESIZER_MODEL: "us.anthropic.claude-opus-4-8-v1"
-  CRITIC_MODEL: "us.anthropic.claude-opus-4-8-v1"
+  SCOUT_MODEL: "us.anthropic.claude-sonnet-4-6"
+  SYNTHESIZER_MODEL: "us.anthropic.claude-opus-4-8"
+  CRITIC_MODEL: "us.anthropic.claude-opus-4-8"
   KNOWLEDGE_GRAPH_TABLE: "agent-kg"
   CACHE_TTL_HOURS: "24"
   TOKEN_BUDGET: "10000000"
@@ -955,7 +955,7 @@ spec:
 
     <div class="metric-grid">
         <div class="metric-card">
-            <div class="metric-value">12+</div>
+            <div class="metric-value">14</div>
             <div class="metric-label">Files Per Version Bump</div>
         </div>
         <div class="metric-card">

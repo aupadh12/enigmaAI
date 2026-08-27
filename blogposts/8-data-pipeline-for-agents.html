@@ -352,8 +352,8 @@
         matters.</p>
 
     <p>Slow-changing sources — biological ontologies, pathway definitions, disease hierarchies — change rarely and
-        predictably. Gene Ontology, HPO, MONDO, Reactome: these are curated controlled vocabularies that get quarterly
-        releases, not daily updates. Running them on the same daily job as everything else has two costs: it slows down
+        predictably. Gene Ontology, HPO, and MONDO release roughly monthly; Reactome releases quarterly. None need
+        daily ingestion. Running them on the same daily job as everything else has two costs: it slows down
         the daily job, and the two kinds of data have completely different freshness guarantees, so conflating them
         makes your freshness model wrong.</p>
 
@@ -363,7 +363,12 @@
 spec:
   schedule: "0 2 * * *"
   concurrencyPolicy: Forbid
-  activeDeadlineSeconds: 21600
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 21600   # CronJobSpec has no activeDeadlineSeconds — belongs here, under jobTemplate.spec
+      template:
+        spec:
+          containers: [...]
 
 # Weekly: ontologies — run Sunday, no deadline pressure
 spec:
@@ -435,10 +440,11 @@ spec:
         request it explicitly but it doesn't block the daily run.</p>
 
     <pre><code># In the ingestion handler — sources that can't run in the daily job
-_BULK_SOURCES = frozenset([
+_BULK_SOURCES = (
     "string", "depmap", "cellosaurus", "ncats", "rsc",
     # NOT: "ontology" (weekly), NOT: "upload" (user-driven)
-])
+    # tuple preserves order — fast sources first so a slow tail doesn't block the front
+)
 
 def ingest_all_sources():
     for source in _BULK_SOURCES:  # ontology and upload excluded
@@ -479,7 +485,7 @@ def ingest_all_sources():
                 <td><code>kg</code> (main)</td>
                 <td>UpdateItem</td>
                 <td>90 days</td>
-                <td>32 tools</td>
+                <td>15 tools (those with KG extractors)</td>
                 <td>Query-derived facts</td>
             </tr>
             <tr>
@@ -493,9 +499,18 @@ def ingest_all_sources():
     </table>
 
     <p>The ontology table uses BatchWriteItem rather than UpdateItem because ontology ingestion is a bulk operation:
-        loading 40,000 GO terms is faster when batched than when sent as 40,000 individual requests. It also uses a
-        thread-safe lock because the ingestion job processes multiple ontologies concurrently and DynamoDB has no native
-        transaction support across batch writes to the same table.</p>
+        loading 40,000 GO terms is faster when batched than when sent as 40,000 individual requests.
+        <code>BatchWriteItem</code> is not atomic — it does not provide transactional guarantees across the 25-item
+        batch. (DynamoDB does support ACID transactions via <code>TransactWriteItems</code>, but that is not what
+        BatchWriteItem provides.) The thread-safe lock serializes shared client-side buffer access across the concurrent
+        ontology-loading threads.</p>
+
+    <div class="warn-box">
+        <p><strong>BatchWriteItem silent-drop trap:</strong> <code>BatchWriteItem</code> returns HTTP 200 even when some
+            writes fail — the unwritten items appear in an <code>UnprocessedItems</code> map in the response. If you
+            don't check and retry that field, writes are silently dropped with no error. For a job loading 40,000 GO
+            terms, this is the highest-probability silent-loss path in the whole pipeline.</p>
+    </div>
 
     <div class="stale-box">
         <p><strong>The silent failure mode:</strong> both tables gate writes through a <code>VALID_NODE_TYPES</code>

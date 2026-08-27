@@ -404,7 +404,7 @@
 
     <h2>Why Single-Agent Systems Hit a Ceiling</h2>
 
-    <p>I built a 33-tool agentic system that could query databases, build knowledge graphs, and generate research
+    <p>I built a 35-tool agentic system that could query databases, build knowledge graphs, and generate research
         reports autonomously. It worked well — until users started asking complex research questions that required
         balancing multiple perspectives:</p>
 
@@ -414,7 +414,7 @@
         <li>"Synthesize findings from 5 datasets and identify gaps in the evidence"</li>
     </ul>
 
-    <p>A single agent with 33 tools tries to do everything at once. It becomes a generalist — decent at many things,
+    <p>A single agent with 35 tools tries to do everything at once. It becomes a generalist — decent at many things,
         excellent at nothing. Worse, it can't <em>critique its own work</em>.</p>
 
     <div class="highlight-box">
@@ -650,6 +650,7 @@
     <h2>The Orchestration Pattern</h2>
 
     <pre><code># Simplified multi-agent orchestration
+import asyncio
 from langfuse import observe
 
 class ResearchOrchestrator:
@@ -665,31 +666,32 @@ class ResearchOrchestrator:
     @observe(name="multi-agent-research")
     async def research(self, query: str) -> ResearchReport:
         # Phase 1: Parallel data gathering (fan-out)
+        # Strands Agent.__call__ is synchronous; use invoke_async() for await
         # Each scout gets its own instance to avoid shared-state corruption
         scout_results = await asyncio.gather(
-            self._new_scout()(f"Find primary data: {query}"),
-            self._new_scout()(f"Find ontology context: {query}"),
-            self._new_scout()(f"Find contradicting evidence: {query}")
+            self._new_scout().invoke_async(f"Find primary data: {query}"),
+            self._new_scout().invoke_async(f"Find ontology context: {query}"),
+            self._new_scout().invoke_async(f"Find contradicting evidence: {query}")
         )
 
         # Phase 2: Analysis (sequential — needs scout output)
-        analysis = await self.analyst(
+        analysis = await self.analyst.invoke_async(
             f"Analyze these findings:\n{scout_results}"
         )
 
         # Phase 3: Synthesis
-        report = await self.synthesizer(
+        report = await self.synthesizer.invoke_async(
             f"Synthesize into a coherent report:\n{analysis}"
         )
 
         # Phase 4: Adversarial critique
-        critique = await self.critic(
+        critique = await self.critic.invoke_async(
             f"Find flaws in this report:\n{report}"
         )
 
         # Phase 5: Revision (if critique found issues)
         if critique.has_issues:
-            report = await self.synthesizer(
+            report = await self.synthesizer.invoke_async(
                 f"Revise based on critique:\n{report}\n\nCritique:\n{critique}"
             )
 
@@ -892,8 +894,10 @@ spec:
 </code></pre>
 
     <p>This lets you scale each role independently. Data Scouts scale out for throughput. Synthesizer stays at 1 replica
-        because it's sequential anyway. The Critic can be temporarily scaled to 0 in low-priority environments to save
-        cost.</p>
+        to bound concurrent synthesis — a single pod serializes cross-user requests; size the concurrency semaphore to
+        match your throughput target and expect 429s beyond it. The Critic can be temporarily scaled to 0 in
+        low-priority environments to save cost, but requires a feature flag in the orchestrator to skip the stage —
+        scaling to 0 without one causes connection failures.</p>
 
     <h2>Lessons Learned</h2>
 

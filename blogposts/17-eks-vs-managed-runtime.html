@@ -152,7 +152,7 @@
 <p>What you give up:</p>
 <ul>
     <li>The control plane — no more <code>deployment.yaml</code>, no Karpenter, no HPA, no custom node configuration</li>
-    <li>The execution environment — you can't add a sidecar, can't mount a volume, can't run an init container</li>
+    <li>The execution environment — you can't add a sidecar, can't run an init container, and arbitrary user-supplied volume mounts aren't available (managed network-filesystem and object-store access points are supported via the runtime's access point configuration)</li>
     <li>Port adjacency — your admin endpoints, monitoring scrapers, and background workers that live alongside the agent pod on EKS need a new home</li>
 </ul>
 
@@ -192,7 +192,7 @@
     </thead>
     <tbody>
         <tr>
-            <td>① Framework flattening</td>
+            <td>① Multi-agent operational multiplication</td>
             <td>Multi-agent orchestration</td>
             <td class="decision-cell-red">High</td>
             <td>Validate against your specific framework before any migration work</td>
@@ -420,8 +420,8 @@
     <h3>Key Takeaways</h3>
     <ul>
         <li>The managed runtime solves infrastructure operations — not agent quality. The hard parts of your system stay hard.</li>
-        <li>Five blocker categories to evaluate before committing: framework flattening, observability gap, admin API surface, identity federation model, cold start latency.</li>
-        <li>Framework flattening is the highest-severity blocker — validate against your specific orchestration pattern before writing migration code.</li>
+        <li>Five blocker categories to evaluate before committing: multi-agent operational multiplication, observability gap, admin API surface, identity federation model, cold start latency.</li>
+        <li>Multi-agent operational multiplication is the highest-severity blocker — N pipeline stages become N runtimes × images × roles. The architecture survives; the operational surface multiplies. Validate against your specific orchestration pattern before writing migration code.</li>
         <li>The hybrid answer captures most of the managed runtime benefits without the migration risk: Gateway/MCP on managed, core agent on EKS.</li>
         <li>Budget 3–5 working days for PrivateLink/VPC Lattice provisioning and governance review before your timeline — not as same-day tasks.</li>
         <li>The IAM trust policy change is mechanical: add the service principal to your existing role. Most downstream services need no changes — only those with resource-based policies (S3 buckets, KMS keys) naming the role explicitly. Count those, not your total AWS service footprint.</li>

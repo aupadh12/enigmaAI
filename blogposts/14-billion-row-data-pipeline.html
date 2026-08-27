@@ -266,7 +266,7 @@ if len(expr_files_written) % expr_checkpoint_every == 0:
 <pre><code># Wrong: run_folder in key means re-analysis adds a second file
 expr_s3_key = f"{prefix}/study_id={study_id}/{sample_id}__{run_folder}.parquet"
 
-# B3 fix: key on sample_id only — PUT is idempotent, re-analysis overwrites
+# B4 fix: key on sample_id only — PUT is idempotent, re-analysis overwrites
 expr_s3_key = f"{prefix}/study_id={study_id}/{sample_id}.parquet"</code></pre>
 
 <p>S3's <code>put_object</code> overwrites unconditionally. Keying on sample_id makes every re-analysis overwrite the S3 object. The <code>run_folder</code> value is still preserved as a column inside the Parquet file for provenance, but it no longer participates in the S3 key.</p>
@@ -316,6 +316,7 @@ spec:
   # No activeDeadlineSeconds — checkpointing allows safe partial runs
   template:
     spec:
+      restartPolicy: Never
       containers:
       - command:
         - python

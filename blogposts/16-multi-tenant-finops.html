@@ -166,10 +166,10 @@ AD table: <code>FirstName.LastName@Company.com</code></p>
 
 <p>In production, a directory sync ran and updated the AD group membership table from real Entra data. Entra's <code>mail</code> field is mixed case. It has three different domain spellings depending on when the account was created and whether it's been migrated. Some users have <code>firstname.lastname@company.com</code>, others have <code>FirstName.LastName@Company.com</code>, and the same domain appears with three different capitalizations depending on when the account was created and whether it had been migrated.</p>
 
-<p>AWS Cost Explorer returns email addresses in lowercase. Our join was case-sensitive. The result: 1.8% of users matched because only a tiny fraction of Entra accounts happened to have lowercase <code>mail</code> fields that aligned with what Cost Explorer returned.</p>
+<p>In our environment, the email addresses in cost tags were consistently lowercase — AWS Cost Explorer returns tag values exactly as stored, so normalize both sides rather than relying on the source being consistent. Our join was case-sensitive. The result: 1.8% of users matched because only a tiny fraction of Entra accounts happened to have lowercase <code>mail</code> fields that aligned with the lowercase values in our cost tags.</p>
 
 <div class="stale-box">
-    <p><strong>The symptom:</strong> Coverage was 1.8% on the first production run against real directory data. It looked like a sync problem — bad source, missing records. It was a case-sensitivity mismatch between AWS Cost Explorer (lowercase) and Entra's <code>mail</code> field (mixed case, three capitalizations of the same domain).</p>
+    <p><strong>The symptom:</strong> Coverage was 1.8% on the first production run against real directory data. It looked like a sync problem — bad source, missing records. It was a case-sensitivity mismatch: our cost tags used lowercase email values, while Entra's <code>mail</code> field is mixed case with three different domain capitalizations. AWS Cost Explorer returns tag values byte-for-byte as stored — normalize both sides before joining.</p>
     <p><strong>Root cause:</strong> Case-sensitive join on identity fields that have different case conventions across systems. The fix is two lines: normalize both sides to lowercase before joining.</p>
 </div>
 
@@ -208,11 +208,15 @@ df = costs.merge(groups, left_on='email_lower', right_on='mail_lower')</code></p
     # Fan-out: join costs to membership — each user's spend appears in each of their groups
     fanned = costs_df.merge(membership_df, on='user_id', how='left')
 
-    # Deduplicate: compute each group's share relative to unique users only
-    deduped = fanned.groupby('group_id')['amount'].sum() / fanned['user_id'].nunique() * len(costs_df)
+    # Deduplicate: each user contributes a proportional share to each group they belong to
+    # (a user in 3 groups contributes 1/3 of their spend to each, not their full spend)
+    fanned['user_share'] = fanned['amount'] / fanned.groupby('user_id')['group_id'].transform('count')
+    # Orphan costs: users with no group mapping get an explicit unattributed bucket, not dropped
+    unattributed = fanned[fanned['group_id'].isna()]['user_share'].sum()
+    deduped = fanned.dropna(subset=['group_id']).groupby('group_id')['user_share'].sum()
 
-    # Conservation invariant: deduplicated total must match input
-    output_total = deduped.sum()
+    # Conservation invariant: deduplicated total plus unattributed must match input
+    output_total = deduped.sum() + unattributed
     delta = abs(output_total - input_total)
     epsilon = input_total * 0.0001  # 0.01% tolerance for floating-point drift
     if delta > epsilon:
@@ -221,9 +225,9 @@ df = costs.merge(groups, left_on='email_lower', right_on='mail_lower')</code></p
             f"output={output_total:.2f}, delta={delta:.4f}"
         )
 
-    return deduped</code></pre>
+    return deduped, unattributed</code></pre>
 
-<p>The fix: compute each group's share as a fraction of deduplicated unique-user spend, not a raw sum. A user in three groups contributes their spend once to the total, with each group getting a proportional share of their activity — not a full copy. The deduplicated total conserves exactly.</p>
+<p>The fix: compute each group's share as a per-user proportion — a user in three groups contributes one-third of their spend to each group, not a full copy. Orphan costs (users with no group mapping) are preserved in a separate <code>unattributed</code> bucket rather than silently dropped. With the per-user share approach, the sum of <code>deduped</code> plus <code>unattributed</code> equals the original input total.</p>
 
 <div class="highlight-box">
     <p><strong>The rule:</strong> any time you fan out a cost pool across group memberships, assert <code>abs(sum(deduped_output) - sum(input)) &lt; epsilon</code>. Test the <em>stored</em> configuration — not one constructed in the test. Our bug passed unit tests because the test membership data had no overlap. Production data had 7.9% overlap and nobody noticed until we asserted.</p>

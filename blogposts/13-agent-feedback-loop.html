@@ -97,7 +97,7 @@
 <p>The obvious fix is fine-tuning, but it has serious practical problems for domain corrections:</p>
 
 <ul>
-    <li><strong>It's irreversible.</strong> Once you fine-tune on a correction that turns out to be wrong, you've embedded the error into the model. There's no "undo" — you have to fine-tune again with the corrected correction.</li>
+    <li><strong>It's expensive to undo.</strong> Fine-tuning is not strictly irreversible — reverting means pointing at a previous model version or the base model — but embedding a wrong correction means another full fine-tune run to fix it. There's no in-place undo.</li>
     <li><strong>It requires curated datasets.</strong> You can't just pipe raw user corrections into a fine-tune job. Each example needs to be validated, deduped, reformatted, and balanced against existing knowledge.</li>
     <li><strong>It's slow.</strong> Even with a fast fine-tuning pipeline, you're looking at hours to days between identifying a correction pattern and deploying the fix.</li>
     <li><strong>It's opaque.</strong> When the fine-tuned model starts behaving differently, it's hard to trace which training examples caused which behaviors.</li>
@@ -109,7 +109,7 @@
 
 <p>Think of agent learning as a pyramid. The fastest layer is narrowest in scope. The most durable layer affects everyone. You want all four — not because any single layer is sufficient, but because they handle different timeframes and different failure modes.</p>
 
-<h3>Layer 4: In-Session Adaptation (instant, one user, one session)</h3>
+<h3>Layer 1: In-Session Adaptation (instant, one user, one session)</h3>
 
 <p>This one is free. When a user says "no, use X instead of Y" mid-conversation, the correction lives in the conversation history. The LLM sees it when it processes the next turn and adapts immediately. No infrastructure required, no latency.</p>
 
@@ -123,7 +123,7 @@
 
 <p>It also introduces a data architecture challenge. User corrections are stored under a namespaced actorId derived from their email. The namespace scoping is critical — one of the first bugs we hit in production was a namespace path that returned all users' corrections, not just the current user's. More on this in the companion post on cross-session memory.</p>
 
-<h3>Layer 1: Skill Updates (5 minutes, all users, no release)</h3>
+<h3>Layer 3: Skill Updates (5 minutes, all users, no release)</h3>
 
 <p>This is the highest-leverage layer. Skills are domain knowledge documents stored in S3 that the agent fetches at query time via a <code>get_skills</code> tool call. They describe data sources, identifier resolution rules, workflow recommendations, common mistakes, and score interpretation guidance. When the agent is about to query a dataset it's uncertain about, it fetches the relevant skill and uses it to guide its approach.</p>
 
@@ -133,7 +133,7 @@
 
 <p>The Cellosaurus workflow correction is exactly the kind of thing that belongs in a skill. A one-sentence rule in the <code>cellosaurus</code> or <code>depmap</code> skill: "Always call cellosaurus_agent to resolve cell line names before joining RSC or DepMap data." That rule affects every user who queries those datasets, for every session, forever.</p>
 
-<h3>Layer 3: Prompt Optimization (hours, all users, eval-gated)</h3>
+<h3>Layer 4: Prompt Optimization (hours, all users, eval-gated)</h3>
 
 <p>The most powerful and most expensive layer. When you have enough feedback signal to identify systematic patterns — the agent consistently misuses certain tools, systematically over-claims on incomplete data, routinely fails a specific class of query — those patterns may indicate gaps in the system prompt rather than the skill layer.</p>
 
@@ -223,7 +223,7 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
         <tr>
             <td><strong>Reversibility</strong></td>
             <td>Edit or delete the S3 object</td>
-            <td>Requires another fine-tune run</td>
+            <td>Requires rollback to prior version or retraining</td>
         </tr>
         <tr>
             <td><strong>Traceability</strong></td>
@@ -248,7 +248,7 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
         <tr>
             <td><strong>Coverage</strong></td>
             <td>Only when agent calls get_skills for that source</td>
-            <td>All queries, all models</td>
+            <td>All queries, one model</td>
         </tr>
     </tbody>
 </table>
@@ -278,11 +278,11 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
 
 <p>Putting it together: a correction that a user makes today should flow through the system in order of urgency and durability.</p>
 
-<p>If it's a one-time contextual correction, Layer 4 handles it. The session history carries it forward for the rest of that session. Nothing persists, nothing needs to.</p>
+<p>If it's a one-time contextual correction, Layer 1 handles it. The session history carries it forward for the rest of that session. Nothing persists, nothing needs to.</p>
 
 <p>If it's a repeated correction for that specific user — the same workflow mistake they've pointed out before — Layer 2 catches it. The per-user corrections namespace surfaces it at the start of their next session. The agent knows, before the user says anything, that this user has a specific preference about cell line resolution order.</p>
 
-<p>If it's a pattern that appears across multiple users on the same topic — ≥3 corrections with the same underlying error — Layer 1 handles it. The admin sees the cluster, edits the relevant skill, and all users benefit within 5 minutes.</p>
+<p>If it's a pattern that appears across multiple users on the same topic — ≥3 corrections with the same underlying error — Layer 3 handles it. The admin sees the cluster, edits the relevant skill, and all users benefit within 5 minutes.</p>
 
 <p>If the pattern is systemic enough that it can't be captured in a skill — it's about how the agent reasons about a class of problems, not just how it handles a specific data source — it becomes a prompt optimization candidate, gates on the eval harness, and deploys as a system prompt change.</p>
 

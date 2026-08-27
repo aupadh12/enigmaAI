@@ -7,7 +7,7 @@
     <title>Building Agentic AI: From Chatbot to Autonomous Research System</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="Building Agentic AI: From Chatbot to Autonomous Research System">
-    <meta property="og:description" content="How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.">
+    <meta property="og:description" content="How I built a 35-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/2-agentic-ai-systems.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="627">
@@ -15,7 +15,7 @@
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/2-agentic-ai-systems.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Building Agentic AI: From Chatbot to Autonomous Research System">
-    <meta name="twitter:description" content="How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.">
+    <meta name="twitter:description" content="How I built a 35-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/2-agentic-ai-systems.png">
     <style>
         * {
@@ -284,7 +284,7 @@
     <span class="header-badge">Agentic AI</span>
 
     <h1>Building Agentic AI: From Chatbot to Autonomous Research System</h1>
-    <p class="subtitle">How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and
+    <p class="subtitle">How I built a 35-tool AI agent that autonomously queries databases, builds knowledge graphs, and
         generates research reports — running on Kubernetes.</p>
 
     <div class="author-block">
@@ -304,7 +304,7 @@
         which tools to use, what order to call them in, whether the results are sufficient, and when to try a different
         approach.</p>
 
-    <p>Over the past year, I've built and deployed an agentic AI system with 33 specialized tools, a knowledge graph,
+    <p>Over the past year, I've built and deployed an agentic AI system with 35 specialized tools, a knowledge graph,
         automated data ingestion pipelines, and multi-agent collaboration — all running on EKS. Here's what I learned.
     </p>
 
@@ -364,7 +364,7 @@
             <rect x="40" y="170" width="640" height="110" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" />
             <rect x="40" y="170" width="640" height="28" rx="8" fill="#3b82f6" />
             <rect x="40" y="188" width="640" height="10" fill="#3b82f6" />
-            <text x="360" y="189" text-anchor="middle" font-size="13" font-weight="600" fill="white">TOOL LAYER — 33
+            <text x="360" y="189" text-anchor="middle" font-size="13" font-weight="600" fill="white">TOOL LAYER — 35
                 Specialized Functions</text>
 
             <!-- Tool boxes -->
@@ -449,8 +449,8 @@ def write_knowledge_graph(nodes: list, edges: list) -> dict:
     return {"written": len(nodes) + len(edges)}
 
 agent = Agent(
-    model="us.anthropic.claude-sonnet-4-6-v1",
-    tools=[query_data_lake, write_knowledge_graph, ...],  # 33 tools
+    model="us.anthropic.claude-sonnet-4-6",
+    tools=[query_data_lake, write_knowledge_graph, ...],  # 35 tools
     system_prompt=RESEARCH_PROMPT
 )
 
@@ -560,7 +560,7 @@ response = agent("What are the key pathways affected by BRCA1 mutations?")
             <path d="M530 160 L560 160" stroke="#059669" stroke-width="1.5" marker-end="url(#arrowGreen)" />
         </svg>
         <div class="diagram-caption">Figure 2: Knowledge compounding — later queries benefit from relationships
-            discovered by earlier queries</div>
+            discovered by earlier queries. Note: retrieval is exact-match and prefix-based; a paraphrased query ("DNA damage repair") does not automatically surface the BRCA1→HR edge without explicit entity normalization (e.g. HGNC synonym resolution).</div>
     </div>
 
     <p>The key design decisions:</p>
@@ -602,7 +602,7 @@ response = agent("What are the key pathways affected by BRCA1 mutations?")
 
     <div class="metric-grid">
         <div class="metric-card">
-            <div class="metric-value">33</div>
+            <div class="metric-value">35</div>
             <div class="metric-label">Specialized Tools</div>
         </div>
         <div class="metric-card">

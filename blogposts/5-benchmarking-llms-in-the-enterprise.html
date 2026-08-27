@@ -569,12 +569,15 @@
     <p>An LLM judge needs to be reproducible. If the judge silently changes between March and September, your
         longitudinal comparison is measuring judge drift and calling it model improvement.</p>
 
-    <p>So I went to pin the judge to a dated model snapshot, and found I couldn't. On the platform I'm using, the
-        globally-routed model endpoints — the ones with the throughput I needed — <strong>reject dated snapshot
-            identifiers entirely.</strong> They accept only the bare alias. It isn't solely a global-routing constraint
-        either; I have at least one regional endpoint that rejects a dated snapshot the same way, so test the exact
-        identifier you intend to pin rather than reasoning from the routing tier. The one model whose dated snapshot did
-        resolve was a small fast model, too weak to judge expert-domain answers.</p>
+    <p>So I went to pin the judge to a dated model snapshot, and found I couldn't — but not for the reason I expected.
+        The barrier isn't the routing tier: globally-routed endpoints don't categorically reject dated identifiers. The
+        problem is that the newest model releases simply have no dated identifier to use. A model like
+        <code>anthropic.claude-opus-5</code> has no date component in its ID at all — there is no
+        <code>opus-5-20260101</code> variant to pin to. The models that did expose a dated snapshot identifier were
+        older or weaker. The one whose snapshot resolved was a small fast model, too weak to judge expert-domain
+        answers. <strong>Test the exact identifier you intend to pin against the actual API</strong> rather than
+        reasoning from the routing tier — the barrier to pinning is in the model catalogue, not the endpoint
+        configuration.</p>
 
     <p>That leaves three honest options: accept an unpinnable alias, accept a weaker but pinnable judge, or don't have a
         judge. I took the first, behind an explicit configuration flag so it's a visible decision rather than an
@@ -667,7 +670,7 @@
     <p>Everything above is engineering. The actual critical path is human: <strong>who says the ground truth is
             correct?</strong></p>
 
-    <p>Of my 33 challenges, 23 need sign-off from someone qualified in that domain. I can author a plausible answer key
+    <p>Of my 33 challenges, 24 need sign-off from someone qualified in that domain. I can author a plausible answer key
         for domains I know well; for the rest, an unreviewed answer key means the benchmark measures <em>my</em>
         misconceptions and reports them as model errors.</p>
 

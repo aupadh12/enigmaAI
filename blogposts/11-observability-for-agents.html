@@ -168,7 +168,8 @@
 
 <p><strong>Ingestion health metrics:</strong></p>
 
-<pre><code># Pushed by the CronJob at end of each run
+<pre><code># Pushed to Pushgateway at end of each CronJob run
+# (CronJob pods exit after completion and cannot be scraped directly)
 ingestion_last_success_timestamp{source="string"}   → Unix timestamp
 ingestion_row_count{source="string"}                → count of rows written
 ingestion_duration_seconds{source="string"}         → job duration
@@ -176,7 +177,8 @@ ingestion_duration_seconds{source="string"}         → job duration
 # Alert rule: source is stale
 alert: IngestionStale
 expr: time() - ingestion_last_success_timestamp > 86400  # 24h
-labels: severity: warning</code></pre>
+labels:
+  severity: warning</code></pre>
 
 <p>These fire before a user discovers stale data in a query. The alert lands in Slack 24 hours after a missed ingestion, not two days later when someone reports a suspicious answer.</p>
 
@@ -190,7 +192,7 @@ labels: severity: warning</code></pre>
     <p><strong>The pod restart trap:</strong> a pod that restarts every few hours looks healthy in Prometheus if you're only watching <code>kube_pod_status_ready</code>. It's ready most of the time. What it's doing is getting liveness-killed mid-request, recovering, serving the next request normally, and then getting killed again. The metric you need is <code>kube_pod_container_status_restarts_total</code> with a rate over a window that covers your request duration. If restarts per hour is greater than zero during business hours, something is killing in-flight requests and users are seeing unexplained failures.</p>
 </div>
 
-<h3>Layer 3: Cost and Model Health (CloudWatch + Bedrock)</h3>
+<h3>Layer 3: Token Usage and Throttling (CloudWatch) + Cost Attribution (offline join)</h3>
 
 <p>Bedrock emits invocation metrics to CloudWatch automatically: token counts, latency, throttle events, cache hit/miss. I added a Grafana dashboard panel for these early on and it paid off within two weeks.</p>
 
@@ -215,8 +217,8 @@ labels: severity: warning</code></pre>
 <pre><code># Set once at request entry point
 request_id = str(uuid4())  # or use the Langfuse trace ID directly
 
-# Langfuse — set as trace metadata
-langfuse.trace(id=trace_id, session_id=session_id, user_id=user_id)
+# Langfuse — set as trace metadata (SDK v3+)
+langfuse.update_current_trace(session_id=session_id, user_id=user_id)
 
 # Prometheus — add as label (keep cardinality low — use session, not request)
 agent_query_duration_seconds.labels(

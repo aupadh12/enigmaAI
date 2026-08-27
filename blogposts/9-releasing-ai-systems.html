@@ -163,11 +163,15 @@
 
 <p>Image tags in Kubernetes manifests. This is what a tag bump updates. It's important, but it's also the smallest part of the problem. On my system it covers 12 manifests: 8 deployments, 4 CronJobs.</p>
 
-<pre><code>find . -name "container.yaml" | xargs grep -l "experagent" | wc -l
-# 12 — not 8, not 14. Discover, don't count from memory.</code></pre>
+<pre><code># Jenkins build descriptors — one per image (not the manifest count)
+find . -name "container.yaml" | xargs grep -l "experagent"
+
+# Tagged Kubernetes manifests — separate grep, separate count
+grep -rln "experagent:v\|experagent-ui:v" apps/experagent/ --include="*.yaml" | sort
+# Discover each set independently. Don't count from memory.</code></pre>
 
 <div class="warn-box">
-    <p><strong>Even here, count by discovery.</strong> I had "14 files" in my head from the last release. The actual number was 12. The runner image has a separate lifecycle and should not be swept into a global find-replace. Grepping for the pattern is the only reliable count.</p>
+    <p><strong>Even here, count by discovery — and keep the two sets separate.</strong> <code>container.yaml</code> files are Jenkins build descriptors, not deploy manifests; they return a different count. Tagged Kubernetes manifests need their own grep. I had "14 manifests" in my head from the last release and conflated the two. The runner image has a separate lifecycle and should not be swept into a global find-replace. Grepping for each pattern independently is the only reliable count.</p>
 </div>
 
 <h3>Category 2: Human-facing version strings (the part everyone misses)</h3>
@@ -214,7 +218,8 @@
 
 <p>They are not linked. They are not synced by any tool. If you edit the <code>docs/</code> copy and re-export the SVG, the UI still serves the old copy from <code>static/</code>. The only verification is a checksum comparison after you've manually copied both files:</p>
 
-<pre><code>md5 -q docs/experagent.drawio
+<pre><code># macOS/BSD: md5 -q; Linux: md5sum
+md5 -q docs/experagent.drawio
 md5 -q experagent-ui/static/drawio/experagent.drawio
 # These must match. If they don't, one copy was missed.</code></pre>
 
@@ -246,7 +251,7 @@ async def get_skills(domain: str) -> dict:
 <p>The checklist I now use for every release has 30 items across 6 sections. The test for "done" is not "I updated the files I remembered." It's: running a discovery grep prints nothing.</p>
 
 <pre><code># Section D: verify no stale version strings remain
-grep -rn "v21\.2\|v21\.1\|v20\." \
+grep -Ern "v21\.2|v21\.1|v20\." \
   --include="*.html" --include="*.svelte" --include="*.md" \
   experagent-ui/src/ docs/
 # Must print nothing before the release is complete.</code></pre>

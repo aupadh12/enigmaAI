@@ -179,7 +179,7 @@
     Always call this before analyzing data from an unfamiliar source.
     """
     s3_key = f"skills/{domain}.json"
-    obj = await s3_client.get_object(Bucket=SKILLS_BUCKET, Key=s3_key)
+    obj = await s3_client.get_object(Bucket=SKILLS_BUCKET, Key=s3_key)  # Requires aioboto3, not boto3
     return json.loads(await obj["Body"].read())</code></pre>
 
 <p>That last line is the part that bit me for three months. The agent reads from S3. Editing the Python definition of the skill changes nothing at runtime until you overwrite the S3 object. I updated the interaction score cutoff recommendation in the code, rebuilt the container, deployed it, and the agent kept applying the old cutoff for a week before I realized why.</p>
@@ -204,7 +204,7 @@
 
 <p><strong>I assumed the agent would always call get_skills.</strong> It doesn't, unless the system prompt says to. I added an explicit instruction: "When working with data from a new source, call get_skills before beginning analysis." Without that, the agent would skip the skill call when it felt confident enough to proceed without it — which is exactly the situation where a skill is most needed. Confidence is not a reliable signal that the agent has the right domain context.</p>
 
-<p><strong>I put the skills in one place.</strong> I built a single-agent system first, then split into a multi-agent architecture. When I split, I added <code>get_skills</code> to the primary agent but forgot to add it to the three specialist subagents. For weeks, the Data Scout subagent was retrieving and analyzing data without domain context, while the primary agent was answering final questions with correct context about data it hadn't itself retrieved. The error was subtle: final answers looked reasonable because the primary agent had the skill, but the intermediate analysis the specialist did was applying wrong defaults. Add <code>get_skills</code> to every agent that touches domain data, not just the one that produces the final answer.</p>
+<p><strong>I put the skills in one place.</strong> I built a single-agent system first, then split into a multi-agent architecture. When I split, I added <code>get_skills</code> to the primary agent but forgot to add it to the four specialist subagents. For weeks, the Data Scout subagent was retrieving and analyzing data without domain context, while the primary agent was answering final questions with correct context about data it hadn't itself retrieved. The error was subtle: final answers looked reasonable because the primary agent had the skill, but the intermediate analysis the specialist did was applying wrong defaults. Add <code>get_skills</code> to every agent that touches domain data, not just the one that produces the final answer.</p>
 
 <div class="highlight-box">
     <p><strong>The version that works:</strong> each specialist agent calls get_skills for the specific source it's working with. The primary orchestrator calls get_skills for the overall domain. Both skill calls happen before any data retrieval. The specialist's skill covers "how to read this source correctly"; the orchestrator's skill covers "how to synthesize results from multiple sources in this domain." They're different questions and benefit from different answers.</p>
