@@ -1055,7 +1055,7 @@
         <div class="stat-label">Years in Enterprise Cloud</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">17</div>
+        <div class="stat-number">23</div>
         <div class="stat-label">Published Technical Posts</div>
       </div>
       <div class="stat-card">
@@ -1117,13 +1117,14 @@
         <span class="tag-pill" data-tag="learning">Learning</span>
         <span class="tag-pill" data-tag="mlops">MLOps</span>
         <span class="tag-pill" data-tag="architecture">Architecture</span>
+        <span class="tag-pill" data-tag="gitops">GitOps</span>
       </div>
     </div>
 
     <main>
       <div class="list-head">
         <span>Posts</span>
-        <span id="post-count">17 entries</span>
+        <span id="post-count">23 entries</span>
       </div>
 
       <!-- No Results State -->
@@ -1456,6 +1457,120 @@
           <h3>EKS or Managed Agent Runtime? A Framework for the Decision You'll Face Twice</h3>
           <p>The migration looked straightforward. Then we found five categories of blockers. Here's the framework we
             wish we'd had before we started.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
+
+      <a class="post animate-in" href="blogposts/18-aws-datasync-cross-account-s3.html" data-tag="data-engineering"
+        data-title="aws datasync s3 cross account transfer without the surprises"
+        data-desc="the console cant see the bucket the role goes in the destination account kms is always the first thing that breaks heres the complete playbook">
+        <span class="post-idx">18</span>
+        <div class="post-body">
+          <div class="post-meta">
+            <span>Data Engineering</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 30, 2026</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">11 min read</span>
+          </div>
+          <h3>AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises</h3>
+          <p>The console can't see the bucket. The role goes in the destination account. KMS is always the first thing
+            that breaks. Here's the complete playbook.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
+
+      <a class="post animate-in" href="blogposts/19-irsa-cross-account-assumerole.html" data-tag="architecture"
+        data-title="the two hop iam pattern irsa plus cross account assumerole on eks"
+        data-desc="hop 1 eks pod gets irsa credentials hop 2 assumes a role in a different account wire both hops without creating a credential management nightmare">
+        <span class="post-idx">19</span>
+        <div class="post-body">
+          <div class="post-meta">
+            <span>IAM &amp; Identity</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 30, 2026</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">10 min read</span>
+          </div>
+          <h3>The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS</h3>
+          <p>Hop 1: EKS pod gets IRSA credentials. Hop 2: assumes a role in a different account. Here's how to wire
+            both hops without creating a credential management nightmare.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
+
+      <a class="post animate-in" href="blogposts/20-argocd-multisource-helm-gitops.html" data-tag="gitops"
+        data-title="argocd multi source helm decoupling chart versions from configuration"
+        data-desc="one source for the chart in your registry one source for the values in git they version independently and that changes everything about how you manage environments">
+        <span class="post-idx">20</span>
+        <div class="post-body">
+          <div class="post-meta">
+            <span>GitOps</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 30, 2026</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">12 min read</span>
+          </div>
+          <h3>ArgoCD Multi-Source Helm: Decoupling Chart Versions from Configuration</h3>
+          <p>One source for the chart in your registry. One source for the values in Git. They version independently —
+            and that changes everything about how you manage environments.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
+
+      <a class="post animate-in" href="blogposts/21-cross-account-cloudwatch-region-trap.html" data-tag="observability"
+        data-title="cross account cloudwatch the silent zero and how to prevent it"
+        data-desc="you query cloudwatch you get zero results no error the logs are there in a different region heres how to build multi account extraction that doesnt silently fail">
+        <span class="post-idx">21</span>
+        <div class="post-body">
+          <div class="post-meta">
+            <span>Observability</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 30, 2026</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">11 min read</span>
+          </div>
+          <h3>Cross-Account CloudWatch: The Silent Zero and How to Prevent It</h3>
+          <p>You query CloudWatch. You get zero results. No error. The logs are there — in a different region. Here's
+            how to build multi-account extraction that doesn't silently fail.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
+
+      <a class="post animate-in" href="blogposts/22-data-infrastructure-quality-ai-readiness.html" data-tag="data-engineering"
+        data-title="data infrastructure quality for ai readiness lessons from production pipelines"
+        data-desc="ai systems are only as good as the data pipelines that feed them heres how to build infrastructure that produces genuinely ai ready data and the silent failures that break it before training starts">
+        <span class="post-idx">22</span>
+        <div class="post-body">
+          <div class="post-meta">
+            <span>Data Engineering</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 30, 2026</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">13 min read</span>
+          </div>
+          <h3>Data Infrastructure Quality for AI Readiness: Lessons from Production Pipelines</h3>
+          <p>AI systems are only as good as the data pipelines that feed them. Here's how to build infrastructure that
+            produces genuinely AI-ready data — and the silent failures that break it before training starts.</p>
+          <span class="read-more">Read →</span>
+        </div>
+      </a>
+
+      <a class="post animate-in" href="blogposts/23-langfuse-llm-observability.html" data-tag="observability"
+        data-title="langfuse in production llm observability beyond console logs"
+        data-desc="every trace every cost every prompt version every evaluation score your agent answered a question was it correct how long did it take what did it cost langfuse answers all of those">
+        <span class="post-idx">23</span>
+        <div class="post-body">
+          <div class="post-meta">
+            <span>Observability</span>
+            <span class="meta-sep">·</span>
+            <span class="post-date">Aug 30, 2026</span>
+            <span class="meta-sep">·</span>
+            <span class="post-reading-time">14 min read</span>
+          </div>
+          <h3>Langfuse in Production: LLM Observability Beyond Console Logs</h3>
+          <p>Your agent answered a question. Was it correct? How long did it take? What did it cost? Did it use the
+            right prompt version? Langfuse answers all of those — and makes the answers actionable.</p>
           <span class="read-more">Read →</span>
         </div>
       </a>

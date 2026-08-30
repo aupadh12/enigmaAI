@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArgoCD Multi-Source Helm: Decoupling Chart Versions from Configuration</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="ArgoCD Multi-Source Helm: Decoupling Chart Versions from Configuration">
+    <meta property="og:description" content="The chart lives in your Helm registry. The values live in Git. ArgoCD's multi-source feature makes them independently versioned — and it changes how you think about environment promotion.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/20-argocd-multisource-helm-gitops.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/20-argocd-multisource-helm-gitops.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ArgoCD Multi-Source Helm: Decoupling Chart Versions from Configuration">
+    <meta name="twitter:description" content="The chart lives in your Helm registry. The values live in Git. ArgoCD's multi-source feature makes them independently versioned — and it changes how you think about environment promotion.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/20-argocd-multisource-helm-gitops.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/20-argocd-multisource-helm-gitops.png" alt="Blog cover">
+
+<div class="header-badge">GitOps</div>
+<h1>ArgoCD Multi-Source Helm: Decoupling Chart Versions from Configuration</h1>
+<p class="subtitle">One source for the chart in your registry. One source for the values in Git. They version independently — and that changes everything about how you manage environments.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · August 2026</div>
+    </div>
+</div>
+
+<p>Managing Helm deployments with ArgoCD starts simple and quietly becomes a versioning problem. The chart and the configuration live in the same place. Every environment update touches the same files as chart code changes. CI pipelines and ops workflows contend for the same repository. At some point you realize you've coupled two things that had no reason to be coupled.</p>
+
+<p>ArgoCD's multi-source feature solves this. The chart lives in a Helm registry — OCI or HTTP. The values live in a GitOps configuration repository. They evolve on independent timelines, versioned separately, bumped by different systems. This post covers the three patterns this enables and the operational conventions that make them work in practice.</p>
+
+<h2>The Problem with Single-Source Helm GitOps</h2>
+
+<p>The conventional ArgoCD pattern stores the Helm chart and its values in the same repository — or at minimum the same ArgoCD Application manifest. This works until you have more than one environment. Then you end up with one of two uncomfortable choices:</p>
+
+<ul>
+    <li><strong>Values in the chart repo</strong> — every environment gets a <code>values-dev.yaml</code>, <code>values-prod.yaml</code> alongside chart code. Ops changes and application code changes land in the same pull requests. The git history becomes unreadable.</li>
+    <li><strong>Separate config repo, chart bundled</strong> — you vendor the entire chart into your config repo and update it manually on each release. A 200-line chart becomes a maintenance liability.</li>
+</ul>
+
+<p>In both cases, the chart version and the environment configuration are entangled. A chart update requires touching the configuration repo. A configuration change carries implicit risk of also picking up a chart version change. The coupling isn't necessary — it's a consequence of the tooling forcing everything into one source.</p>
+
+<p>Multi-source removes the constraint. The chart comes from wherever charts live — your registry, a public Helm repo, OCI. The values come from your GitOps config repo. ArgoCD renders them together at sync time. Neither source knows about the other's versioning.</p>
+
+<h2>The <code>ref: values</code> Pattern</h2>
+
+<p>The mechanism is a <code>ref</code> label on a source in the <code>sources</code> array. A source with a <code>ref</code> is not rendered or deployed — it's a carrier. Other sources in the same Application can reference files from it using the <code>$ref-name/</code> prefix in their <code>valueFiles</code> list.</p>
+
+<pre><code>apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-prod
+  namespace: argocd
+spec:
+  project: my-project
+  destination:
+    namespace: my-app-prod
+    name: in-cluster
+  sources:
+    - repoURL: 'https://registry.example.com/helm-charts'
+      chart: my-app
+      targetRevision: 2.1.0
+      helm:
+        valueFiles:
+          - $values/apps/my-app/values-prod.yaml
+    - repoURL: 'https://git.example.com/scm/myteam/k8s-config.git'
+      targetRevision: main
+      ref: values
+  syncPolicy:
+    automated:
+      prune: true
+    syncOptions:
+      - CreateNamespace=true</code></pre>
+
+<p>The second source — the Git repo — is declared with <code>ref: values</code>. It is never deployed. Its files become available to the first source as <code>$values/path/to/file</code>. The chart renders with the values from the config repo at sync time.</p>
+
+<div class="highlight-box">
+    <p><strong>Always use the <code>$values/</code> prefix in <code>valueFiles</code>.</strong> Without it, ArgoCD looks for the values file inside the chart source — which doesn't have it. The resulting error ("file not found") doesn't always make the cause obvious. The prefix is what tells ArgoCD which source to pull the file from.</p>
+</div>
+
+<p>Bumping the chart is a one-line change to <code>targetRevision</code> in the Application manifest. Bumping the environment config is a commit to the values Git repo. Neither affects the other. CI publishes chart releases; ops manages configuration changes. They're decoupled because they should be.</p>
+
+<h2>Pattern 1: Static Application (Pinned Version)</h2>
+
+<p>For production environments, you want explicit control over every version transition. The chart version is pinned. Nothing auto-updates. A deliberate commit to the ArgoCD manifests repo is required to move forward.</p>
+
+<pre><code>apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-prod
+  namespace: argocd
+spec:
+  project: my-project
+  destination:
+    namespace: my-app-prod
+    name: in-cluster
+  sources:
+    - repoURL: 'https://registry.example.com/helm-charts'
+      chart: my-app
+      targetRevision: 2.1.0          # pinned — never auto-updated
+      helm:
+        valueFiles:
+          - $values/apps/my-app/values-prod.yaml
+    - repoURL: 'https://git.example.com/scm/myteam/k8s-config.git'
+      targetRevision: main
+      ref: values
+  syncPolicy:
+    automated:
+      prune: true                    # removes resources removed from chart
+    syncOptions:
+      - CreateNamespace=true</code></pre>
+
+<p>The bump workflow: CI publishes a release chart (e.g., <code>2.2.0</code>). A pull request updates <code>targetRevision: 2.2.0</code> in the Application manifest. The PR is reviewed, merged, and ArgoCD picks up the change. The entire promotion is auditable in git history — who changed it, when, and why.</p>
+
+<p><code>syncPolicy.automated.prune: true</code> is worth noting explicitly. Without it, resources that were in a previous chart version but removed in the new version linger in the cluster. Pruning cleans them up automatically on sync. Enable it for production when you're confident your chart changes are intentional.</p>
+
+<h2>Pattern 2: ApplicationSet with Prerelease Tag Plugin</h2>
+
+<p>Dev environments should track the latest in-progress chart version without manual intervention. An ApplicationSet generator plugin polls your chart registry for the highest version matching a prerelease tag (e.g., <code>beta</code>) and automatically updates <code>targetRevision</code>.</p>
+
+<pre><code>apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: my-app-dev
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - plugin:
+        configMapRef:
+          name: prereleasetagplugin-cm
+        input:
+          parameters:
+            chartRepo: "my-helm-charts"
+            chartName: "my-app"
+            prereleaseTag: "beta"
+        requeueAfterSeconds: 30
+  template:
+    metadata:
+      name: "my-app-dev"
+    spec:
+      project: my-project
+      destination:
+        namespace: my-app-dev
+        name: in-cluster
+      sources:
+        - repoURL: 'https://registry.example.com/helm-charts'
+          chart: my-app
+          targetRevision: '{{ .highestTag }}'
+          helm:
+            valueFiles:
+              - $values/apps/my-app/values-dev.yaml
+        - repoURL: 'https://git.example.com/scm/myteam/k8s-config.git'
+          targetRevision: main
+          ref: values
+      syncPolicy:
+        automated:
+          prune: true</code></pre>
+
+<p>The plugin runs every 30 seconds. When CI publishes <code>2.2.0-beta</code>, the generator detects it, <code>{{ .highestTag }}</code> resolves to <code>2.2.0-beta</code>, and ArgoCD redeploys the dev environment automatically. No manifest commit required. No human in the loop for dev updates.</p>
+
+<p>The plugin is a custom ArgoCD ApplicationSet generator deployed in the cluster. It queries the Helm registry API, applies the prerelease tag filter, and returns the highest matching version as <code>highestTag</code>. The implementation is straightforward — a small HTTP service with a <code>/api/v1/getparams.execute</code> endpoint registered via a ConfigMap.</p>
+
+<h2>Pattern 3: ApplicationSet with Pull Request Generator</h2>
+
+<p>For ephemeral per-PR environments, the pull request generator watches your Git server for open pull requests and creates an ArgoCD Application per PR. When the PR closes, ArgoCD prunes the Application — but does not automatically delete the namespace (see the note below on namespace cleanup).</p>
+
+<pre><code>apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: my-app-pr
+  namespace: argocd
+spec:
+  generators:
+    - pullRequest:
+        bitbucketServer:
+          project: MYPROJECT
+          repo: my-app-repo
+          api: https://git.example.com
+          basicAuth:
+            username: svc-argocd
+            passwordRef:
+              secretName: argocd-bitbucket-creds
+              key: password
+        filters:
+          - branchMatch: "(feature|hotfix|bugfix)/.*"
+        requeueAfterSeconds: 180
+  template:
+    metadata:
+      name: 'my-app-{{branch_slug}}'
+    spec:
+      source:
+        repoURL: 'https://git.example.com/scm/myteam/my-app.git'
+        targetRevision: '{{branch}}'
+        path: my-app/_scm_helm
+        helm:
+          parameters:
+            - name: "image.tag"
+              value: "{{head_sha}}"
+      destination:
+        namespace: 'my-app-pr-{{number}}'
+        name: in-cluster
+      project: my-project
+      syncPolicy:
+        automated:
+          prune: true
+        syncOptions:
+          - CreateNamespace=true</code></pre>
+
+<p>Each open PR matching the branch filter gets its own namespace. The image tag is injected from the PR's head commit SHA — no separate values file needed for this. When the PR merges or closes, ArgoCD prunes the generated Application. However, ArgoCD does not automatically delete the namespace itself — generated namespaces are not tracked by ArgoCD. You must add a cleanup mechanism (e.g., a <code>ResourceHook</code>, a Kubernetes Job triggered on sync, or an external controller) if you want the namespace fully removed after the Application is pruned.</p>
+
+<div class="warn-box">
+    <p><strong>The PR generator requires a service account credential with read access to your Git server.</strong> In enterprise environments with token rotation policies, an expired credential silently stops PR environment creation — no error surfaces in the ArgoCD UI. Monitor the credential expiry and rotate it before it expires, not after engineers start wondering why their PR environment didn't appear.</p>
+</div>
+
+<h2>The App of Apps (Root Driver)</h2>
+
+<p>The Application and ApplicationSet manifests shown above are themselves Kubernetes resources — someone has to apply them. The App of Apps pattern handles this: one root Application watches a directory in your config repo. Any YAML file added to that directory is automatically deployed as an ArgoCD Application.</p>
+
+<pre><code>apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-driver
+  namespace: argocd
+spec:
+  project: my-project
+  source:
+    repoURL: 'https://git.example.com/scm/myteam/k8s-config.git'
+    targetRevision: main
+    path: _scm_argocd/my-cluster
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true</code></pre>
+
+<p>To add a new application to the cluster: create <code>_scm_argocd/my-cluster/my-new-app.yaml</code>, commit, push. The root driver detects the new file and ArgoCD deploys it. The only manual step is bootstrapping the root driver itself — a one-time <code>kubectl apply</code> per cluster.</p>
+
+<p><code>selfHeal: true</code> on the root driver is important. It means ArgoCD continuously reconciles the root Application back to what's in Git, even if someone manually applies or modifies ArgoCD Application manifests directly. Without it, a manual <code>kubectl apply</code> to the ArgoCD namespace can create drift that silently persists.</p>
+
+<h2>Per-Environment Values Convention</h2>
+
+<p>Values files are the per-environment configuration layer. A consistent naming convention makes the system navigable:</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>File</th>
+            <th>Environment</th>
+            <th>How chart version is set</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>values-dev.yaml</code></td>
+            <td>Development</td>
+            <td>Prerelease tag plugin auto-updates to latest beta</td>
+        </tr>
+        <tr>
+            <td><code>values-qa.yaml</code></td>
+            <td>QA / Staging</td>
+            <td>Manual bump or Kargo promotion from dev</td>
+        </tr>
+        <tr>
+            <td><code>values-rc.yaml</code></td>
+            <td>Release candidate</td>
+            <td>Manual bump to release candidate version</td>
+        </tr>
+        <tr>
+            <td><code>values-prod.yaml</code></td>
+            <td>Production</td>
+            <td>Pinned version, manual bump via PR</td>
+        </tr>
+        <tr>
+            <td><code>values-pr.yaml</code></td>
+            <td>Pull request (ephemeral)</td>
+            <td><code>head_sha</code> injected per-PR, no static values file needed</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>Values files typically differ by: replica count, database name or schema, domain/subdomain, resource limits, and feature flags. Everything else inherits chart defaults. Keeping values files minimal — only what differs per environment — reduces the surface area for environment-specific bugs.</p>
+
+<h2>What Stays Your Problem</h2>
+
+<div class="warn-box">
+    <p><strong>Multi-source handles structure; it doesn't automate promotion.</strong> Getting a verified chart version from dev through qa to prod on a controlled schedule is a separate problem. Multi-source gives you the right shape — independently versioned chart and config — but the actual promotion flow (dev → qa → prod) still needs a tool like Kargo or a purpose-built script that opens PRs to bump <code>targetRevision</code> in the correct values file at the right time.</p>
+</div>
+
+<p>The other things that remain your responsibility:</p>
+
+<ul>
+    <li><strong>Chart maintainability</strong> — multi-source doesn't fix a chart with too many values or poorly structured defaults. The Helm chart still needs to be designed for configurability.</li>
+    <li><strong>Registry credentials</strong> — if your Helm registry requires authentication, ArgoCD needs repository credentials configured. Rotation is your operational concern.</li>
+    <li><strong>Git server credentials for ApplicationSets</strong> — the PR generator credential (as noted above) needs monitoring.</li>
+    <li><strong>Namespace cleanup</strong> — <code>prune: true</code> handles resources inside an Application, but the namespace itself requires <code>CreateNamespace=true</code> and an equivalent cleanup hook if you want the namespace removed when the Application is pruned.</li>
+</ul>
+
+<h2>One Pattern, Three Generators</h2>
+
+<p>The three patterns share the same underlying structure: multi-source Helm with <code>$values/</code> references. What changes is who controls <code>targetRevision</code>:</p>
+
+<ul>
+    <li><strong>Static Application</strong> — a human (or Kargo) controls <code>targetRevision</code> via a PR</li>
+    <li><strong>Prerelease tag plugin</strong> — the registry controls <code>targetRevision</code> automatically as new beta charts are published</li>
+    <li><strong>PR generator</strong> — the source branch controls revision; <code>targetRevision</code> tracks the PR branch directly</li>
+</ul>
+
+<p>Choosing the right generator for each environment is the main design decision. Production should never use the prerelease plugin — you want explicit control. Dev should never require manual bumps — it defeats the purpose of a dev environment. QA sits in between: auto-promote from dev via Kargo, but require a human gate before prod.</p>
+
+<div class="green-box">
+    <p><strong>The config repo becomes the single source of truth for what is deployed where.</strong> Every environment's chart version and configuration is readable from one Git repository, without needing to query the cluster or dig through ArgoCD's UI. The history is the audit log. The diff is the change record. This is what GitOps is supposed to be.</p>
+</div>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>Multi-source Helm decouples chart versioning from configuration versioning. Both evolve independently via their own repositories and pipelines.</li>
+        <li>The <code>ref: values</code> source is a carrier only — it is never deployed, just referenced. Use <code>$values/</code> prefix in <code>valueFiles</code> to access it.</li>
+        <li>Three ApplicationSet generators cover the three main use cases: static Application for production (pinned, explicit), prerelease tag plugin for dev (automatic), pull request generator for ephemeral per-PR environments.</li>
+        <li>App of Apps bootstraps the system: one root Application watches a directory; adding a YAML file to Git deploys it automatically with no manual <code>kubectl apply</code>.</li>
+        <li>Multi-source handles structure — not promotion. For controlled dev→qa→prod transitions, pair it with Kargo or a purpose-built promotion mechanism.</li>
+        <li>PR generator credentials require monitoring in enterprise environments. An expired token silently stops environment creation with no alert.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">ArgoCD</span>
+    <span class="tag">Helm</span>
+    <span class="tag">GitOps</span>
+    <span class="tag">ApplicationSet</span>
+    <span class="tag">Kubernetes</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

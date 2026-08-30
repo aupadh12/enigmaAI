@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS">
+    <meta property="og:description" content="Your EKS pod needs credentials in six different AWS accounts. IRSA gets you one hop. A second AssumeRole call gets you anywhere. Here's how to wire both correctly.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/19-irsa-cross-account-assumerole.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/19-irsa-cross-account-assumerole.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS">
+    <meta name="twitter:description" content="Your EKS pod needs credentials in six different AWS accounts. IRSA gets you one hop. A second AssumeRole call gets you anywhere. Here's how to wire both correctly.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/19-irsa-cross-account-assumerole.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/19-irsa-cross-account-assumerole.png" alt="Blog cover">
+
+<div class="header-badge">IAM &amp; Identity</div>
+<h1>The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS</h1>
+<p class="subtitle">Your pod gets credentials from IRSA. Then it assumes a role in a different account. Here's how to wire both hops without creating a credential management nightmare.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · August 2026</div>
+    </div>
+</div>
+
+<p>IRSA (IAM Roles for Service Accounts) solves the credential problem for EKS workloads that only need access to resources in their own AWS account. The moment your pod needs to reach a resource in a different account — CloudWatch logs here, an S3 bucket there, a DynamoDB table somewhere else — IRSA alone isn't enough. You need a second hop.</p>
+
+<p>The two-hop pattern is the standard solution: IRSA gets the pod an identity in the home account, then the application code calls <code>sts:AssumeRole</code> to get credentials in the target account. Done right, it's clean and auditable. Done wrong, it produces intermittent <code>ExpiredTokenException</code> errors at 3 AM and confused-deputy vulnerabilities in your trust policies.</p>
+
+<p>Here's how to wire it correctly.</p>
+
+<h2>Why One IAM Role Isn't Enough</h2>
+
+<p>An IRSA role is scoped to a single AWS account — the account where the EKS cluster runs. Its trust policy names the cluster's OIDC provider as the trusted principal, and conditions lock it to a specific Kubernetes ServiceAccount. That's the right boundary for workload identity. But it means an IRSA role can only directly access resources in the same account.</p>
+
+<p>When your workload spans accounts — reading usage metrics from multiple AWS accounts, federating data from different environments, or querying resources that live in separate accounts for governance reasons — you need credentials in each of those accounts. The clean way to get them: the IRSA role in the home account assumes a role in each target account. Each assumption is explicit, auditable, and controlled by trust policies that you own.</p>
+
+<div class="diagram-container">
+<pre style="background:#f8fafc; color:#1e293b; font-size:13px;">
+Hop 1: OIDC Web Identity
+─────────────────────────────────────────────────────────
+  EKS Pod                     Home Account
+  ┌──────────────────┐         ┌──────────────────────────┐
+  │  Kubernetes      │  OIDC   │  IRSA Role               │
+  │  ServiceAccount  │────────>│  (MyAppRole)             │
+  │  + token mount   │  token  │  trust: OIDC provider    │
+  └──────────────────┘  xchg   │  condition: sub + aud    │
+                               └──────────────────────────┘
+
+Hop 2: sts:AssumeRole
+─────────────────────────────────────────────────────────
+  Home Account                  Target Accounts
+  ┌──────────────────────────┐  ┌──────────────────────────┐
+  │  IRSA Role               │  │  Target Role A           │
+  │  (MyAppRole)             │─>│  trust: MyAppRole ARN    │
+  │  policy: sts:AssumeRole  │  │  perms: CloudWatch read  │
+  │  Resource: [role A,      │  └──────────────────────────┘
+  │             role B, ...]  │  ┌──────────────────────────┐
+  └──────────────────────────┘  │  Target Role B           │
+                                │  trust: MyAppRole ARN    │
+                                │  perms: S3 read          │
+                                └──────────────────────────┘
+</pre>
+<p class="diagram-caption">Two independent trust chains. Hop 1 is OIDC web identity; Hop 2 is standard role assumption. Each has its own trust policy.</p>
+</div>
+
+<h2>Hop 1: IRSA — How the Credential Chain Works</h2>
+
+<p>IRSA works through OIDC federation. When your EKS cluster is created, AWS creates an OIDC identity provider for it. Each pod that needs AWS credentials runs with a projected ServiceAccount token — a short-lived JWT signed by the cluster's OIDC issuer. The AWS SDK's credential provider detects this token and calls <code>sts:AssumeRoleWithWebIdentity</code> to exchange it for temporary IAM credentials.</p>
+
+<p>The ServiceAccount annotation tells the SDK which role to request:</p>
+
+<pre><code>apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-app-sa
+  namespace: my-app
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::SOURCE_ACCOUNT_ID:role/MyAppRole"</code></pre>
+
+<p>The IAM role's trust policy specifies exactly which cluster and ServiceAccount can assume it:</p>
+
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "arn:aws:iam::SOURCE_ACCOUNT_ID:oidc-provider/oidc.eks.REGION.amazonaws.com/id/CLUSTER_ID"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "oidc.eks.REGION.amazonaws.com/id/CLUSTER_ID:sub": "system:serviceaccount:my-app:my-app-sa",
+        "oidc.eks.REGION.amazonaws.com/id/CLUSTER_ID:aud": "sts.amazonaws.com"
+      }
+    }
+  }]
+}</code></pre>
+
+<p>Three things to get right here:</p>
+<ul>
+    <li>The <code>sub</code> condition locks the trust to one specific ServiceAccount in one namespace. Change either and the token exchange fails.</li>
+    <li>The <code>aud</code> condition is strongly recommended hardening. Removing a condition can only widen access, never cause a denial — so omitting <code>aud</code> won't break anything, but it lets tokens with unexpected audience values be accepted. The <em>actual</em> source of cryptic <code>InvalidIdentityToken</code> errors is the OIDC identity provider object's configured audience list: it must include <code>sts.amazonaws.com</code>. That's set when you register the OIDC provider in IAM, not in the role trust policy. If you see token exchange failures after verifying the trust policy looks correct, check the provider's audience list first.</li>
+    <li>The <code>Federated</code> principal must be the full OIDC provider ARN — not just the issuer URL. The ARN has the format <code>arn:aws:iam::ACCOUNT_ID:oidc-provider/&lt;issuer-host&gt;</code>.</li>
+</ul>
+
+<h2>Hop 2: The IRSA Role Assumes a Target Account Role</h2>
+
+<p>With Hop 1 established, the pod has credentials for <code>MyAppRole</code> in the home account. To reach a target account, <code>MyAppRole</code> needs permission to call <code>sts:AssumeRole</code> against roles in that account:</p>
+
+<pre><code>{
+  "Effect": "Allow",
+  "Action": "sts:AssumeRole",
+  "Resource": [
+    "arn:aws:iam::TARGET_ACCOUNT_1:role/ReadRole",
+    "arn:aws:iam::TARGET_ACCOUNT_2:role/ReadRole"
+  ]
+}</code></pre>
+
+<p>In each target account, create a role whose trust policy explicitly trusts the home account's IRSA role:</p>
+
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "AWS": "arn:aws:iam::SOURCE_ACCOUNT_ID:role/MyAppRole"
+    },
+    "Action": "sts:AssumeRole"
+  }]
+}</code></pre>
+
+<div class="stale-box">
+    <p><strong>Common mistake:</strong> using <code>arn:aws:iam::SOURCE_ACCOUNT_ID:root</code> as the Principal. This <em>delegates</em> the trust to the entire source account — any principal in that account who has been explicitly granted <code>sts:AssumeRole</code> in their own identity policy can then assume the target role. It's bad practice because it widens the blast radius to anyone who can self-grant that permission, but the mechanism is delegation (not direct granting to every principal unconditionally). Always name the specific role ARN to eliminate that blast radius entirely.</p>
+</div>
+
+<p>Attach the needed permissions to the target role. For CloudWatch log extraction:</p>
+
+<pre><code>{
+  "Effect": "Allow",
+  "Action": [
+    "logs:FilterLogEvents",
+    "logs:DescribeLogGroups",
+    "logs:GetLogEvents"
+  ],
+  "Resource": "arn:aws:logs:*:TARGET_ACCOUNT_ID:log-group:/aws/your-log-group*:*"
+}</code></pre>
+
+<h2>In Application Code (Python / boto3)</h2>
+
+<p>The application calls <code>sts:AssumeRole</code> using the IRSA credentials it already has, then constructs a new boto3 client with the returned temporary credentials:</p>
+
+<pre><code>import boto3
+
+def get_cross_account_client(service: str, role_arn: str, region: str):
+    sts = boto3.client('sts')
+    assumed = sts.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName='my-app-cross-account-session'
+    )
+    creds = assumed['Credentials']
+    return boto3.client(
+        service,
+        region_name=region,
+        aws_access_key_id=creds['AccessKeyId'],
+        aws_secret_access_key=creds['SecretAccessKey'],
+        aws_session_token=creds['SessionToken']
+    )</code></pre>
+
+<p>For workloads that target a single alternate account, the common pattern is an environment variable that the application checks at startup:</p>
+
+<pre><code>import os
+import boto3
+
+role_arn = os.environ.get('AWS_ASSUME_ROLE_ARN')
+if role_arn:
+    client = get_cross_account_client('cloudwatch', role_arn, region)
+else:
+    client = boto3.client('cloudwatch', region_name=region)</code></pre>
+
+<p>This lets the same container image run in both same-account mode (no env var set) and cross-account mode (env var set to the target role ARN) without code changes.</p>
+
+<h2>The N-Account Pattern with Credential Caching</h2>
+
+<p>When your workload queries N different target accounts, calling <code>sts:AssumeRole</code> on every API call is wasteful — each assumption is a network round-trip, and <code>AssumeRole</code> calls are subject to account-level API rate limits. Caching credentials reduces your STS call volume — important for services that call multiple target accounts on every request. Cache the credentials for each <code>(service, role_arn, region)</code> combination and refresh proactively before the 1-hour default TTL expires:</p>
+
+<pre><code>from datetime import datetime, timezone
+from typing import Any
+
+_cred_cache: dict[tuple, tuple] = {}
+
+def get_cached_client(service: str, role_arn: str, region: str) -> Any:
+    key = (service, role_arn, region)
+    if key in _cred_cache:
+        client_kwargs, expiry = _cred_cache[key]
+        remaining = (expiry - datetime.now(timezone.utc)).total_seconds()
+        if remaining > 300:  # Renew 5 minutes before expiry
+            return boto3.client(service, region_name=region, **client_kwargs)
+
+    sts = boto3.client('sts')
+    assumed = sts.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName='my-app-session'
+    )
+    c = assumed['Credentials']
+    kwargs = dict(
+        aws_access_key_id=c['AccessKeyId'],
+        aws_secret_access_key=c['SecretAccessKey'],
+        aws_session_token=c['SessionToken']
+    )
+    _cred_cache[key] = (kwargs, c['Expiration'])
+    return boto3.client(service, region_name=region, **kwargs)</code></pre>
+
+<p>The 300-second renewal buffer gives your long-running sync windows enough time to complete even if a single window runs close to the credential expiry boundary. Adjust if your window sizes are larger.</p>
+
+<h2>Common Gotchas</h2>
+
+<div class="warn-box">
+    <p><strong>The <code>aud</code> condition is hardening, not a requirement.</strong> Removing a condition from a trust policy can only widen access, never cause a denial. The real source of <code>InvalidIdentityToken</code> exchange failures is the <strong>OIDC identity provider object's audience/client-ID list</strong> in IAM — it must include <code>sts.amazonaws.com</code>. That's configured when you register the OIDC provider, not in the role trust policy. If token exchange fails after the trust policy looks correct, check the provider's audience list in IAM → Identity providers → &lt;your provider&gt; → Audiences.</p>
+    <p><strong>Target role trust policy must name the role ARN, not <code>:root</code>.</strong> Using <code>arn:aws:iam::SOURCE_ACCOUNT_ID:root</code> as the Principal allows every IAM principal in the source account to assume the target role. This is almost never what you want. Use the exact role ARN.</p>
+    <p><strong>Credentials expire after 1 hour by default.</strong> A sync job that assumes a role at startup and runs for 90 minutes will hit <code>ExpiredTokenException</code> partway through without proactive renewal. The cache pattern above handles this; a single boto3 client created once at startup does not.</p>
+    <p><strong>KMS-encrypted resources require key policy changes.</strong> IAM policy alone is insufficient for KMS. If a target resource uses SSE-KMS, the assumed role must also be added as a key user in the KMS key policy in the target account. This is the most common AccessDenied that persists after the role trust setup looks correct.</p>
+</div>
+
+<div class="green-box">
+    <p><strong>Design rule: one IRSA role per workload identity.</strong> Map each Kubernetes ServiceAccount to exactly one IAM role. Multiple target account roles per IRSA role is fine and expected. Never share IRSA roles across workloads with different data access requirements — the <code>sub</code> condition on the trust policy exists precisely to enforce that boundary, and sharing defeats it.</p>
+</div>
+
+<h2>When to Use the Two-Hop Pattern</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Scenario</th>
+            <th>Approach</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Pod needs resources only in its own account</td>
+            <td class="decision-cell-green">IRSA only — no second hop needed</td>
+        </tr>
+        <tr>
+            <td>Pod needs resources in one other account</td>
+            <td class="decision-cell-green">IRSA + one target role, <code>AWS_ASSUME_ROLE_ARN</code> env var</td>
+        </tr>
+        <tr>
+            <td>Pod needs resources in N other accounts</td>
+            <td class="decision-cell-yellow">IRSA + N target roles, per-role credential cache</td>
+        </tr>
+        <tr>
+            <td>Target resources use KMS encryption</td>
+            <td class="decision-cell-yellow">Add assumed role as key user in each target account's KMS key policy</td>
+        </tr>
+        <tr>
+            <td>Session duration needed &gt; 1 hour</td>
+            <td class="decision-cell-red">IRSA + AssumeRole is role chaining — AWS hard-caps chained sessions at <strong>1 hour regardless of <code>DurationSeconds</code></strong>. Proactive credential refresh (re-calling <code>assume_role</code> before expiry) is the only solution on this path.</td>
+        </tr>
+        <tr>
+            <td>Same role needed by multiple workloads</td>
+            <td class="decision-cell-red">Don't share — create separate IRSA roles per ServiceAccount</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Putting It Together</h2>
+
+<p>The two-hop pattern is not complex — it's two trust policies, one inline policy, and a credential cache. The complexity is in the details that tutorials gloss over: the <code>aud</code> condition that's optional in the trust policy but whose equivalent on the OIDC provider object is not, the trust Principal that looks like it should be <code>:root</code> for flexibility but shouldn't be, the credentials that look valid but expire while your sync is still running.</p>
+
+<p>Once the pattern is wired correctly, adding a new target account is mechanical: create a role in the new account with the right trust policy and permissions, add its ARN to the <code>sts:AssumeRole</code> resource list on the home account IRSA role, and add it to your per-account configuration. The application code doesn't change.</p>
+
+<div class="highlight-box">
+    <p><strong>The correct mental model:</strong> IRSA establishes workload identity. The second hop establishes resource authorization in a different account. They're separate concerns with separate trust policies. Treat them that way and the pattern stays clean at N accounts.</p>
+</div>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>Two hops: IRSA (web identity, <code>AssumeRoleWithWebIdentity</code>) → target role (<code>AssumeRole</code>). Each hop has its own trust policy.</li>
+        <li>The <code>aud</code> condition in the IRSA trust policy is recommended hardening, not a requirement. The setting that actually blocks token exchange is the OIDC identity provider object's audience list in IAM — verify it includes <code>sts.amazonaws.com</code> when debugging <code>InvalidIdentityToken</code> errors.</li>
+        <li>Target role trust policy Principal must be the exact role ARN, never <code>:root</code>. Using <code>:root</code> delegates trust to the whole source account — any principal with <code>sts:AssumeRole</code> in their own policy can then assume the target role.</li>
+        <li>Cache STS credentials per <code>(service, role_arn, region)</code>. Renew at least 5 minutes before the 1-hour default expiry to avoid mid-run <code>ExpiredTokenException</code>.</li>
+        <li>KMS-encrypted resources require key policy changes in the target account — IAM policy alone is insufficient.</li>
+        <li>One IRSA role per Kubernetes ServiceAccount. Sharing breaks the workload isolation that the <code>sub</code> condition was designed to enforce.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">IAM</span>
+    <span class="tag">IRSA</span>
+    <span class="tag">EKS</span>
+    <span class="tag">Cross-Account</span>
+    <span class="tag">STS</span>
+    <span class="tag">Kubernetes</span>
+</div>
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

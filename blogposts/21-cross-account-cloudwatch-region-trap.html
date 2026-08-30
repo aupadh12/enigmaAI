@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Account CloudWatch: The Silent Zero and How to Prevent It</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Cross-Account CloudWatch: The Silent Zero and How to Prevent It">
+    <meta property="og:description" content="You query CloudWatch. You get zero results. No error. The logs exist — in a different region. Here's how to build multi-account CloudWatch extraction that doesn't silently fail.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/21-cross-account-cloudwatch-region-trap.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/21-cross-account-cloudwatch-region-trap.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Cross-Account CloudWatch: The Silent Zero and How to Prevent It">
+    <meta name="twitter:description" content="You query CloudWatch. You get zero results. No error. The logs exist — in a different region. Here's how to build multi-account CloudWatch extraction that doesn't silently fail.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/21-cross-account-cloudwatch-region-trap.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/21-cross-account-cloudwatch-region-trap.png" alt="Blog cover">
+
+<div class="header-badge">Observability</div>
+<h1>Cross-Account CloudWatch: The Silent Zero and How to Prevent It</h1>
+<p class="subtitle">You query CloudWatch. You get zero results. No error. The logs are there — in a different region. Here's how to build multi-account CloudWatch extraction that doesn't silently fail.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · August 2026</div>
+    </div>
+</div>
+
+<p>We built a system that queries AWS CloudWatch Logs across multiple AWS accounts to extract AI model usage data. Each account logs model invocations to a CloudWatch log group. The goal: consolidate all usage into one dashboard — a unified view of who is calling what model, at what cost, across the entire organisation.</p>
+
+<p>The architecture looked simple enough. One EKS pod with an IRSA role. The IRSA role can assume a target role in each account. Each target role has <code>logs:FilterLogEvents</code> and <code>logs:DescribeLogGroups</code>. The pod iterates accounts, queries CloudWatch in fixed time windows, and stores results in SQLite. We had it working on the first account within a day.</p>
+
+<p>Then we onboarded the second account. The sync ran cleanly — no errors, no exceptions. Every time window came back empty. We assumed the account just hadn't been using the service much. Three weeks later we discovered the log group existed in <code>eu-west-1</code>. We had been querying <code>us-east-1</code>. Every window was cached as complete with zero records. We had to reset and reprocess from scratch.</p>
+
+<p>This post covers the exact trap, why it's silent, how to prevent it, and how to build a sync architecture that fails loudly instead of quietly.</p>
+
+<h2>The IAM Setup</h2>
+
+<p>The trust chain is: EKS pod → IRSA role in home account → <code>sts:AssumeRole</code> → per-account target role. (The IRSA + cross-account AssumeRole pattern is covered in depth in the companion post — here we focus on the CloudWatch-specific pieces.)</p>
+
+<p>The target role policy for CloudWatch extraction:</p>
+
+<pre><code>{
+  "Effect": "Allow",
+  "Action": [
+    "logs:FilterLogEvents",
+    "logs:DescribeLogGroups",
+    "logs:GetLogEvents"
+  ],
+  "Resource": "arn:aws:logs:*:TARGET_ACCOUNT_ID:log-group:/aws/example*:*"
+}</code></pre>
+
+<p>Note the wildcard on region (<code>*</code>) in the Resource ARN. This is intentional — the role must work in whatever region the log group lives in, which you may not know up front. Locking it to a specific region at the IAM level would create a different but equally silent failure: <code>AccessDenied</code> only surfaces if you try to use the correct region, not if you're querying the wrong one.</p>
+
+<h2>The Silent Zero Problem</h2>
+
+<p>CloudWatch is a <strong>regional service</strong>. Log groups exist in a specific AWS region. There are three distinct ways a wrong-region query produces silence rather than a clear error — understanding all three matters because they need different fixes.</p>
+
+<p><strong>Mechanism 1: <code>describe_log_groups</code> in the wrong region returns an empty list, no error.</strong> When you probe a region for a log group prefix using <code>describe_log_groups</code>, and the log group lives in a different region, the API returns <code>{"logGroups": []}</code> — success, no exception, no 404. Your discovery code sees zero groups, concludes the log group doesn't exist, and doesn't add that region to the account's config. This is the mechanism that caused our incident: the discovery probe ran against <code>us-east-1</code>, found nothing, and no windows were created for <code>eu-west-1</code>.</p>
+
+<p><strong>Mechanism 2: Exception-swallowing converts a loud failure into silence.</strong> <code>FilterLogEvents</code> <em>does</em> raise <code>ResourceNotFoundException</code> (HTTP 400) when the log group doesn't exist in that region. But discovery code with a broad <code>except Exception: pass</code> swallows that exception silently. The region isn't added to the confirmed list — but no one knows why. There's no log line, no alert, no counter. From the outside: the account just has no data.</p>
+
+<p><strong>Mechanism 3: Log group exists in both regions, but events are only in one.</strong> A log group provisioned in two regions (IaC that creates it everywhere, or a service that auto-creates on first use) will show up in both discovery probes. <code>FilterLogEvents</code> succeeds in both regions. The "wrong" region returns zero events with no error — a genuine empty result indistinguishable from "nothing happened in this window."</p>
+
+<div class="stale-box">
+    <p><strong>The consistent failure pattern across all three mechanisms:</strong> the sync job completes successfully, every window is marked complete with zero records, no alarms fire, and the dashboard shows zero for the affected account. Without per-account record-count anomaly detection, you won't notice for days or weeks. The data isn't lost permanently — it's still in CloudWatch — but the extraction windows are cached as done. You'll need to clear the cache and re-run from scratch for that account.</p>
+</div>
+
+<p>This is exactly what happened with our second account. The onboarding discovery probe ran against <code>us-east-1</code>, found nothing (Mechanism 1), and no extraction windows were created. When we later added the account manually with <code>regions: ["us-east-1"]</code>, the sync ran without errors — <code>FilterLogEvents</code> returned empty pages, each window completed, and 90 days of history was marked as zero-record. The actual log group was in <code>eu-west-1</code> the entire time.</p>
+
+<h2>Why Accounts Use Different Regions</h2>
+
+<p>You cannot assume all accounts in your organisation log to the same region. Even within a single organisation:</p>
+
+<ul>
+    <li>Accounts provisioned before a region became available in your geography default to the nearest region at the time, not the current preferred region</li>
+    <li>Some teams actively chose a non-default region for data residency or compliance reasons</li>
+    <li>Newer services enabled in an existing account may default to the account's primary region, which differs from older services already running there</li>
+    <li>Accounts in different geographies (US vs EU) almost always use different primary regions</li>
+</ul>
+
+<p>In practice, once you have five or more accounts you will find at least one that diverges from the pattern you assumed. The only safe approach is to discover and record the correct regions per account, explicitly.</p>
+
+<h2>Region Discovery Pattern</h2>
+
+<p>Before running any extraction, probe each account to find which regions actually contain the log group:</p>
+
+<pre><code>import boto3
+
+def discover_log_group_regions(
+    role_arn: str,
+    log_group_prefix: str,
+    candidate_regions: list[str]
+) -> list[str]:
+    """Return regions where the log group prefix exists."""
+    confirmed = []
+    for region in candidate_regions:
+        client = get_cross_account_client('logs', role_arn, region)
+        try:
+            resp = client.describe_log_groups(
+                logGroupNamePrefix=log_group_prefix,
+                limit=1
+            )
+            if resp.get('logGroups'):
+                confirmed.append(region)
+        except client.exceptions.ResourceNotFoundException:
+            pass  # log group doesn't exist in this region — normal, move on
+        except Exception as e:
+            # Don't silently swallow unexpected errors — log them so you know why
+            # a region was skipped. Broad except: pass is how silent zeros happen.
+            print(f"Warning: region {region} check failed: {e}")
+    return confirmed</code></pre>
+
+<p>Run this once per account during onboarding. Store the result explicitly in your per-account configuration — do not re-derive it on every sync run:</p>
+
+<pre><code>[
+  {
+    "account_id": "ACCOUNT_1",
+    "role_arn": "arn:aws:iam::ACCOUNT_1:role/ReadRole",
+    "regions": ["us-east-1"],
+    "_comment": "Verified 2026-08-01: us-east-1 only"
+  },
+  {
+    "account_id": "ACCOUNT_2",
+    "role_arn": "arn:aws:iam::ACCOUNT_2:role/ReadRole",
+    "regions": ["eu-west-1"],
+    "_comment": "Verified 2026-08-01: eu-west-1 only"
+  },
+  {
+    "account_id": "ACCOUNT_3",
+    "role_arn": "arn:aws:iam::ACCOUNT_3:role/ReadRole",
+    "regions": ["us-east-1", "eu-west-1"],
+    "_comment": "Not yet verified — querying both until confirmed"
+  }
+]</code></pre>
+
+<p>The two-region entry for Account 3 costs one extra API call per sync window until you've verified it. That is a cheap price for correctness. Once you run a real extraction and confirm which region returns data, narrow the list to one.</p>
+
+<div class="warn-box">
+    <p><strong>Don't run discovery on every sync.</strong> <code>describe_log_groups</code> is a cheap probe, but running it on every window turns a one-time onboarding cost into N × W overhead (N accounts, W windows). Discover once during onboarding, store in config, update only when an account is reconfigured or a new log group is enabled.</p>
+</div>
+
+<h2>Window-Based Sync with SQLite Caching</h2>
+
+<p>For incremental extraction across large time ranges, use fixed-size time windows aligned to known boundaries (UTC midnight works well for 12-hour windows):</p>
+
+<pre><code>from datetime import datetime, timedelta, timezone
+
+WINDOW_HOURS = 12
+
+def get_windows(start: datetime, end: datetime) -> list[tuple]:
+    windows = []
+    current = start
+    while current &lt; end:
+        window_end = min(current + timedelta(hours=WINDOW_HOURS), end)
+        windows.append((current, window_end))
+        current = window_end
+    return windows</code></pre>
+
+<p>The critical design rule: track window completion <strong>per account per region</strong>, not per account. If Account 3 queries both <code>us-east-1</code> and <code>eu-west-1</code>, each <code>(account_id, region, window_start)</code> combination is a separate record in the completion table.</p>
+
+<pre><code>def sync_account(account: dict, db):
+    for region in account['regions']:
+        client = get_cached_client('logs', account['role_arn'], region)
+        for start, end in get_incomplete_windows(account['account_id'], region, db):
+            events = query_window(client, account['log_group'], start, end)
+            store_events(events, db)
+            mark_window_complete(account['account_id'], region, start, end, db)</code></pre>
+
+<p>A failure in one region does not mark the window complete for that region. The next run will retry it. Only after a window has been successfully extracted for all regions listed for that account should the window be considered done.</p>
+
+<div class="diagram-container">
+    <p><strong>SQLite schema for window tracking:</strong></p>
+    <pre style="margin: 12px 0 0;"><code>CREATE TABLE query_windows (
+    account_id   TEXT    NOT NULL,
+    region       TEXT    NOT NULL,
+    window_start INTEGER NOT NULL,  -- Unix timestamp ms
+    window_end   INTEGER NOT NULL,
+    completed_at INTEGER,           -- NULL = not yet complete
+    record_count INTEGER DEFAULT 0,
+    PRIMARY KEY (account_id, region, window_start)
+);</code></pre>
+    <p class="diagram-caption">The composite primary key on (account_id, region, window_start) ensures each region is tracked independently per account.</p>
+</div>
+
+<h2>FilterLogEvents vs CloudWatch Logs Insights</h2>
+
+<p>There are two main CloudWatch APIs for extracting log data, and they have meaningfully different characteristics for bulk extraction.</p>
+
+<p><strong>FilterLogEvents</strong> uses simple filter patterns against log stream content. It paginates fully using <code>nextToken</code> — there is no row cap. If a time window contains 500,000 matching events, you will get all 500,000 across as many pages as needed. This makes it the right choice for complete extraction when you know the log format.</p>
+
+<pre><code>def query_window(
+    client,
+    log_group: str,
+    start: datetime,
+    end: datetime
+) -> list:
+    events = []
+    kwargs = {
+        'logGroupName': log_group,
+        'startTime': int(start.timestamp() * 1000),
+        'endTime': int(end.timestamp() * 1000),
+        'limit': 10000
+    }
+    while True:
+        resp = client.filter_log_events(**kwargs)
+        events.extend(resp.get('events', []))
+        next_token = resp.get('nextToken')
+        if not next_token:
+            break
+        kwargs['nextToken'] = next_token
+    return events</code></pre>
+
+<p><strong>CloudWatch Logs Insights</strong> supports SQL-like queries and is better suited for aggregation and analytics. However, it has a hard 10,000-result limit per query — you cannot paginate past it. For complete extraction of all events in a time window, <code>FilterLogEvents</code> with full pagination is more reliable. Use Logs Insights for analytical queries where you want summaries, not for bulk data extraction.</p>
+
+<h2>Credential Expiry in Long-Running Syncs</h2>
+
+<p>STS assumed-role credentials default to a 1-hour TTL. A sync job that processes 90 days of windows across six accounts can easily exceed one hour. Without credential renewal, the job hits <code>ExpiredTokenException</code> mid-run — usually on a window that was already partially processed, leaving the window in an ambiguous state.</p>
+
+<p>Use a credential cache with proactive renewal — refresh 5 minutes before expiry:</p>
+
+<pre><code>from datetime import datetime, timezone
+import boto3
+
+_cred_cache: dict = {}
+
+def get_cached_client(service: str, role_arn: str, region: str):
+    key = (service, role_arn, region)
+    if key in _cred_cache:
+        kwargs, expiry = _cred_cache[key]
+        remaining = (expiry - datetime.now(timezone.utc)).total_seconds()
+        if remaining > 300:  # 5-minute buffer
+            return boto3.client(service, region_name=region, **kwargs)
+
+    sts = boto3.client('sts')
+    assumed = sts.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName='cloudwatch-sync-session'
+    )
+    c = assumed['Credentials']
+    kw = dict(
+        aws_access_key_id=c['AccessKeyId'],
+        aws_secret_access_key=c['SecretAccessKey'],
+        aws_session_token=c['SessionToken']
+    )
+    _cred_cache[key] = (kw, c['Expiration'])
+    return boto3.client(service, region_name=region, **kw)</code></pre>
+
+<p>The cache is keyed by <code>(service, role_arn, region)</code> because each unique combination requires its own set of credentials. The 5-minute buffer gives plenty of time to complete the current window before expiry forces a renewal on the next window boundary.</p>
+
+<h2>Operational Checklist</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Check</th>
+            <th>How to verify</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Log group exists in the configured region</td>
+            <td>Run <code>describe_log_groups</code> with the prefix during account onboarding; must return at least one group</td>
+        </tr>
+        <tr>
+            <td>Target role has <code>logs:FilterLogEvents</code></td>
+            <td>Test with a 1-minute window before scheduling the full backfill</td>
+        </tr>
+        <tr>
+            <td>Region per account is explicitly configured</td>
+            <td>Discovery probe during onboarding; stored in config with verification date</td>
+        </tr>
+        <tr>
+            <td>Window cache tracks per (account, region)</td>
+            <td>Verify the DB schema has <code>(account_id, region, window_start)</code> as the primary key</td>
+        </tr>
+        <tr>
+            <td>STS credentials renewed before 1-hour expiry</td>
+            <td>5-minute buffer in the cache check; test a run longer than 60 minutes</td>
+        </tr>
+        <tr>
+            <td>FilterLogEvents pagination is complete</td>
+            <td>Confirm the extraction loop checks <code>nextToken</code> until absent — not just the first page</td>
+        </tr>
+        <tr>
+            <td>New account uses both candidate regions until verified</td>
+            <td>Config entry includes both <code>us-east-1</code> and <code>eu-west-1</code> until a real run confirms which one has data</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>The Safe Default for New Accounts</h2>
+
+<div class="green-box">
+    <p><strong>Default to both candidate regions for every new account.</strong> Querying an extra region costs one additional API call per sync window — negligible. Querying only the wrong region means all historical data is permanently lost from your extraction (because the windows are cached as complete with zero records). The cost asymmetry is extreme: a few wasted API calls vs weeks of missing data. Configure two regions, verify which one returns data on the first real run, then narrow to one in the config.</p>
+</div>
+
+<p>The date comment in the config entry matters. "Not yet verified" is a signal to re-check. Once you've run a real extraction and seen which region produced records, update the comment to "Verified: us-east-1 only" with the date. This prevents the list from drifting back to two regions indefinitely.</p>
+
+<h2>What We Learned</h2>
+
+<p>The silent zero is particularly insidious because the system <em>appears to be working</em>. The sync job completes successfully. No alarms fire. The dashboard just shows zero for the affected account. Without a baseline or anomaly detection on the per-account record counts, you won't notice for days or weeks.</p>
+
+<p>After the incident, we added two safeguards:</p>
+
+<p>First, an onboarding verification step that must pass before any extraction windows are created for a new account. It calls <code>describe_log_groups</code> in every candidate region and requires at least one region to return a non-empty result. If none do, the account is flagged as "log group not found" and no windows are created — rather than silently creating windows that will all complete with zero records.</p>
+
+<p>Second, a post-sync record count check. After every sync run, we compare the per-account per-window record counts against a rolling average. Accounts with consistently zero records for more than 3 consecutive windows are flagged for manual review. This catches the silent zero even if it slips through onboarding verification.</p>
+
+<p>Neither safeguard is complex. Both are far cheaper than debugging missing data weeks after the fact.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>CloudWatch is regional. Three mechanisms produce silent zeros: <code>describe_log_groups</code> returning empty in the wrong region (no error), broad <code>except Exception: pass</code> swallowing <code>ResourceNotFoundException</code> from <code>FilterLogEvents</code>, and a log group that exists in multiple regions but only has events in one. Each needs a different fix.</li>
+        <li>Discover regions per account once during onboarding using <code>describe_log_groups</code>. Store in config with a verification date. Don't re-derive on every sync.</li>
+        <li>Track window completion per <code>(account_id, region, window_start)</code> — not per <code>(account_id, window_start)</code>. A failure in one region must not mark the window complete for that region.</li>
+        <li>Use <code>FilterLogEvents</code> with full <code>nextToken</code> pagination for complete extraction. CloudWatch Logs Insights has a hard 10,000-result cap that silently truncates large windows.</li>
+        <li>Renew STS assumed-role credentials proactively — 5 minutes before the 1-hour default expiry — to avoid <code>ExpiredTokenException</code> in long-running sync jobs.</li>
+        <li>Default new accounts to both candidate regions. The cost of one extra API call per window is nothing compared to the cost of permanently missing data from cached empty windows.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">CloudWatch</span>
+    <span class="tag">Cross-Account</span>
+    <span class="tag">Observability</span>
+    <span class="tag">IAM</span>
+    <span class="tag">AWS</span>
+    <span class="tag">Data Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

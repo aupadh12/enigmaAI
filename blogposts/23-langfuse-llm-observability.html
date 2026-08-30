@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Langfuse in Production: LLM Observability Beyond Console Logs</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Langfuse in Production: LLM Observability Beyond Console Logs">
+    <meta property="og:description" content="Your LLM agent answered a question. Was it correct? How long did it take? What did it cost? Did it use the right prompt version? Langfuse answers all of those — and makes the answers actionable.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/23-langfuse-llm-observability.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/23-langfuse-llm-observability.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Langfuse in Production: LLM Observability Beyond Console Logs">
+    <meta name="twitter:description" content="Your LLM agent answered a question. Was it correct? How long did it take? What did it cost? Did it use the right prompt version? Langfuse answers all of those — and makes the answers actionable.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/23-langfuse-llm-observability.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/23-langfuse-llm-observability.png" alt="Blog cover">
+
+<div class="header-badge">OBSERVABILITY</div>
+<h1>Langfuse in Production: LLM Observability Beyond Console Logs</h1>
+<p class="subtitle">Your agent answered a question. Was it correct? How long did it take? What did it cost? Did it use the right prompt version? Langfuse answers all of those — and makes the answers actionable.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · August 2026</div>
+    </div>
+</div>
+
+<p>A traditional web service fails loudly — a 500 status, a timeout, an exception in the logs. An LLM agent fails quietly. It answers with apparent confidence, spends $0.40, takes 12 seconds, and returns a response that's subtly wrong. Your application metrics show a successful request. Your users get a bad answer. Console logs tell you the call happened. They don't tell you whether it was good, what it cost, whether it used the latest prompt, or why the Critic stage took four times longer than usual.</p>
+
+<p>That's the gap LLM observability fills. After running a four-stage multi-agent AI system in production for six months, here is what Langfuse actually surfaces — and what we would have missed without it.</p>
+
+<h2>What Langfuse Is</h2>
+
+<p>Langfuse describes itself as "an open-source AI engineering platform that helps teams collaboratively debug, analyze, and iterate on their LLM applications." (<a href="https://langfuse.com" target="_blank" rel="noopener">langfuse.com</a>). The numbers: 33.6k GitHub stars, 90 billion observations processed per month, used by 21 of the Fortune 50. Version 3 introduced a ClickHouse backend for trace storage, delivering up to 165× faster query performance on large trace datasets. Version 4 built on that foundation with full-text search, advanced filtering, new Metrics and Observations APIs, and threshold-based alerts.</p>
+
+<p>The platform has four pillars, and they are more integrated than they first appear:</p>
+
+<ol>
+    <li><strong>Tracing</strong> — structured records of every LLM call, tool invocation, and retrieval step, with inputs, outputs, token counts, latency, and metadata</li>
+    <li><strong>Prompt Management</strong> — version-controlled prompts stored centrally, decoupled from code deployment, cached client-side with zero latency impact</li>
+    <li><strong>Evaluation</strong> — online scoring on live production traces, offline experiments comparing prompt or model variants, human annotation queues, and CI/CD integration</li>
+    <li><strong>Metrics &amp; Dashboards</strong> — cost, latency, volume, and quality trends with custom dashboards and threshold-based alerts</li>
+</ol>
+
+<p>The integration matters because a quality regression shows up first in your evaluation scores, which link to the traces, which show you the exact prompt version that was active. Without that linkage you have three separate investigations. With it, you have one.</p>
+
+<h2>The Architecture: ADOT → Langfuse</h2>
+
+<p>Our production setup runs on EKS. Each pod in the four-stage pipeline — Data Scout, Analyst, Synthesizer, Critic — instruments with standard OpenTelemetry. An ADOT (AWS Distro for OpenTelemetry) collector sidecar attaches to each pod and fans out traces to two backends simultaneously: CloudWatch for infrastructure metrics and Langfuse for LLM-specific traces.</p>
+
+<div class="diagram-container">
+<pre style="background: #f8fafc; color: #334155; margin: 0; font-size: 13px;">
+EKS Pod (any stage)
+  ├── Application (OpenTelemetry instrumented)
+  │     └── OTLP spans → localhost:4317
+  └── ADOT Collector (sidecar)
+        ├── CloudWatch Exporter  → CloudWatch (pod metrics, error rates)
+        └── OTLP Exporter        → Langfuse  (LLM traces, token costs, evals)
+</pre>
+<p class="diagram-caption">The ADOT sidecar pattern: one instrumentation, two observability backends.</p>
+</div>
+
+<p>The OTLP exporter is configured to point at the Langfuse ingest endpoint:</p>
+
+<pre><code>from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+import base64
+
+# Basic auth header from Langfuse public/secret key pair
+langfuse_auth = base64.b64encode(
+    f"{LANGFUSE_PUBLIC_KEY}:{LANGFUSE_SECRET_KEY}".encode()
+).decode()
+
+exporter = OTLPSpanExporter(
+    endpoint="https://cloud.langfuse.com/api/public/otel/v1/traces",
+    headers={"Authorization": f"Basic {langfuse_auth}"}
+)
+
+provider = TracerProvider()
+provider.add_span_processor(BatchSpanProcessor(exporter))
+trace.set_tracer_provider(provider)</code></pre>
+
+<p>The Langfuse SDKs send data asynchronously, batched in the background. There is no latency added to the request path — the application responds to the user while trace events are flushed in the background.</p>
+
+<h2>Tracing: What You Actually See in the UI</h2>
+
+<p>A single user research query that travels through all four pipeline stages produces one coherent trace tree in Langfuse:</p>
+
+<ul>
+    <li>Top-level span: total wall-clock duration, total cost, user ID, session ID</li>
+    <li>Data Scout span: tool calls to each data source (inputs, outputs, latency per tool)</li>
+    <li>Analyst span: statistical analysis LLM call with the exact system prompt, the evidence payload, and the model's analytical output</li>
+    <li>Synthesizer span: Opus 5 synthesis call with thinking token block, token counts broken out (input, output, thinking)</li>
+    <li>Critic span: adversarial verification call with the synthesis and the rejection/acceptance decision</li>
+</ul>
+
+<p>The key to getting one coherent tree across four separate pods is W3C trace context propagation. The orchestrator injects the <code>traceparent</code> header into each HTTP call to a sub-agent; each sub-agent extracts it and starts its span as a child of the parent trace:</p>
+
+<pre><code>import requests
+from opentelemetry.propagate import inject, extract
+from opentelemetry import trace
+
+# Orchestrator: inject context into outbound call
+def call_sub_agent(url: str, payload: dict) -> dict:
+    headers = {"Content-Type": "application/json"}
+    inject(headers)  # adds traceparent, tracestate
+    return requests.post(url, json=payload, headers=headers).json()
+
+# Sub-agent: extract context from inbound request
+def handle_request(raw_headers: dict, payload: dict):
+    ctx = extract(raw_headers)
+    with trace.get_tracer(__name__).start_as_current_span(
+        "analyst-stage", context=ctx
+    ) as span:
+        result = run_analyst(payload)
+        span.set_attribute("output.tokens", result["token_count"])
+        return result</code></pre>
+
+<div class="highlight-box">
+    <p><strong>Why this matters:</strong> without context propagation you get four isolated traces with no visible relationship. With it, the Langfuse UI shows the full query lifecycle — latency breakdown per stage, total cost across all LLM calls, and the exact inputs and outputs at each step. Debugging a slow or incorrect response goes from "which pod was responsible?" to "the Data Scout spent 38 seconds on one API, here's the exact response it got."</p>
+</div>
+
+<h2>Cost Tracking: The Thinking Token Problem</h2>
+
+<p>Langfuse tracks per-token costs by model. You configure the model pricing in Langfuse's model settings — input cost per 1M tokens, output cost per 1M tokens. For most models this is straightforward.</p>
+
+<p>For Claude Opus 5 with extended thinking enabled, there is a catch: <strong>extended thinking tokens are billed as output tokens</strong> — the more expensive rate, not input. The thinking block (the model's internal reasoning before its final response) appears as a separate field in the API response. Additionally, when thinking blocks are replayed into subsequent turns as context, they are billed as input tokens at that point. If your Langfuse model configuration counts thinking tokens at the input rate (or ignores them entirely), your cost estimates will be significantly lower than actual AWS Bedrock invoices.</p>
+
+<div class="stale-box">
+    <p><strong>The fix:</strong> ensure your Langfuse model pricing entry tracks thinking tokens at the <strong>output token rate</strong>, not the input rate. After the correction, our estimates aligned with actual invoices within 2–3%. Before the fix, Opus 5 queries appeared 30–40% cheaper than they actually were — which skewed the model comparison data and made Opus 5 look more cost-efficient relative to Sonnet than it actually is.</p>
+</div>
+
+<p>With correct cost tracking, you can pull per-model cost breakdowns from the Langfuse API and expose them directly in a monitoring endpoint:</p>
+
+<pre><code>from langfuse import Langfuse
+from datetime import datetime, timedelta, timezone
+
+langfuse = Langfuse()
+
+def get_cost_summary(days: int = 30) -> dict:
+    """Pull cost breakdown from Langfuse for the monitoring dashboard."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    # Langfuse Observations API — filter by model and date range
+    obs = langfuse.api.observations.get_many(
+        from_start_time=since,
+        type="GENERATION"
+    ).data
+    by_model = {}
+    for o in obs:
+        model = o.model or "unknown"
+        cost = (o.calculated_total_cost or 0)
+        by_model[model] = by_model.get(model, 0) + cost
+    return {"period_days": days, "cost_by_model": by_model}</code></pre>
+
+<p>Cost data from a typical month in our system:</p>
+
+<table>
+    <thead>
+        <tr><th>Stage</th><th>Model</th><th>% of Total Cost</th><th>Avg Cost/Query</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Data Scout</td><td>Claude Sonnet</td><td class="decision-cell-green">18%</td><td>$0.04</td></tr>
+        <tr><td>Analyst</td><td>Claude Sonnet</td><td class="decision-cell-green">22%</td><td>$0.05</td></tr>
+        <tr><td>Synthesizer</td><td>Claude Opus 5</td><td class="decision-cell-red">38%</td><td>$0.18</td></tr>
+        <tr><td>Critic</td><td>Claude Opus 5</td><td class="decision-cell-yellow">22%</td><td>$0.11</td></tr>
+    </tbody>
+</table>
+
+<p>Synthesizer and Critic together account for 60% of cost despite handling only the final two stages. That's the correct tradeoff for a research workload where synthesis quality is the primary deliverable — but you can't make that judgment without the data.</p>
+
+<h2>Prompt Management: Decoupling Iterations from Deployments</h2>
+
+<p>Our system prompt is approximately 8,900 tokens. It includes domain-specific reasoning heuristics, tool usage guidelines, output format instructions, and examples. We iterate on it regularly — roughly once a week based on evaluation feedback and user corrections.</p>
+
+<p>With the prompt hardcoded in the application, each iteration requires a code change, a code review, a build pipeline run, and a pod restart. For a weekly cadence, that's 52 deployments per year that exist solely to change text. With Langfuse Prompt Management, the prompt lives in Langfuse and the application fetches it at start:</p>
+
+<pre><code>from langfuse import Langfuse
+
+langfuse = Langfuse()
+_cached_prompt: str | None = None
+
+def get_system_prompt() -> str:
+    global _cached_prompt
+    if _cached_prompt is None:
+        prompt_obj = langfuse.get_prompt(
+            "agent-system-prompt",
+            label="production"
+        )
+        _cached_prompt = prompt_obj.compile()
+    return _cached_prompt</code></pre>
+
+<p>The SDK caches the response in memory. Subsequent calls to <code>get_system_prompt()</code> return immediately without a network call. Updating the prompt in the Langfuse UI and flipping the <code>production</code> label to the new version takes effect on the next pod start — or immediately if you add cache invalidation logic. No deployment required.</p>
+
+<div class="green-box">
+    <p><strong>The version linkage:</strong> every trace in Langfuse records which prompt version was active when that query ran. When a new version degrades quality — which you see in the evaluation score trends — you can diff the two versions, identify the change, and revert by flipping the label back. The full audit trail is in Langfuse: when each version was deployed, which traces it affected, and what the quality scores looked like before and after.</p>
+</div>
+
+<p>One important note about prompt caching on AWS Bedrock: the system prompt is a prime candidate for Bedrock's prompt caching feature. Cache hits on the 8,900-token system prompt reduce input token costs by roughly 80% for that prefix. Bedrock's prompt cache is server-side — a pod restart doesn't clear it. The most likely cause of deployment-correlated cost spikes is the deployment gap exceeding the cache TTL (default 5 minutes; up to 1 hour with the extended <code>cache_control</code> option). If a rolling deployment takes longer than the TTL, the first queries after the rollout pay full input cost for the entire system prompt. Langfuse makes this visible as a cost spike in the cost-per-query trend immediately after a deployment — which is the signal to extend your cache TTL.</p>
+
+<h2>Evaluation: Turning Traces into Quality Signals</h2>
+
+<p>A trace tells you what happened. An evaluation tells you whether it was good. Langfuse provides three evaluation paths and we use all three.</p>
+
+<h3>LLM-as-a-Judge (automated, online)</h3>
+
+<p>After each production query completes, a lightweight post-processing step sends the Critic's final output to Claude Haiku for automated evaluation on three dimensions: factual coherence (0–1), source citation quality (0–1), and query relevance (0–1). Each score is appended to the trace as a named score. This runs asynchronously after the user receives their response — zero latency impact.</p>
+
+<pre><code>from langfuse import Langfuse
+
+langfuse = Langfuse()
+
+def score_response(trace_id: str, response: str, query: str):
+    """Called async after the main response is returned."""
+    # Use Haiku as the judge — cheap, fast, good enough for these dimensions
+    scores = evaluate_with_llm(response, query)  # returns dict of dimension→float
+    for dimension, value in scores.items():
+        langfuse.create_score(
+            trace_id=trace_id,
+            name=dimension,
+            value=value,
+            comment="automated LLM-as-judge evaluation"
+        )</code></pre>
+
+<h3>Annotation Queues (human review, targeted)</h3>
+
+<p>Traces where the Critic rejected the Synthesizer's output are automatically routed to a Langfuse annotation queue. A human reviewer reads the original query, the rejected synthesis, and the Critic's rejection reason, then marks the rejection as either valid (the synthesis had a real problem) or false positive (the Critic was overly strict). This ground-truth data is used to calibrate the automated judge — specifically to tune the factual coherence threshold that triggers a rejection.</p>
+
+<h3>Experiments (offline, pre-deployment)</h3>
+
+<p>Before deploying a new prompt version to production, we run an offline experiment: take a dataset of 50 representative historical queries (stored in Langfuse Datasets), run both the current production prompt and the candidate prompt against them, and compare the LLM-as-judge scores. If the candidate's average factual coherence score drops more than 5% relative to the current prompt, it doesn't go to production.</p>
+
+<p>This gates deployments on quality, not just test coverage. The experiment history in Langfuse shows every prompt version ever tested, the scores it achieved, and whether it was promoted to production.</p>
+
+<h2>What Langfuse Surfaced That We Wouldn't Have Found Otherwise</h2>
+
+<p>These are concrete things Langfuse revealed that were invisible before we had it:</p>
+
+<table>
+    <thead>
+        <tr><th>What we found</th><th>How we found it</th><th>Impact without Langfuse</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Thinking token billing</strong> — Opus 5 extended thinking billed as <strong>output tokens</strong> (not input), not reflected in initial cost model</td>
+            <td>Cost-per-query trend showed 30–40% variance from Bedrock invoices</td>
+            <td>Model comparison data systematically wrong; Opus 5 appeared more efficient than it is</td>
+        </tr>
+        <tr>
+            <td><strong>Prompt cache miss spike</strong> — pod restarts cause cache cold-start, 8× cost per query for first N queries after restart</td>
+            <td>Cost-per-query trend showed periodic spikes correlated with deployment timestamps</td>
+            <td>Cost anomalies attributed to usage patterns, not deployment events</td>
+        </tr>
+        <tr>
+            <td><strong>Critic rejection rate drift</strong> — increased from 4% to 11% over three weeks</td>
+            <td>Critic rejection score trend in custom dashboard</td>
+            <td>Quality degradation discovered by users, not by the team</td>
+        </tr>
+        <tr>
+            <td><strong>Data Scout latency outlier</strong> — one external API at p95 = 45 seconds, dominating total query latency</td>
+            <td>Per-stage latency breakdown in trace waterfall</td>
+            <td>Total query p95 latency blamed on LLM calls; root cause never identified</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The Critic rejection rate drift is the one that sticks with me. The rejection rate increased gradually over three weeks — well within the noise of day-to-day variance. No user complained explicitly; the Critic was doing its job. The synthesis was getting rejected, the user got a message saying the agent wasn't confident enough, and they moved on. Without the score trend in Langfuse, this would have looked like normal variance for months. The actual cause: a new data source we'd ingested had lower-quality summaries that were finding their way into synthesis inputs. The Critic was right to reject them.</p>
+
+<h2>Self-Hosting on EKS</h2>
+
+<p>Langfuse is fully open source and can be deployed within your own cloud account. For regulated environments where sending production LLM inputs and outputs to a SaaS platform requires governance review, self-hosting keeps all trace data within your account boundary.</p>
+
+<p>Langfuse v4 on EKS requires four dependencies:</p>
+
+<table>
+    <thead>
+        <tr><th>Component</th><th>Purpose</th><th>AWS option</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>PostgreSQL</td><td>Application metadata, user data, prompt versions</td><td>RDS Aurora PostgreSQL</td></tr>
+        <tr><td>ClickHouse</td><td>Trace storage and analytics (introduced in v3)</td><td>Self-managed on EKS or ClickHouse Cloud</td></tr>
+        <tr><td>Redis/Valkey</td><td>Caching, queuing</td><td>ElastiCache</td></tr>
+        <tr><td>S3</td><td>Blob storage for large trace payloads</td><td>S3 + IRSA for pod access</td></tr>
+    </tbody>
+</table>
+
+<p>The official AWS Terraform module provisions all four plus the Langfuse application itself. For lighter setups — particularly when you already have the dependencies running — the Helm chart deploys just the application containers.</p>
+
+<div class="warn-box">
+    <p><strong>IRSA for S3:</strong> use IRSA to give the Langfuse pods access to the S3 bucket rather than static credentials. The service account annotation pattern (<code>eks.amazonaws.com/role-arn</code>) works cleanly here. Avoid mounting AWS credentials as environment variables into the Langfuse pods — the S3 bucket will contain production LLM inputs and outputs.</p>
+</div>
+
+<h2>The Three-Layer Observability Stack</h2>
+
+<p>Langfuse handles the LLM-specific layer. It doesn't replace infrastructure observability — it complements it. Our full observability stack:</p>
+
+<table>
+    <thead>
+        <tr><th>Layer</th><th>Tool</th><th>What it catches</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>LLM traces &amp; quality</td><td>Langfuse</td><td>Bad answers, cost anomalies, prompt version regressions, evaluation score trends</td></tr>
+        <tr><td>Pod &amp; service metrics</td><td>Prometheus + Grafana</td><td>Memory pressure, request queue depth, stuck pods, circuit breaker state</td></tr>
+        <tr><td>Infrastructure &amp; AWS</td><td>CloudWatch</td><td>Node health, EKS control plane events, Bedrock API errors, billing anomalies</td></tr>
+    </tbody>
+</table>
+
+<p>Each layer catches failure modes the others miss. Langfuse catches a Critic rejection rate drift. Prometheus catches the pod that's consuming 7GB of memory and approaching its limit. CloudWatch catches the Bedrock API error spike when a model is temporarily unavailable in a region. Together they give a complete picture. None of the three alone does.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>LLM agents fail quietly. Langfuse makes the failure visible: wrong answers, cost anomalies, prompt version regressions, and quality score trends are all surfaced before users notice.</li>
+        <li>Propagate W3C <code>traceparent</code> headers between sub-agents to get one coherent trace tree across a multi-pod pipeline — not four isolated traces.</li>
+        <li>Claude Opus 5 extended thinking tokens are billed as <strong>output tokens</strong> — the expensive rate. Configure the Langfuse model entry to track them at the output token rate or your cost estimates will be systematically wrong.</li>
+        <li>Prompt Management decouples prompt iterations from code deployments. Store the system prompt in Langfuse; deploy prompt changes without restarting pods.</li>
+        <li>The ADOT sidecar pattern fans out one OpenTelemetry instrumentation to both CloudWatch (infrastructure) and Langfuse (LLM traces). No dual instrumentation.</li>
+        <li>Self-host on EKS using the official Helm chart + IRSA for S3 to keep all trace data within your cloud account. Use the AWS Terraform module for a full production setup.</li>
+        <li>Run all three observability layers: Langfuse (LLM), Prometheus (pods), CloudWatch (infrastructure). Each catches failure modes the others miss.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Langfuse</span>
+    <span class="tag">Observability</span>
+    <span class="tag">LLM</span>
+    <span class="tag">OpenTelemetry</span>
+    <span class="tag">EKS</span>
+    <span class="tag">Multi-Agent</span>
+    <span class="tag">Prompt Management</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

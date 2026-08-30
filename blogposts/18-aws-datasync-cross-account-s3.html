@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises">
+    <meta property="og:description" content="The console can't see the bucket. The role needs to be in the right account. The KMS key policy is usually the first thing that breaks. Here's the complete setup.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/18-aws-datasync-cross-account-s3.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/18-aws-datasync-cross-account-s3.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises">
+    <meta name="twitter:description" content="The console can't see the bucket. The role needs to be in the right account. The KMS key policy is usually the first thing that breaks. Here's the complete setup.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/18-aws-datasync-cross-account-s3.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/18-aws-datasync-cross-account-s3.png" alt="Blog cover">
+
+<div class="header-badge">Data Engineering</div>
+<h1>AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises</h1>
+<p class="subtitle">The console can't see the bucket. The role needs to be in the destination account. KMS is almost always the first thing that breaks. Here's the complete playbook.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · August 2026</div>
+    </div>
+</div>
+
+<p>AWS DataSync handles large-scale S3 data movement with scheduling, incremental sync, and data verification built in. For a one-off copy, <code>aws s3 sync</code> is fine. DataSync earns its place when you need reliable, repeatable transfers — especially across account boundaries — without homegrown retry logic and CloudWatch dashboards you had to build yourself.</p>
+
+<p>The same-account setup is simple. The cross-account setup has three non-obvious requirements that nobody mentions together: the role must live in the destination account, the source bucket needs its own bucket policy, and the console can't be used to create cross-account locations. This post walks both setups end-to-end.</p>
+
+<h2>Why DataSync Instead of <code>aws s3 sync</code></h2>
+
+<p>For ongoing transfers between two S3 locations, DataSync provides capabilities that a script wrapping the CLI cannot easily replicate:</p>
+
+<ul>
+    <li><strong>Incremental transfer</strong> — skips objects that haven't changed based on checksums, not just timestamps</li>
+    <li><strong>Built-in scheduling</strong> — run tasks on a cron without managing cron infrastructure</li>
+    <li><strong>Data verification</strong> — optionally verify object integrity post-transfer</li>
+    <li><strong>Bandwidth throttling</strong> — limit transfer rate to avoid saturating shared network paths</li>
+    <li><strong>Native CloudWatch metrics</strong> — bytes transferred, files skipped, error counts, task duration — without instrumentation work</li>
+    <li><strong>Automatic retry</strong> — transient failures are retried without manual intervention</li>
+</ul>
+
+<p>If you're running a scheduled nightly copy from one bucket to another, DataSync is significantly less code to maintain than a custom solution. The cross-account capability is what makes it particularly useful in multi-account AWS organizations.</p>
+
+<h2>Same-Account Setup: The Simple Case</h2>
+
+<p>For same-account transfers, the setup is three objects: an IAM role, a source location, and a destination location — linked together in a task.</p>
+
+<h3>Step 1: Create the IAM Role</h3>
+
+<p>DataSync needs a role it can assume. The trust policy should always include <code>aws:SourceAccount</code> and <code>aws:SourceArn</code> conditions, even for same-account setups. These conditions guard against the confused-deputy problem — without them, any DataSync task in any account could theoretically assume the role if they obtained the ARN.</p>
+
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "datasync.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "ACCOUNT_ID"
+        },
+        "ArnLike": {
+          "aws:SourceArn": "arn:aws:datasync:REGION:ACCOUNT_ID:*"
+        }
+      }
+    }
+  ]
+}</code></pre>
+
+<pre><code>aws iam create-role \
+  --role-name DataSyncS3Role \
+  --assume-role-policy-document file://trust-policy.json</code></pre>
+
+<h3>Step 2: Attach the Permissions Policy</h3>
+
+<p>The permissions policy needs read access to the source bucket and read-write access to the destination bucket. For same-account, both references use the same account ID:</p>
+
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SourceBucketRead",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectTagging",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": "arn:aws:s3:::SOURCE-BUCKET/*"
+    },
+    {
+      "Sid": "SourceBucketList",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucketMultipartUploads"
+      ],
+      "Resource": "arn:aws:s3:::SOURCE-BUCKET"
+    },
+    {
+      "Sid": "DestBucketWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectTagging",
+        "s3:PutObject",
+        "s3:PutObjectTagging",
+        "s3:DeleteObject",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::DEST-BUCKET/*"
+    },
+    {
+      "Sid": "DestBucketList",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucketMultipartUploads"
+      ],
+      "Resource": "arn:aws:s3:::DEST-BUCKET"
+    }
+  ]
+}</code></pre>
+
+<pre><code>aws iam put-role-policy \
+  --role-name DataSyncS3Role \
+  --policy-name DataSyncS3Access \
+  --policy-document file://permissions.json</code></pre>
+
+<p>For same-account, you can now create the source and destination locations through the DataSync console — it can enumerate your S3 buckets in the same account without any additional configuration.</p>
+
+<h2>Cross-Account Setup: Why It's Different</h2>
+
+<p>AWS documents two topologies for cross-account DataSync. We use and document the <strong>destination-account-driven approach</strong> here — task and IAM role in Account A (the receiving account) — because it avoids a mandatory extra step that the source-account-driven approach requires (disabling ACLs on the destination bucket). Both topologies work; the tradeoff is covered in the gotcha table below.</p>
+
+<p>In the destination-account topology: <strong>DataSync uses the IAM role in the account where the task runs.</strong> The task runs in Account A, the role is in Account A, and that single role handles both the source location (Account B's bucket) and the destination location (Account A's bucket).</p>
+
+<div class="diagram-container">
+<pre style="background: #0f172a; color: #94a3b8; font-size: 12px; margin: 0; border-radius: 8px;">Account A (DataSync + Destination)        Account B (Source)
+┌──────────────────────────────────┐      ┌────────────────────────────┐
+│  DataSync Task                    │      │  S3 Bucket (source)        │
+│    ├─ Source Location  ───────────┼─────▶│    Bucket Policy           │
+│    │   (points to B's bucket)     │      │    grants Account A        │
+│    │                              │      │    DataSync role access    │
+│    └─ Destination Location        │      └────────────────────────────┘
+│        (A's bucket)               │
+│                                   │
+│  IAM Role: DataSyncCrossAcctRole  │
+│  (assumed by datasync.amazonaws.com)
+└──────────────────────────────────┘</pre>
+<p class="diagram-caption">Topology shown: task and role run in Account A (destination). AWS also documents a source-account-driven topology (task in Account B) — that approach requires disabling ACLs on Account A's destination bucket to ensure Account A owns the transferred objects.</p>
+</div>
+
+<h3>Step 1: Create the IAM Role in Account A</h3>
+
+<p>Same trust policy as same-account, but with Account A's ID:</p>
+
+<pre><code>aws iam create-role \
+  --role-name DataSyncCrossAcctRole \
+  --assume-role-policy-document file://trust-policy.json</code></pre>
+
+<h3>Step 2: Attach Permissions for Both Buckets</h3>
+
+<p>The permissions policy now references Account B's bucket for the source actions and Account A's bucket for the destination actions. The key difference: the source bucket ARN does not include an account ID — S3 bucket ARNs are globally unique by name, not by account.</p>
+
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SourceBucketAccountB",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectTagging",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": "arn:aws:s3:::ACCOUNT-B-SOURCE-BUCKET/*"
+    },
+    {
+      "Sid": "SourceBucketListAccountB",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucketMultipartUploads"
+      ],
+      "Resource": "arn:aws:s3:::ACCOUNT-B-SOURCE-BUCKET"
+    },
+    {
+      "Sid": "DestBucketAccountA",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectTagging",
+        "s3:PutObject",
+        "s3:PutObjectTagging",
+        "s3:DeleteObject",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::ACCOUNT-A-DEST-BUCKET/*"
+    },
+    {
+      "Sid": "DestBucketListAccountA",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucketMultipartUploads"
+      ],
+      "Resource": "arn:aws:s3:::ACCOUNT-A-DEST-BUCKET"
+    }
+  ]
+}</code></pre>
+
+<h3>Step 3: Add a Bucket Policy in Account B (the Source)</h3>
+
+<p>This step is the one most commonly skipped — and without it, you get <code>AccessDenied</code> regardless of what your IAM policy in Account A says. S3 cross-account access requires both the identity policy (in Account A) and the resource policy (the bucket policy in Account B) to allow the access. Neither alone is sufficient.</p>
+
+<p>Run this with Account B credentials:</p>
+
+<pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowDataSyncFromAccountA",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::ACCOUNT-A-ID:role/DataSyncCrossAcctRole"
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectTagging",
+        "s3:ListMultipartUploadParts",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucketMultipartUploads"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ACCOUNT-B-SOURCE-BUCKET",
+        "arn:aws:s3:::ACCOUNT-B-SOURCE-BUCKET/*"
+      ]
+    }
+  ]
+}</code></pre>
+
+<pre><code># Run with Account B credentials
+aws s3api put-bucket-policy \
+  --bucket ACCOUNT-B-SOURCE-BUCKET \
+  --policy file://source-bucket-policy.json</code></pre>
+
+<h3>Step 4: Create the Source Location via CLI Only</h3>
+
+<p>The DataSync console cannot enumerate buckets in Account B — it only lists buckets visible to the current account's credentials. For cross-account source locations, the CLI is the only reliable path:</p>
+
+<pre><code>aws datasync create-location-s3 \
+  --s3-bucket-arn "arn:aws:s3:::ACCOUNT-B-SOURCE-BUCKET" \
+  --s3-config '{"BucketAccessRoleArn":"arn:aws:iam::ACCOUNT-A-ID:role/DataSyncCrossAcctRole"}' \
+  --subdirectory "/optional/prefix" \
+  --region REGION</code></pre>
+
+<p>Save the returned <code>LocationArn</code> as <code>SOURCE_LOCATION_ARN</code>.</p>
+
+<h3>Step 5: Create the Destination Location</h3>
+
+<p>The destination is in Account A — you can use the console or CLI:</p>
+
+<pre><code>aws datasync create-location-s3 \
+  --s3-bucket-arn "arn:aws:s3:::ACCOUNT-A-DEST-BUCKET" \
+  --s3-config '{"BucketAccessRoleArn":"arn:aws:iam::ACCOUNT-A-ID:role/DataSyncCrossAcctRole"}' \
+  --region REGION</code></pre>
+
+<h3>Step 6: Create and Run the Task</h3>
+
+<pre><code>aws datasync create-task \
+  --source-location-arn "SOURCE_LOCATION_ARN" \
+  --destination-location-arn "DEST_LOCATION_ARN" \
+  --name "CrossAccountCopy" \
+  --options '{
+    "VerifyMode":"ONLY_FILES_TRANSFERRED",
+    "OverwriteMode":"ALWAYS",
+    "PreserveDeletedFiles":"PRESERVE"
+  }' \
+  --region REGION
+
+# Start it
+aws datasync start-task-execution \
+  --task-arn "TASK_ARN" \
+  --region REGION
+
+# Monitor
+aws datasync describe-task-execution \
+  --task-execution-arn "TASK_EXECUTION_ARN" \
+  --region REGION</code></pre>
+
+<h2>The KMS Gotcha</h2>
+
+<p>If either bucket uses SSE-KMS encryption, the IAM policy alone is not sufficient — you must also update the KMS key policies in the relevant accounts. This is the most common failure point in cross-account DataSync setups, and the error message is a generic <code>AccessDenied</code> that doesn't mention KMS.</p>
+
+<h3>Source Bucket in Account B Uses KMS</h3>
+
+<p>The DataSync role in Account A needs <code>kms:Decrypt</code> and <code>kms:DescribeKey</code> added to Account B's KMS key policy:</p>
+
+<pre><code>{
+  "Sid": "AllowDataSyncRoleDecrypt",
+  "Effect": "Allow",
+  "Principal": {
+    "AWS": "arn:aws:iam::ACCOUNT-A-ID:role/DataSyncCrossAcctRole"
+  },
+  "Action": [
+    "kms:Decrypt",
+    "kms:DescribeKey"
+  ],
+  "Resource": "*"
+}</code></pre>
+
+<h3>Destination Bucket in Account A Uses KMS</h3>
+
+<p>The DataSync role needs <code>kms:GenerateDataKey</code>, <code>kms:Encrypt</code>, and <code>kms:Decrypt</code> on Account A's KMS key. This is an identity-based permission (IAM policy) or a key policy addition — either works for same-account keys:</p>
+
+<pre><code>{
+  "Effect": "Allow",
+  "Action": [
+    "kms:GenerateDataKey",
+    "kms:Encrypt",
+    "kms:Decrypt",
+    "kms:DescribeKey"
+  ],
+  "Resource": "arn:aws:kms:REGION:ACCOUNT-A-ID:key/KEY-ID"
+}</code></pre>
+
+<div class="warn-box">
+    <p><strong>KMS is a two-layer permission system.</strong> For cross-account KMS access, both the IAM policy on the role AND the KMS key policy in the target account must allow the operation. IAM alone is insufficient for cross-account key usage. Expect AccessDenied on your first run if either bucket is KMS-encrypted and you haven't updated the key policy.</p>
+</div>
+
+<h2>Task Options Worth Knowing</h2>
+
+<p>The <code>--options</code> parameter on <code>create-task</code> controls transfer behavior. The defaults are not always what you want:</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Option</th>
+            <th>Recommended Value</th>
+            <th>When to Change</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>VerifyMode</code></td>
+            <td><code>ONLY_FILES_TRANSFERRED</code></td>
+            <td>Use <code>POINT_IN_TIME_CONSISTENT</code> for full integrity checks; <code>NONE</code> to skip verification entirely and maximize throughput</td>
+        </tr>
+        <tr>
+            <td><code>OverwriteMode</code></td>
+            <td><code>ALWAYS</code></td>
+            <td>Use <code>NEVER</code> if you don't want to overwrite objects that have changed at the destination</td>
+        </tr>
+        <tr>
+            <td><code>PreserveDeletedFiles</code></td>
+            <td><code>PRESERVE</code></td>
+            <td>Change to <code>REMOVE</code> only if you want the destination to mirror the source including deletions</td>
+        </tr>
+        <tr>
+            <td><code>TransferMode</code></td>
+            <td><code>CHANGED</code></td>
+            <td>Use <code>ALL</code> to force retransfer of all files regardless of whether they changed</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Five Gotchas in One Place</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Gotcha</th>
+            <th>Consequence</th>
+            <th>Fix</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>1</td>
+            <td>Console can't see cross-account buckets</td>
+            <td>You can't create the source location through the UI</td>
+            <td>Use <code>aws datasync create-location-s3</code> CLI command</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Bucket policy on source is mandatory</td>
+            <td>AccessDenied even with correct IAM policy</td>
+            <td>Add bucket policy in Account B granting the Account A role access</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>KMS requires key policy updates</td>
+            <td>Generic AccessDenied with no KMS mention</td>
+            <td>Update key policies in both accounts for encrypted buckets</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>Missing confused-deputy conditions</td>
+            <td>Any DataSync task could assume the role</td>
+            <td>Always include <code>aws:SourceAccount</code> + <code>aws:SourceArn</code> in trust policy</td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td>Cross-region transfers add data transfer cost</td>
+            <td>Unexpected AWS bill line items</td>
+            <td>Use same region where possible; account for transfer charges if not</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="green-box">
+    <p><strong>Object ownership — destination-account topology:</strong> When DataSync in Account A writes to Account A's bucket using Account A's role, Account A automatically owns the objects. Ownership follows from which account's role performed the write — no ACL configuration needed.</p>
+    <p><strong>Source-account topology note:</strong> In AWS's alternative documented pattern (task and role in Account B, the source), the role writes into Account A's bucket from Account B's credentials. In that case, Account B would own the transferred objects by default — to make Account A own them, you must disable ACLs on Account A's destination bucket first (S3 Object Ownership → Bucket owner enforced). AWS lists this as a required step in their cross-account DataSync tutorial.</p>
+</div>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>Two valid cross-account topologies exist: task in the destination account (covered here) or task in the source account (AWS's primary documented path). The destination-account topology avoids the mandatory ACL-disable step; the source-account topology requires disabling ACLs on the destination bucket to transfer ownership.</li>
+        <li>In the destination-account topology, cross-account S3 access requires both sides: the IAM policy in Account A and the bucket policy in Account B. Neither alone is sufficient.</li>
+        <li>Always create cross-account source locations via CLI — the DataSync console cannot enumerate buckets in other accounts.</li>
+        <li>KMS-encrypted buckets require key policy updates in addition to IAM permissions. This is the most common first failure point.</li>
+        <li>Always include <code>aws:SourceAccount</code> and <code>aws:SourceArn</code> conditions in the trust policy to prevent the confused-deputy problem — even for same-account setups.</li>
+        <li><code>VerifyMode: ONLY_FILES_TRANSFERRED</code> is the pragmatic default — verify what you moved without the cost of re-reading everything already at the destination.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">AWS DataSync</span>
+    <span class="tag">S3</span>
+    <span class="tag">Cross-Account</span>
+    <span class="tag">IAM</span>
+    <span class="tag">Data Engineering</span>
+    <span class="tag">KMS</span>
+</div>
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>
