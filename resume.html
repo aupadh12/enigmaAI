@@ -963,11 +963,11 @@
         <div class="stat-label">Years in Enterprise Cloud</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">23</div>
+        <div class="stat-number">25</div>
         <div class="stat-label">Published Technical Posts</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">35+</div>
+        <div class="stat-number">40+</div>
         <div class="stat-label">Tools Built for AI Agents</div>
       </div>
     </div>
@@ -982,12 +982,14 @@
         <section class="section summary fade-in">
           <div class="section-label">About</div>
           <p>I build the platforms that let scientists focus on curing disease instead of fighting infrastructure. As a
-            Principal Engineer with 12 years in enterprise cloud, I specialize in Agentic AI and production-grade
-            platform engineering for pharmaceutical R&amp;D on AWS.</p>
-          <p>My current focus is embedding AI agents and LLM-assisted workflows into drug discovery pipelines —
-            compressing development cycles and unlocking capabilities that were previously out of reach for science
+            Principal Engineer with 12 years in enterprise cloud, I specialize in multi-agent AI systems and
+            production-grade platform engineering for pharmaceutical R&amp;D on AWS.</p>
+          <p>My current focus is shipping production multi-agent systems — purpose-built subagent roles, cross-session
+            agent memory, and LLM observability — into drug discovery and digital pathology workflows. I also track the
+            real cost of running AI at scale: FinOps tooling that maps token spend across model tiers, accounts, and
             teams. I've architected bioinformatics and MLOps platforms on AWS EKS, migrated critical research pipelines
-            to production-grade Argo Workflows, and built multi-LLM agentic systems using Bedrock, Claude, and OpenAI.
+            to production-grade Argo Workflows, and built multi-agent systems using Amazon Bedrock, Strands, and
+            Claude.
           </p>
         </section>
 
@@ -1002,12 +1004,31 @@
             </div>
             <div class="exp-company">Johnson &amp; Johnson Innovative Medicine · Beerse, Belgium</div>
             <ul class="exp-desc">
-              <li>Architecting next-generation AI/ML platform infrastructure for global R&amp;D, enabling scientists and
-                biologists to run large-scale data analytics and ML workloads on AWS EKS.</li>
-              <li>Driving adoption of Agentic AI workflows, leveraging Claude Code and LLM-assisted development to
-                accelerate internal tooling and pipeline development.</li>
-              <li>Collaborating cross-functionally with bioinformatics teams, data scientists, platform security, and
-                R&amp;D leadership to define platform standards and enable self-service capabilities.</li>
+              <li>Architected and shipped a production multi-agent scientific research platform on Amazon Bedrock and
+                AWS EKS, with purpose-built subagent roles (evidence gathering, analysis, synthesis, and an adversarial
+                critic), cross-session memory via Amazon Bedrock AgentCore, end-to-end LLM tracing in Langfuse, and
+                role-based access control through Entra ID.</li>
+              <li>Built an AI FinOps dashboard tracking Bedrock, Claude Code, and Kiro spend across seven AWS accounts
+                — with automated multi-cloud cost classification and usage anomaly flags; recovered three days of
+                silently lost cost data by diagnosing and fixing a root-cause defect in the Bedrock data extraction
+                pipeline.</li>
+              <li>Deployed a GPU digital-pathology AI inference pipeline on EKS using KEDA ScaledJobs for event-driven
+                scaling and Karpenter for dynamic GPU node provisioning, generating interactive whole-slide image
+                overlays and structured result data delivered back to the digital-pathology imaging platform.</li>
+              <li>Stood up Kargo on EKS with Entra ID SSO and ArgoCD integration, and designed a dev-to-prod promotion
+                pipeline for research workloads with automatic dev promotion and a manual approval gate for
+                production.</li>
+              <li>Built an internal LLM evaluation harness with domain-specific challenges across pharmaceutical R&amp;D
+                scenarios (regulatory, pharmacovigilance, bioinformatics, platform engineering), producing objective
+                quality and cost scores to guide model selection.</li>
+              <li>Delivered a portfolio-modelling AI agent (FastAPI + SvelteKit 5, Strands SDK) enabling analysts to
+                query Monte Carlo simulation results in natural language, with anti-hallucination guardrails.</li>
+              <li>Delivered the internal talk "When one AI isn't enough" on multi-agent collaboration, with a 17-slide
+                deck, animated demo video, and AI-narrated walkthrough illustrating how specialised subagent roles
+                outperform a single LLM on complex research queries.</li>
+              <li>Driving adoption of AI-assisted engineering using Claude Code and Kiro across platform and data
+                teams, accelerating internal tooling delivery and embedding agentic development patterns into the
+                R&amp;D engineering culture.</li>
             </ul>
           </div>
 
@@ -1230,7 +1251,7 @@
               <div class="writing-meta">FinOps · Mar 2026</div>
             </div>
             <div class="writing-item">
-              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/">23 posts total — view all on
+              <div class="writing-title"><a href="https://aupadh12.github.io/enigmaAI/">25 posts total — view all on
                   Field Notes</a></div>
               <div class="writing-meta">2026 – present</div>
             </div>
@@ -1253,6 +1274,9 @@
               <span class="skill-tag highlight">Multi-Agent AI</span>
               <span class="skill-tag">LLM Orchestration</span>
               <span class="skill-tag">Claude / Bedrock</span>
+              <span class="skill-tag">Bedrock AgentCore</span>
+              <span class="skill-tag">Strands Agents</span>
+              <span class="skill-tag">Claude Code</span>
               <span class="skill-tag">OpenAI</span>
               <span class="skill-tag">Langfuse</span>
               <span class="skill-tag">Prompt Engineering</span>
@@ -1268,6 +1292,7 @@
               <span class="skill-tag">Argo Workflows</span>
               <span class="skill-tag">Karpenter</span>
               <span class="skill-tag">KEDA</span>
+              <span class="skill-tag">Kargo</span>
               <span class="skill-tag">Terraform</span>
             </div>
           </div>
@@ -1288,8 +1313,11 @@
             <div class="skill-group-label">Engineering</div>
             <div class="skill-tags">
               <span class="skill-tag">Python</span>
+              <span class="skill-tag">Svelte / FastAPI</span>
               <span class="skill-tag">FinOps</span>
               <span class="skill-tag">Observability</span>
+              <span class="skill-tag">OpenTelemetry / ADOT</span>
+              <span class="skill-tag">Kiro</span>
               <span class="skill-tag">Security</span>
               <span class="skill-tag">Release Engineering</span>
             </div>

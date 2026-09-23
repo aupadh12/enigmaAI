@@ -441,7 +441,7 @@ spec:
 
     <pre><code># In the ingestion handler — sources that can't run in the daily job
 _BULK_SOURCES = (
-    "string", "depmap", "cellosaurus", "ncats", "rsc",
+    "string", "depmap", "cellosaurus", "ncats", "screening",
     # NOT: "ontology" (weekly), NOT: "upload" (user-driven)
     # tuple preserves order — fast sources first so a slow tail doesn't block the front
 )

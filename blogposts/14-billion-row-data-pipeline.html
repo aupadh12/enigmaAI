@@ -188,14 +188,14 @@ STUDY-A / sample-05: data.csv      204,460,190 bytes  ( ~70 samples)</code></pre
 
 <pre><code># Glue table creation — injected projection
 aws glue create-table \
-  --database-name omicsagent_transcriptomics \
+  --database-name research_transcriptomics \
   --table-input '{
     "Name": "expression_data",
     "Parameters": {
       "projection.enabled": "true",
       "projection.study_id.type": "injected",
       "storage.location.template":
-        "s3://bucket/omicsagent/data/transcriptomics_bulk/expression/study_id=${study_id}"
+        "s3://bucket/research-agent/data/transcriptomics_bulk/expression/study_id=${study_id}"
     },
     "PartitionKeys": [{"Name": "study_id", "Type": "string"}],
     ...
@@ -310,7 +310,7 @@ expr_tbl = pcsv.read_csv(
 <pre><code>apiVersion: batch/v1
 kind: Job
 metadata:
-  name: omicsagent-expression-backfill
+  name: expression-backfill
 spec:
   backoffLimit: 3
   # No activeDeadlineSeconds — checkpointing allows safe partial runs
@@ -322,7 +322,7 @@ spec:
         - python
         - -c
         - |
-          from omicsagent.agents.data_ingestion_agent import _ingest_transcriptomics_bulk
+          from research_agent.ingestion import _ingest_transcriptomics_bulk
           _ingest_transcriptomics_bulk(s3, include_expression=True)</code></pre>
 
 <div class="highlight-box">

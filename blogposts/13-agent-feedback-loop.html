@@ -82,7 +82,7 @@
 
 <h2>The Same Mistake, Three Times</h2>
 
-<p>A researcher on our proteomics team corrected the same agent behavior three times in one week. Every time they asked the agent to compare cell line sensitivity across compounds, it would join DepMap data to the RSC dataset directly — which runs without error, but silently drops most of the cell lines because the names don't match exactly across those two datasets. The agent then reports a low match rate as a caveat instead of fixing it. The right workflow is to call Cellosaurus first, build a name-to-ID mapping table, then join.</p>
+<p>A researcher on our proteomics team corrected the same agent behavior three times in one week. Every time they asked the agent to compare cell line sensitivity across compounds, it would join DepMap data to an internal screening dataset directly — which runs without error, but silently drops most of the cell lines because the names don't match exactly across those two datasets. The agent then reports a low match rate as a caveat instead of fixing it. The right workflow is to call Cellosaurus first, build a name-to-ID mapping table, then join.</p>
 
 <p>The researcher corrected it each time: "you should pre-resolve cell lines with Cellosaurus before joining to DepMap, not after." Each time, the agent adapted. For the rest of that session, it got it right. The next session, it forgot. The next researcher who hit the same workflow never even knew there was a right way to do it.</p>
 
@@ -131,7 +131,7 @@
 
 <p>This means an admin can update a skill via a web UI — no code change, no image build, no deployment — and every pod picks it up within 5 minutes (the cache TTL). One correction, all users, near-instant.</p>
 
-<p>The Cellosaurus workflow correction is exactly the kind of thing that belongs in a skill. A one-sentence rule in the <code>cellosaurus</code> or <code>depmap</code> skill: "Always call cellosaurus_agent to resolve cell line names before joining RSC or DepMap data." That rule affects every user who queries those datasets, for every session, forever.</p>
+<p>The Cellosaurus workflow correction is exactly the kind of thing that belongs in a skill. A one-sentence rule in the <code>cellosaurus</code> or <code>depmap</code> skill: "Always resolve cell line names through Cellosaurus before joining screening or DepMap data." That rule affects every user who queries those datasets, for every session, forever.</p>
 
 <h3>Layer 4: Prompt Optimization (hours, all users, eval-gated)</h3>
 
@@ -146,7 +146,7 @@
 <p>Reading DynamoDB manually every week doesn't scale. The clustering job automates the signal extraction:</p>
 
 <pre><code># Weekly feedback review job
-# Scans omicsagent-prompts for user comments (any sentiment)
+# Scans the agent-prompts project for user comments (any sentiment)
 # FilterExpression: begins_with(pk, "user#") AND attribute_exists(comment)
 # No timestamp filter — drop it; feedback timestamps aren't set at write time
 

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aupadh12.github.io/enigmaAI/sitemap.xml

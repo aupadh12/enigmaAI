@@ -8,7 +8,7 @@
 
     <meta property="og:type" content="article">
     <meta property="og:title" content="Multi-Agent AI Collaboration">
-    <meta property="og:description" content="Why one agent isn’t enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other’s work. With full observability via Langfuse.">
+    <meta property="og:description" content="Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/3-multi-agent-collaboration.png">
     <meta property="og:image:width" content="1280">
     <meta property="og:image:height" content="720">
@@ -16,7 +16,7 @@
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/3-multi-agent-collaboration.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Multi-Agent AI Collaboration">
-    <meta name="twitter:description" content="Why one agent isn’t enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other’s work. With full observability via Langfuse.">
+    <meta name="twitter:description" content="Why one agent isn't enough — and how to build a team of AI specialists that research, analyze, synthesize, and critique each other's work. With full observability via Langfuse.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/3-multi-agent-collaboration.png">
     <style>
         * {
@@ -398,60 +398,70 @@
         <div class="author-avatar">AP</div>
         <div class="author-info">
             <div class="author-name">Ashutosh Upadhyay</div>
-            <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS & Kubernetes</div>
+            <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
         </div>
+    </div>
+
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated September 2026 with lessons from a conference talk on why one agent isn't enough.</em></p>
+
+    <h2>Retrieval Was Never the Hard Part</h2>
+
+    <p>The starting point was straightforward: 23 data sources, 40 specialized tools, one conversational interface. The sources span expression atlases, dependency screens, interaction networks, dose-response curves, ontologies, and literature — including public databases most researchers already use independently: DepMap, STRING, UniProt, PDB/AlphaFold, Open Targets, ChEMBL, GTEx, PubMed, Human Protein Atlas, Reactome, WikiPathways, ClinVar/gnomAD, Cellosaurus, cBioPortal, and NCATS Inxight. The platform work — connecting all of them through a single agent — took substantial effort and is genuinely useful.</p>
+
+    <p>But access is not the hard part. <strong>Reconciliation is.</strong></p>
+
+    <p>When two datasets disagree about whether a gene is essential, retrieval hands you both results and stops. The researcher is still the only thing in the loop capable of resolving it. That ceiling becomes visible with questions like:</p>
+
+    <ul>
+        <li>"Compare drug sensitivity across three cancer subtypes and recommend therapeutic targets"</li>
+        <li>"What contradicts the current hypothesis about this pathway?"</li>
+        <li>"Synthesize findings from five datasets and identify gaps in the evidence"</li>
+    </ul>
+
+    <p>Each one requires holding <em>competing interpretations</em> simultaneously, weighing them, and being explicit about what would change the answer. That is not a retrieval task. It is a reasoning task with an adversarial component.</p>
+
+    <div class="highlight-box">
+        <p><strong>Live API or land it first?</strong> Every source gets one of two treatments. Sources with APIs that answer targeted per-entity queries — one protein, one structure, one compound — are called live at question time and stay current by definition. Sources where the useful unit is the full matrix are bulk-ingested as partitioned Parquet first. DepMap is the clean example: there is no "is this gene essential in that cancer subtype?" endpoint. The answer requires the complete CRISPR gene-effect matrix across approximately 1,100 cell lines, so it lands in a data lake before it is ever asked. Three ingestion schedules handle the rest — daily for fast-changing sources, weekly for ontology DAGs whose propagation would overrun a nightly window, monthly for sources that release approximately annually. One slow source that overruns its window should not delay every other source; schedule isolation is not optional.</p>
     </div>
 
     <h2>Why Single-Agent Systems Hit a Ceiling</h2>
 
-    <p>I built a 35-tool agentic system that could query databases, build knowledge graphs, and generate research
-        reports autonomously. It worked well — until users started asking complex research questions that required
-        balancing multiple perspectives:</p>
+    <p>When this system encountered those questions, two structural failure modes became clear — and neither was fixable by switching to a more capable model or adding more tools.</p>
 
-    <ul>
-        <li>"Compare drug sensitivity across 3 cancer subtypes and recommend therapeutic targets"</li>
-        <li>"What contradicts the current hypothesis about X pathway?"</li>
-        <li>"Synthesize findings from 5 datasets and identify gaps in the evidence"</li>
-    </ul>
+    <p><strong>Capability dilution.</strong> One agent holding 40 tools becomes decent at everything and excellent at nothing. Tool selection becomes a tax on every question — the model spends reasoning budget deciding what to call rather than doing the work well. As the tool surface grows, the decision cost grows with it.</p>
 
-    <p>A single agent with 35 tools tries to do everything at once. It becomes a generalist — decent at many things,
-        excellent at nothing. Worse, it can't <em>critique its own work</em>.</p>
+    <p><strong>Self-consistency bias.</strong> An agent cannot meaningfully critique its own output. It has a single objective and already satisfied it. Asking "are you sure?" invites the same reasoning path to re-run and agree with itself. In scientific synthesis this is disqualifying: an unreviewed conclusion is a hypothesis, not a finding, and the reviewer cannot be the author.</p>
 
     <div class="highlight-box">
-        <p><strong>The fundamental insight:</strong> Multi-agent systems aren't about splitting work — they're about
+        <p><strong>The fundamental insight:</strong> Multi-agent systems aren't about splitting work for throughput — they're about
             <em>introducing cognitive diversity</em>. Different agents with different prompts, different model tiers,
-            and different objectives produce better outcomes than one agent thinking harder.
+            and different objectives that genuinely conflict with each other produce better outcomes than one agent thinking harder.
         </p>
     </div>
 
     <h2>The Multi-Agent Architecture</h2>
 
-    <p>I evolved the system into a 4-role collaboration pattern, each role with a distinct responsibility and
-        personality:</p>
+    <p>The system evolved into a four-role collaboration pattern, each role with a distinct objective and a deliberately different incentive structure. Not every query goes through the full pipeline — a lightweight classifier runs first and routes straightforward data lookups to a faster single-agent path, reserving the four-role pipeline for synthesis and reasoning tasks.</p>
 
     <div class="role-grid">
         <div class="role-card scout">
-            <div class="role-name">Data Scout</div>
-            <div class="role-desc">Searches, queries, and retrieves raw information. Optimized for breadth — it explores
-                every angle and returns comprehensive raw data without filtering.</div>
+            <div class="role-name">Data Scout &mdash; <em>Breadth</em></div>
+            <div class="role-desc">Retrieves without filtering. Rewarded for coverage, not precision — returns everything it found, including the inconvenient results. A fresh instance per task to avoid shared-state corruption across concurrent queries.</div>
             <div class="role-model">Model: Sonnet (fast, cost-effective)</div>
         </div>
         <div class="role-card analyst">
-            <div class="role-name">Analyst</div>
-            <div class="role-desc">Performs statistical analysis, identifies patterns, and generates visualizations.
-                Deep but narrow — focused purely on data interpretation.</div>
+            <div class="role-name">Analyst &mdash; <em>Depth</em></div>
+            <div class="role-desc">Statistics, pattern detection, visualizations, evidence scoring. Deep but deliberately narrow — interprets data, does not conclude. That boundary between interpretation and conclusion is load-bearing.</div>
             <div class="role-model">Model: Sonnet (analytical precision)</div>
         </div>
         <div class="role-card synthesizer">
-            <div class="role-name">Synthesizer</div>
-            <div class="role-desc">Combines findings from Scout and Analyst into a coherent narrative. Resolves
-                contradictions, identifies consensus, and produces the final report.</div>
-            <div class="role-model">Model: Opus (highest reasoning)</div>
+            <div class="role-name">Synthesizer &mdash; <em>Resolution</em></div>
+            <div class="role-desc">Merges findings into one narrative and <em>resolves</em> contradictions rather than listing them. Assigns explicit confidence per finding and states what evidence would change the ranking.</div>
+            <div class="role-model">Model: Opus (frontier reasoning)</div>
         </div>
         <div class="role-card critic">
-            <div class="role-name">Critic</div>
-            <div class="role-desc">Reviews the Synthesizer's output for logical flaws, unsupported claims, missing
-                evidence, and alternative interpretations. The adversarial check.</div>
+            <div class="role-name">Critic &mdash; <em>Refutation</em></div>
+            <div class="role-desc">Adversarial review. Hunts unsupported claims, ignored alternatives, overstated confidence, and missing data. Rewarded for finding fault. Receives the raw retrieved data — not just the Synthesizer's report.</div>
             <div class="role-model">Model: Opus (adversarial reasoning)</div>
         </div>
     </div>
@@ -562,7 +572,7 @@
             <rect x="240" y="395" width="240" height="7" fill="url(#synthGrad)" />
             <text x="360" y="397" text-anchor="middle" font-size="11" font-weight="600" fill="white">Synthesizer
                 (Opus)</text>
-            <text x="360" y="418" text-anchor="middle" font-size="10" fill="#475569">Merge findings → Coherent
+            <text x="360" y="418" text-anchor="middle" font-size="10" fill="#475569">Merge findings &#8594; Coherent
                 narrative</text>
             <text x="360" y="432" text-anchor="middle" font-size="10" fill="#475569">Resolve contradictions</text>
 
@@ -620,32 +630,74 @@
                 <td><strong>Data Scout</strong></td>
                 <td>Sonnet (fast)</td>
                 <td>Tool selection is mechanical — doesn't need deep reasoning</td>
-                <td>Low (high volume, cheap model)</td>
+                <td>Low (high volume, cheaper tier)</td>
             </tr>
             <tr>
                 <td><strong>Analyst</strong></td>
                 <td>Sonnet</td>
-                <td>Pattern recognition + code generation for viz</td>
+                <td>Pattern recognition + code generation for visualizations</td>
                 <td>Medium</td>
             </tr>
             <tr>
                 <td><strong>Synthesizer</strong></td>
-                <td>Opus (strongest)</td>
-                <td>Resolving contradictions requires highest reasoning</td>
+                <td>Opus (frontier)</td>
+                <td>Resolving contradictions requires highest reasoning capability</td>
                 <td>High (but only one call)</td>
             </tr>
             <tr>
                 <td><strong>Critic</strong></td>
-                <td>Opus</td>
+                <td>Opus (frontier)</td>
                 <td>Adversarial reasoning must match synthesizer's capability</td>
                 <td>High (but catches costly errors)</td>
             </tr>
         </tbody>
     </table>
 
-    <p>This tiered approach means ~70% of total tokens are processed by the cheaper Sonnet model (scout + analyst),
-        while the expensive Opus reasoning is reserved for the two steps that need it most. Langfuse makes this cost
-        breakdown visible per-role.</p>
+    <p>This tiered approach means the majority of tokens are processed by the cheaper Sonnet model (scout + analyst),
+        while frontier-tier reasoning is reserved for the two steps that need it most. Per-role tracing in Langfuse makes
+        this cost breakdown visible and lets you verify that each tier is actually earning its place.</p>
+
+    <h2>One Question, Four Contributions</h2>
+
+    <p>To make the architecture concrete, consider a question that a single agent handles poorly: "Across these cancer subtypes, which dependency is the most tractable therapeutic target — and what argues against it?"</p>
+
+    <p>The second half — <em>"and what argues against it?"</em> — is what makes this a multi-agent problem. A single agent can answer the first half. Only an adversarial architecture reliably answers the second, because something has to be <em>incentivized</em> to look for the counter-argument.</p>
+
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>What It Contributed</th>
+                <th>Why It Mattered</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Scout</strong></td>
+                <td>Retrieved dependency scores, expression profiles, and canonical identifiers across subtypes — including results that fail to replicate, returned without pre-filtering.</td>
+                <td>Coverage without pre-filtering. The inconvenient data still reached the table.</td>
+            </tr>
+            <tr>
+                <td><strong>Analyst</strong></td>
+                <td>Scored effect sizes per subtype, flagged which separations were statistically meaningful versus noise, and quantified how much apparent signal came from a single cell-line panel.</td>
+                <td>Turns "these numbers differ" into "this difference is real, that one isn't."</td>
+            </tr>
+            <tr>
+                <td><strong>Synthesizer</strong></td>
+                <td>Ranked candidates and resolved the disagreement between dependency and expression evidence instead of reporting both. Attached explicit confidence to each finding and stated what evidence would change the ranking.</td>
+                <td>A decision, not a data dump — with its reasoning exposed.</td>
+            </tr>
+            <tr>
+                <td><strong>Critic</strong></td>
+                <td>Reviewed against the raw retrieved data, not just the report. Challenged whether confidence was justified by sample size, and surfaced a replication conflict in a second source the Scout had retrieved but the Synthesizer had not emphasized.</td>
+                <td>The independent check. Triggers revision when it finds one.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="highlight-box">
+        <p><strong>The structural difference:</strong> a single agent answers the first half of that question. Only an adversarial architecture reliably answers the second half — "and what argues against it?" — because something has to be incentivized to look.</p>
+    </div>
 
     <h2>The Orchestration Pattern</h2>
 
@@ -702,7 +754,7 @@ class ResearchOrchestrator:
 
     <div class="langfuse-box">
         <h3>Why Langfuse is Non-Negotiable for Multi-Agent Systems</h3>
-        <p>With 4 agent roles making 6-15 LLM calls per user query, you <em>need</em> tracing. Without it, debugging
+        <p>With 4 agent roles making 6–15 LLM calls per user query, you <em>need</em> tracing. Without it, debugging
             "why did the agent give a wrong answer?" is impossible. Langfuse gives you:</p>
         <ul style="margin-top:12px;">
             <li><strong>Per-role traces:</strong> See exactly what each agent decided and why</li>
@@ -740,25 +792,25 @@ class ResearchOrchestrator:
 
             <!-- Scout bars (parallel — 3 tasks, 2 replicas serve them) -->
             <rect x="180" y="82" width="200" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
-            <text x="280" y="95" text-anchor="middle" font-size="9" fill="white" font-weight="600">3 tool calls →
+            <text x="280" y="95" text-anchor="middle" font-size="9" fill="white" font-weight="600">3 tool calls &#8594;
                 2.5s</text>
 
             <rect x="180" y="112" width="170" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
-            <text x="265" y="125" text-anchor="middle" font-size="9" fill="white" font-weight="600">2 tool calls →
+            <text x="265" y="125" text-anchor="middle" font-size="9" fill="white" font-weight="600">2 tool calls &#8594;
                 2.1s</text>
 
             <rect x="180" y="142" width="240" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
-            <text x="300" y="155" text-anchor="middle" font-size="9" fill="white" font-weight="600">4 tool calls →
+            <text x="300" y="155" text-anchor="middle" font-size="9" fill="white" font-weight="600">4 tool calls &#8594;
                 3.0s</text>
 
             <!-- Analyst (starts after longest scout @ 3.0s) -->
             <rect x="425" y="182" width="100" height="18" rx="4" fill="url(#analystGrad)" opacity="0.8" />
-            <text x="475" y="195" text-anchor="middle" font-size="9" fill="white" font-weight="600">Analysis →
+            <text x="475" y="195" text-anchor="middle" font-size="9" fill="white" font-weight="600">Analysis &#8594;
                 1.2s</text>
 
             <!-- Synthesizer (starts @ 4.2s) -->
             <rect x="530" y="222" width="75" height="18" rx="4" fill="url(#synthGrad)" opacity="0.8" />
-            <text x="567" y="235" text-anchor="middle" font-size="9" fill="white" font-weight="600">Synth → 0.9s</text>
+            <text x="567" y="235" text-anchor="middle" font-size="9" fill="white" font-weight="600">Synth &#8594; 0.9s</text>
 
             <!-- Critic (starts @ 5.1s) -->
             <rect x="610" y="262" width="50" height="18" rx="4" fill="url(#criticGrad)" opacity="0.8" />
@@ -825,10 +877,9 @@ async def research(query: str):
             retries = less total spend.
         </li>
         <li><strong>Scout parallelism was bottlenecked.</strong> The "fast" scout phase was actually the slowest because
-            one scout was making 4 tool calls sequentially. Langfuse waterfall made this obvious.</li>
-        <li><strong>Per-role token tracking revealed waste.</strong> The Analyst was receiving the full scout output
-            (~8K tokens) but only using 30% of it. Adding a summarization step between scout and analyst cut costs 40%.
-        </li>
+            one scout was making 4 tool calls sequentially. The Langfuse waterfall made this obvious — completely invisible in aggregate logs.</li>
+        <li><strong>Per-role token tracking revealed waste.</strong> The Analyst was receiving the Scout's full output
+            but using only a fraction of it — a clear optimization target that the waterfall view alone exposed. Without per-role attribution, this inefficiency is invisible.</li>
     </ol>
 
     <div class="metric-grid">
@@ -854,20 +905,52 @@ async def research(query: str):
 
     <p>The most valuable addition was the Critic agent. Its prompt is explicitly adversarial:</p>
 
-    <pre><code>CRITIC_PROMPT = """You are a rigorous scientific reviewer. Your job is to FIND FLAWS.
+    <pre><code>CRITIC_PROMPT = """You are a rigorous scientific reviewer. Your job is to Find Flaws.
 
 For each claim in the report:
 1. Is it supported by the evidence provided?
 2. Are there alternative interpretations the report ignores?
-3. Is the confidence level appropriate, or is it overstated?
-4. What critical data is MISSING that would change the conclusion?
+3. Is the confidence appropriate, or overstated?
+4. What critical data is Missing that would change the conclusion?
 
-Be ruthless. A report that passes your review should be publishable."""
+Be critical. A report that passes your review should be publishable."""
 </code></pre>
 
-    <p>In production, the Critic triggers a revision loop ~23% of the time. When it does, the revised report is
-        measurably better (scored via Langfuse user feedback). The other 77% of the time, it adds confidence that the
-        report is solid — which users notice and appreciate.</p>
+    <p>There is a non-obvious design decision here: <strong>the Critic receives the raw retrieved data, not only the Synthesizer's report.</strong> A critic that reads just the report can check internal consistency — it cannot check whether the report is actually grounded in the evidence the Scout retrieved. Building that ground-truth link explicitly is what makes this a review rather than a consistency check.</p>
+
+    <p>In practice, the Critic triggers a revision loop in approximately 23% of research-tier queries (11 of 47 recorded). A representative case: a Synthesizer once proposed a target ranked first on dependency evidence, reported with high confidence. The Critic objected that the supporting effect was carried by a small number of lines from a single cell-line panel, and that a second source in the Scout's own retrieval showed the effect failing to replicate. The revised report demoted the candidate, surfaced the replication conflict explicitly, and named the experiment that would settle it.</p>
+
+    <p>The 77% of queries where the Critic does not trigger a revision also have value: they add confidence that the report is solid — which researchers notice and appreciate.</p>
+
+    <div class="highlight-box">
+        <p><strong>Counter-intuitive economics:</strong> adding an expensive frontier-tier Critic reduces total cost to the researcher. A wrong answer requires a re-run plus the researcher's time to detect it. Catching the error once in the pipeline is cheaper than discovering it in the analysis — even if the argument is harder to quantify precisely than it sounds.</p>
+    </div>
+
+    <h2>Contradiction Is Signal, Not Noise</h2>
+
+    <p>A system built for efficiency converges. It reconciles sources into the consensus view and delivers it faster. That is genuinely useful — and it is structurally incapable of producing a novel hypothesis, because the mainstream answer is the objective.</p>
+
+    <p>The Critic inverts this. Once a role is explicitly rewarded for finding fault — and one of its four tasks is to surface refuting evidence — disagreement between sources stops being an error to smooth over and becomes the most interesting output of the run.</p>
+
+    <p>Three things this surfaces that retrieval alone cannot:</p>
+
+    <ul>
+        <li><strong>Replication conflicts</strong> — where a dependency holds in one experimental panel and fails in another. A consensus engine averages these away. An adversarial architecture preserves them.</li>
+        <li><strong>Confidence asymmetry</strong> — findings that look equally supported but rest on very different evidential weight. One might come from 1,100 cell lines; another from 60. The Analyst quantifies this; the Critic flags it when the report treats them as equivalent.</li>
+        <li><strong>Structured absence</strong> — the experiment nobody has run. The Critic's fourth question ("what critical data is missing?") turns a gap in the evidence into a testable proposal. That is the closest thing to a hypothesis generator this system has.</li>
+    </ul>
+
+    <p>Persisting disagreements matters as much as surfacing them. A conflict found in one query that gets written to the knowledge graph is queryable by every future session that touches the same target. The system builds memory of what is <em>contested</em>, not just what is known.</p>
+
+    <h2>Research Memory Across Sessions</h2>
+
+    <p>A single-agent system answers questions and forgets them. The finding from Monday's query has no bearing on Thursday's query about the same target unless someone explicitly re-introduces the context. Multi-agent systems create the same problem unless there is a shared memory layer that carries knowledge forward across sessions.</p>
+
+    <p>Two layers address this. A knowledge graph accumulates structured relationships — gene essentiality across cancer types, pathway memberships, compound-target associations — queryable by any future agent call. Contradictions are first-class: a disagreement between two sources is stored as a conflict node, not averaged away, so the system knows what is contested rather than only what is known. Amazon Bedrock AgentCore Memory handles conversation context across sessions: both the fast single-agent path and the full multi-agent pipeline read prior context on session entry, so the agent knows what the researcher explored before, what evidence was contested, and what questions were left open.</p>
+
+    <p>The combined effect is that the system becomes more useful the longer it is used. Each query enriches both layers. This is not the property of a retrieval tool — it is the property of a research partner.</p>
+
+    <p><em>For a deeper look at how to build cross-session memory for agents, see <a href="./12-cross-session-agent-memory.html">Cross-Session Agent Memory</a>. For the failure mode where agent memory begins lying to itself, see <a href="./24-agent-memory-self-poisoning.html">When Your Agent's Memory Starts Lying</a>.</em></p>
 
     <h2>Deployment: Each Role is a Separate Service</h2>
 
@@ -899,38 +982,58 @@ spec:
         low-priority environments to save cost, but requires a feature flag in the orchestrator to skip the stage —
         scaling to 0 without one causes connection failures.</p>
 
+    <p>One operational trap: a fresh Scout instance must be created per task. Agents carry conversational state, and sharing one instance across concurrent queries corrupts it. This is not obvious until you hit it in production.</p>
+
     <h2>Lessons Learned</h2>
 
-    <h3>1. Start with one agent, split when you hit diminishing returns</h3>
-    <p>Don't design multi-agent from day one. I ran a single agent for 6 months before splitting. The split was
-        justified only when I could clearly identify where "thinking harder" wasn't helping and "thinking differently"
-        would.</p>
+    <h3>1. Don't start with multi-agent</h3>
+    <p>Run a single agent first, and split only once you can name the failure mode. Splitting is justified only when you can point at where thinking harder stopped helping and thinking differently would. Before that point you are buying latency, cost, and operational complexity with no demonstrated return.</p>
 
-    <h3>2. The Synthesizer prompt is the hardest to write</h3>
-    <p>Getting an LLM to <em>resolve contradictions</em> rather than just listing them requires very specific prompting.
-        The breakthrough was telling it to assign confidence levels (0-1) to each finding and use those to weight the
-        synthesis.</p>
+    <h3>2. Give roles opposing incentives</h3>
+    <p>Four agents with the same prompt and the same goal is one agent with four times the bill. The value comes entirely from objectives that genuinely conflict: breadth versus precision, synthesis versus refutation. If the incentives do not conflict, the architecture is waste.</p>
 
-    <h3>3. Langfuse per-role tracing is mandatory, not optional</h3>
-    <p>Without it, you can't answer: "Is the critic actually improving output?" You need data — token costs, latency
-        impact, and revision rates — to justify each role's existence.</p>
+    <h3>3. Resolution is harder than retrieval</h3>
+    <p>Getting a model to <em>resolve</em> contradictions rather than list them took the most iteration of anything in this system. What worked: require an explicit confidence score per finding, then weight the synthesis by those scores. Without that instruction, the model produces a tidy summary of the disagreement and leaves the decision to the human — which defeats the purpose.</p>
+
+    <h3>4. Make every role earn its place</h3>
+    <p>Per-role cost, latency, and revision-rate data is what tells you whether a role is contributing or just adding time. We keep four roles because four survived that test — not because four looked right on an architecture diagram. If a role is not reducing revision rate or catching errors, remove it.</p>
+
+    <div class="highlight-box">
+        <p><strong>The transferable idea:</strong> If your AI never disagrees with itself, it will only ever tell you what the field already believes.</p>
+    </div>
+
+    <h2>From Answering Questions to Proposing Experiments</h2>
+
+    <p>The next step for this class of system is not a bigger chatbot. It is a governed, traceable research partner that can reason across evidence, critique uncertainty, and suggest testable next steps.</p>
+
+    <p>Three properties define what that looks like in practice:</p>
+
+    <ul>
+        <li><strong>Evidence-driven reasoning:</strong> agents retrieve, compare, and connect signals from multiple sources instead of returning a single answer. Competing interpretations reach the table, not just the consensus view.</li>
+        <li><strong>Built-in scientific critique:</strong> a Critic role challenges assumptions, flags contradictions, and makes uncertainty visible before conclusions are accepted — not after, when they are harder to retract.</li>
+        <li><strong>Experiment-oriented output:</strong> the system moves from summarizing evidence toward proposing hypotheses and follow-up analyses for human review. The Critic's fourth question — "what critical data is missing?" — is the first step toward that.</li>
+    </ul>
+
+    <div class="highlight-box">
+        <p><strong>Key message:</strong> Multi-agent systems are most valuable when they make reasoning inspectable and science reviewable — not when they simply generate faster prose.</p>
+    </div>
 
     <div class="takeaway">
         <h3>Key Takeaways</h3>
         <ul>
-            <li>Multi-agent = <strong>cognitive diversity</strong>, not just task splitting</li>
-            <li>Use <strong>tiered models</strong>: cheap models for data gathering, expensive models for reasoning</li>
-            <li>An <strong>adversarial Critic</strong> is one of the highest-ROI additions to an agentic system</li>
-            <li><strong>Langfuse tracing</strong> is non-negotiable — you need per-role cost, latency, and quality
-                metrics</li>
-            <li>Deploy each role as a <strong>separate K8s service</strong> for independent scaling</li>
-            <li>Start with 1 agent; split only when you can articulate exactly <em>why</em></li>
+            <li><strong>Don't start multi-agent</strong> — run single-agent first; split only when you can name the failure mode</li>
+            <li>Multi-agent = <strong>cognitive diversity</strong>, not just task splitting — objectives must genuinely conflict</li>
+            <li>Use <strong>tiered models</strong>: cheaper models for data gathering, frontier models for reasoning</li>
+            <li>An <strong>adversarial Critic</strong> that reads the raw evidence (not just the report) is one of the highest-ROI additions to an agentic system</li>
+            <li><strong>Contradiction is signal</strong> — surface, preserve, and persist it rather than averaging it away</li>
+            <li><strong>Langfuse tracing</strong> is non-negotiable — you need per-role cost, latency, and quality metrics</li>
+            <li>Deploy each role as a <strong>separate service</strong> for independent scaling and independent prompting</li>
         </ul>
     </div>
 
     <div class="separator"></div>
 
-    <p><em>If you're building multi-agent systems or have questions about orchestrating AI roles on Kubernetes, feel
+    <p><em>If you're building multi-agent systems or have questions about orchestrating AI roles in production, feel
             free to connect.</em></p>
 
     <div class="tag-list">

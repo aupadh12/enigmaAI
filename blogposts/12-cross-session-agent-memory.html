@@ -79,7 +79,7 @@
     <div class="author-avatar">A</div>
     <div class="author-info">
         <div class="author-name">Ashutosh Upadhyay</div>
-        <div class="author-title">Platform Engineering · Johnson &amp; Johnson Innovative Medicine · August 2026</div>
+        <div class="author-title">Platform Engineering · August 2026</div>
     </div>
 </div>
 
@@ -135,7 +135,7 @@ event_ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M
 
 client.create_event(
     memoryId=MEMORY_ID,
-    actorId=actor_id,        # sha256(email.lower())[:16]
+    actorId=actor_id,        # keyed hash of the email, never the raw address
     sessionId=session_id,
     eventTimestamp=event_ts,
     payload=payload
@@ -181,17 +181,17 @@ client.create_event(
 
 <pre><code># Good: one namespaceTemplate per strategy (each strategy is a separate object)
 # USER_PREFERENCE strategy:
-namespaceTemplates: ["/omicsagent/preferences/{actorId}/"]
+namespaceTemplates: ["/app/preferences/{actorId}/"]
 
 # SEMANTIC strategy (corrections):
-namespaceTemplates: ["/omicsagent/corrections/{actorId}/"]
+namespaceTemplates: ["/app/corrections/{actorId}/"]
 
 # EPISODIC strategy (findings/reflections):
-namespaceTemplates: ["/omicsagent/findings/{actorId}/{sessionId}/"]
+namespaceTemplates: ["/app/findings/{actorId}/{sessionId}/"]
 
 # Bad: multiple templates in one strategy — API only accepts 1 template per strategy
 # Also bad: global namespace — returns ALL users' data on retrieve
-namespaceTemplates: ["/omicsagent/"]</code></pre>
+namespaceTemplates: ["/app/"]</code></pre>
 
 <p>The extracted content comes back as a <strong>JSON string inside <code>content.text</code></strong>, not plain text. Your retrieval code needs to <code>json.loads()</code> the content to access the structured fields. If you try to surface it directly as text, you'll inject raw JSON into the agent's context which it will attempt to parse itself, with unpredictable results.</p>
 
@@ -199,7 +199,7 @@ namespaceTemplates: ["/omicsagent/"]</code></pre>
 
 <p>This one deserves its own section because the failure mode is permanent and silent.</p>
 
-<p>When you retrieve memories, you pass a <code>namespacePath</code> prefix. AgentCore returns all records whose namespace starts with that prefix. If you pass <code>/omicsagent/</code>, you get records from <em>every user</em> who has ever interacted with the system. Researcher A's preferences show up in Researcher B's session context. This is not a hypothetical — we verified it against the live service before shipping.</p>
+<p>When you retrieve memories, you pass a <code>namespacePath</code> prefix. AgentCore returns all records whose namespace starts with that prefix. If you pass <code>/app/</code>, you get records from <em>every user</em> who has ever interacted with the system. Researcher A's preferences show up in Researcher B's session context. This is not a hypothetical — we verified it against the live service before shipping.</p>
 
 <div class="stale-box">
     <p><strong>The permanent leak risk:</strong> Extracted long-term records have <strong>no automatic TTL</strong>. The <code>eventExpiryDuration</code> setting governs only the raw event records, not what the strategies extract. A preference or correction record written with the wrong namespace scope will remain there indefinitely unless you explicitly delete it via <code>DeleteMemoryRecord</code>.</p>
@@ -209,7 +209,9 @@ namespaceTemplates: ["/omicsagent/"]</code></pre>
 
 <p>Never store the raw user email as the <code>actorId</code>. Instead, hash it:</p>
 
-<pre><code>import hashlib
+<pre><code>import hashlib, hmac
+
+ACTOR_ID_KEY = load_secret("actor-id-key")  # server-side secret, never shipped to clients
 
 def _hash_actor(email: str) -> str:
     # Fail close on empty/fallback identity
@@ -217,9 +219,9 @@ def _hash_actor(email: str) -> str:
         raise ValueError(
             f"Cannot derive actorId from empty/fallback email: {email!r}"
         )
-    return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]</code></pre>
+    return hmac.new(ACTOR_ID_KEY, email.strip().lower().encode(), hashlib.sha256).hexdigest()[:16]</code></pre>
 
-<p>The fail-close on empty identity is important. If your auth layer fails to inject a user email and your code falls back to an empty string or "anon", the SHA-256 of that string becomes a shared actorId for every unauthenticated request. Every preference and finding gets written to the same namespace. Every user gets every other user's context. And since extracted records have no TTL, this contamination persists until manually cleaned up.</p>
+<p>The fail-close on empty identity is important. If your auth layer fails to inject a user email and your code falls back to an empty string or "anon", the hash of that string becomes a shared actorId for every unauthenticated request. Every preference and finding gets written to the same namespace. Every user gets every other user's context. And since extracted records have no TTL, this contamination persists until manually cleaned up.</p>
 
 <p>Raising an exception on empty identity is the correct behavior. Write no memory rather than write to a shared namespace.</p>
 
@@ -325,6 +327,11 @@ prior_message_count = len(messages)</code></pre>
         <li>Verify your feedback pipeline against real data — check for co-occurring rating and comment rows. Zero results usually means a UI reachability bug, not a write-path bug.</li>
         <li>Prepend the memory context <em>before</em> computing <code>prior_message_count</code>, or the synthetic turns accumulate across sessions.</li>
     </ul>
+</div>
+
+
+<div class="highlight-box">
+<p><strong>Follow-up (September 2026):</strong> <a href="24-agent-memory-self-poisoning.html">When Your Agent&#8217;s Memory Starts Lying: Self-Poisoning in Long-Term Agent Memory</a> — explores how persistent memory can turn against the agent when hallucinations re-enter as trusted rules.</p>
 </div>
 
 <div class="tag-list">

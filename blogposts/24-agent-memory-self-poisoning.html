@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>When Your Agent's Memory Starts Lying: Self-Poisoning in Long-Term Agent Memory</title>
+    <meta name="description" content="A hallucinated tool claim persisted as a confidence-0.85 behavioral rule, got injected as the user's own voice, and the model obeyed it across sessions. Here is how the self-poisoning loop forms in AgentCore Memory and five fixes that break it.">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="When Your Agent's Memory Starts Lying: Self-Poisoning in Long-Term Agent Memory">
+    <meta property="og:description" content="A hallucinated tool claim persisted as a confidence-0.85 behavioral rule, got injected as the user's own voice, and the model obeyed it across sessions. Here is how the self-poisoning loop forms and how to break it.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/24-agent-memory-self-poisoning.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/24-agent-memory-self-poisoning.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="When Your Agent's Memory Starts Lying: Self-Poisoning in Long-Term Agent Memory">
+    <meta name="twitter:description" content="A hallucinated tool claim persisted as a confidence-0.85 behavioral rule, got injected as the user's own voice, and the model obeyed it across sessions. Here is how the self-poisoning loop forms and how to break it.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/24-agent-memory-self-poisoning.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/24-agent-memory-self-poisoning.png" alt="Blog cover">
+
+<div class="header-badge">MEMORY</div>
+<h1>When Your Agent's Memory Starts Lying: Self-Poisoning in Long-Term Agent Memory</h1>
+<p class="subtitle">A hallucinated tool claim persisted as a behavioral rule, got injected as the user's own voice, and the model obeyed it across sessions. Here is how the loop forms and how to break it.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · September 2026</div>
+    </div>
+</div>
+
+<p>A user submits a routine query to a scientific research agent backed by AWS Bedrock. The response is confident and well-formatted: a data-access tool is "currently unavailable due to an API issue," and the agent proceeds to answer from its internal reasoning instead. The user assumes a transient glitch and moves on.</p>
+
+<p>Three days later, a different user gets the same message. Different account, different session, same phantom unavailability claim. Then another user. The data-access tool is working perfectly — not a single error in any application log or infrastructure metric. The only place this claim of unavailability exists is in the agent's long-term memory.</p>
+
+<p>What happened: the first response was a hallucination. The model had received no error. It fabricated the unavailability claim as part of a reasoning turn, and that turn was persisted unconditionally to AgentCore Memory. The platform's extraction strategy processed it and produced a behavioral rule at confidence 0.85 — something to the effect of "verify tool availability before calling." At the start of every subsequent session, that rule was retrieved and injected into the conversation as a user-role message. The model read its own prior fabrication, now attributed to the user, and reproduced it faithfully. Each reproduction was persisted, closing the loop tighter.</p>
+
+<p>This is memory self-poisoning. It requires no external attacker, no malicious input, no misconfiguration. It emerges naturally from three default behaviors: persist everything, extract behavioral rules from session events, and inject retrieved memory as the user's voice.</p>
+
+<h2>How Long-Term Memory Gets Populated</h2>
+
+<p>If you have not worked with AgentCore Memory before, <a href="12-cross-session-agent-memory.html">post #12 covers the data model and privacy considerations in depth</a>. The short version relevant to this post: raw conversation turns are written as events to the memory store. A set of extraction strategies — EPISODIC, SEMANTIC, USER_PREFERENCE — run asynchronously against those events and produce structured records. Those records persist across sessions and are retrieved at session start when their content is semantically relevant to the current query.</p>
+
+<p>Two properties of the data model create the conditions for poisoning. The first: <strong>extracted records have no TTL</strong>. Events do have an expiry, but by the time they expire, the record derived from them is already living permanently in the long-term store. The second: there is no verification step between "model said X" and "X becomes a memory record." Every LLM output that gets persisted as an event is a candidate for extraction, regardless of whether it reflects reality.</p>
+
+<div class="warn-box">
+    <p><strong>Important distinction:</strong> the extraction pipeline does not check whether tool calls were made, whether they succeeded, or whether the agent's stated facts could be verified. It extracts structured beliefs from the text of the conversation. A hallucinated claim written in confident prose is indistinguishable, to the extractor, from an observation grounded in actual tool results.</p>
+</div>
+
+<h2>The Self-Poisoning Loop in Detail</h2>
+
+<p>The six steps below describe how a single hallucinated turn compounds into a cross-session behavioral constraint. The loop is closed not by any single bad design choice, but by the interaction of choices that are each individually defensible.</p>
+
+<div class="diagram-container">
+<svg viewBox="0 0 640 545" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:640px;display:block;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;">
+  <defs>
+    <marker id="arrowGray24" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrowRed24" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#dc2626"/>
+    </marker>
+  </defs>
+
+  <!-- Step 1: Hallucination -->
+  <rect x="70" y="10" width="490" height="62" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="315" y="34" text-anchor="middle" font-size="13" font-weight="600" fill="#b91c1c">Step 1 — Hallucination</text>
+  <text x="315" y="56" text-anchor="middle" font-size="12" fill="#7f1d1d">Model claims a tool is unavailable — no actual error was received</text>
+
+  <!-- Arrow 1 to 2 -->
+  <line x1="315" y1="72" x2="315" y2="100" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowGray24)"/>
+
+  <!-- Step 2: Unconditional Persistence -->
+  <rect x="70" y="102" width="490" height="62" rx="8" fill="#fff7ed" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="315" y="126" text-anchor="middle" font-size="13" font-weight="600" fill="#92400e">Step 2 — Unconditional Persistence</text>
+  <text x="315" y="148" text-anchor="middle" font-size="12" fill="#78350f">Session event written to long-term memory store without verification</text>
+
+  <!-- Arrow 2 to 3 -->
+  <line x1="315" y1="164" x2="315" y2="192" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowGray24)"/>
+
+  <!-- Step 3: Extraction -->
+  <rect x="70" y="194" width="490" height="62" rx="8" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="315" y="218" text-anchor="middle" font-size="13" font-weight="600" fill="#5b21b6">Step 3 — Memory Extraction</text>
+  <text x="315" y="240" text-anchor="middle" font-size="12" fill="#4c1d95">Background strategy produces a behavioral record at confidence: 0.85</text>
+
+  <!-- Arrow 3 to 4 -->
+  <line x1="315" y1="256" x2="315" y2="284" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowGray24)"/>
+
+  <!-- Step 4: Retrieval -->
+  <rect x="70" y="286" width="490" height="62" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="315" y="310" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">Step 4 — Session Retrieval</text>
+  <text x="315" y="332" text-anchor="middle" font-size="12" fill="#1e3a8a">Record loaded at the start of every new session (records have no TTL)</text>
+
+  <!-- Arrow 4 to 5 -->
+  <line x1="315" y1="348" x2="315" y2="376" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowGray24)"/>
+
+  <!-- Step 5: User-Voice Injection (highlighted) -->
+  <rect x="70" y="378" width="490" height="66" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2.5"/>
+  <text x="315" y="402" text-anchor="middle" font-size="13" font-weight="700" fill="#b91c1c">Step 5 — User-Voice Injection  &#x25C4; critical</text>
+  <text x="315" y="424" text-anchor="middle" font-size="12" fill="#7f1d1d">Record placed in context as role: user — highest-trust channel — no provenance label</text>
+
+  <!-- Arrow 5 to 6 -->
+  <line x1="315" y1="444" x2="315" y2="472" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowGray24)"/>
+
+  <!-- Step 6: Reproduction -->
+  <rect x="70" y="474" width="490" height="62" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="315" y="498" text-anchor="middle" font-size="13" font-weight="600" fill="#b91c1c">Step 6 — Obedient Reproduction</text>
+  <text x="315" y="520" text-anchor="middle" font-size="12" fill="#7f1d1d">Model reproduces the claim; the turn is persisted — loop returns to Step 2</text>
+
+  <!-- Feedback arrow: right side of step 6 back up to right side of step 2 -->
+  <path d="M 560 505 L 618 505 L 618 133 L 562 133" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowRed24)"/>
+
+  <!-- Rotated label alongside feedback arrow -->
+  <text x="627" y="340" text-anchor="middle" font-size="11" fill="#dc2626" transform="rotate(90,627,340)">loop tightens</text>
+</svg>
+<p class="diagram-caption">The self-poisoning cycle. A single hallucinated turn enters long-term memory, is extracted as a behavioral rule, and is injected back as the user's own instruction — which the model then obeys and persists again.</p>
+</div>
+
+<p>What makes this loop particularly hard to detect is that none of the individual steps look wrong in isolation. Persisting events is how memory accumulates. Extracting behavioral rules is how user preferences are learned. Injecting context at session start is how the agent becomes personalized. The failure mode only becomes visible when you observe the system across multiple sessions — and even then, the agent's confident responses look like normal operation.</p>
+
+<h2>Why User-Voice Injection Is the Most Dangerous Step</h2>
+
+<p>Large language models treat the conversation turns they receive with different levels of trust. The system prompt defines the agent's role and constraints. The user turn is the instruction the model is trying to execute. Tool results are external evidence to reason over. These roles are not rigid, but they shape how the model weighs conflicting signals.</p>
+
+<p>When a memory record is injected at session start as a <code>role: user</code> message, the model processes it with the same weight as a human having typed those words. There is no structural marker distinguishing "this is a behavioral rule derived from a session from three weeks ago" from "this is what the user just said." Without a provenance label, the model has no way to know it should treat this content as historical context subject to verification — it reads it as a current instruction.</p>
+
+<div class="stale-box">
+    <p><strong>Why this matters:</strong> a fabricated behavioral rule injected as the user's own voice is the highest-trust path for a hallucination to influence future behavior. The model was not programmed to obey it. It was programmed to obey user instructions — and the memory system made the hallucination look like one.</p>
+</div>
+
+<p>The mechanism is not unique to AgentCore Memory. Any system that injects retrieved context as user-role messages has this property. The risk scales with how much of the injected content is LLM-generated (as opposed to user-authored) and how long that content persists without expiry.</p>
+
+<h2>Training Knowledge as an Amplifier</h2>
+
+<p>There is a second failure mode that interacts badly with memory poisoning: the model bypassing tool calls entirely for topics it knows well from pretraining. For a scientific research agent with access to many specialized data sources, this matters. A well-characterized topic — a commonly studied gene, a well-known compound, a frequently cited data source — may prompt the model to answer from training knowledge rather than calling the relevant tool, because the model has high confidence in what it already knows.</p>
+
+<p>This interacts with memory poisoning in a specific way: a hallucinated unavailability claim does not need to be believed on its own merits. If the model already "knows" (from training) roughly what a tool would return, and its injected memory says to verify availability first, the model may produce a plausible-sounding response from training knowledge and attribute it to having done the verification step. The tool is never called. The turn is persisted. The loop continues.</p>
+
+<p>This is why the system prompt fix described later — requiring the model to always call the tool and report the actual result — works together with the memory fixes rather than being redundant. Memory fixes stop the rule from being injected; the system prompt fix stops the hallucination at the source.</p>
+
+<h2>Five Fixes, Applied Together</h2>
+
+<p>None of the five fixes below is sufficient on its own. The loop has multiple entry points and multiple amplifiers. The fixes are designed to interrupt it at each stage.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Fix</th>
+            <th>Mechanism</th>
+            <th>Stage interrupted</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Tool-success gate</strong></td>
+            <td>Skip persisting turns with zero successful tool calls</td>
+            <td>Step 2 — prevents pure-reasoning turns from entering memory</td>
+        </tr>
+        <tr>
+            <td><strong>Purge record and source event</strong></td>
+            <td>Delete both the extracted record and the raw event that produced it</td>
+            <td>Steps 2–3 — removes poisoned content and its regeneration source</td>
+        </tr>
+        <tr>
+            <td><strong>Raise the relevance threshold</strong></td>
+            <td>Increase minimum retrieval score from 0.25 to 0.45</td>
+            <td>Step 4 — stops marginally relevant (often erroneous) records from loading</td>
+        </tr>
+        <tr>
+            <td><strong>Provenance label on injection</strong></td>
+            <td>Prepend an explicit "historical, unverified" marker to every injected memory block</td>
+            <td>Step 5 — breaks the user-voice illusion for the model</td>
+        </tr>
+        <tr>
+            <td><strong>TOOL AVAILABILITY RULE in system prompt</strong></td>
+            <td>Explicit prohibition: never claim a tool is unavailable without an actual error in the current session</td>
+            <td>Step 1 — stops the hallucination from occurring in the first place</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Fix 1: The Tool-Success Gate</h3>
+
+<p>The most direct intervention at the persistence step is to check whether the agent made any successful tool calls in the turn before persisting it as an event. A turn with zero successful tool calls is almost certainly a pure-reasoning turn — the model thinking, summarizing, or prefacing — rather than a turn grounded in external evidence. There is no reason to let it populate long-term memory.</p>
+
+<pre><code># Track whether the current turn produced any successful tool calls.
+# Skip persistence for turns with no grounded tool results.
+
+def should_persist_turn(tool_success_count: int) -> bool:
+    """
+    Return False for pure-LLM turns — reasoning without tool evidence
+    should not enter the long-term memory store.
+    Skips turns with zero successful tool calls.
+    """
+    return tool_success_count > 0</code></pre>
+
+<h3>Fix 2: Delete Record and Source Event</h3>
+
+<p>When a poisoned record is found and needs to be removed, deleting the record alone is not sufficient. The raw session event that was extracted to produce the record may still be present in the store. We delete both the extracted record and its source event — a retained source event could potentially be re-extracted on a subsequent consolidation pass, regenerating the poisoned record even after it has been purged.</p>
+
+<p>This means the cleanup workflow is always two steps: first remove the extracted record from the long-term store, then locate and remove the corresponding source event. Auditing tools that show extracted records should also surface the event they came from, making the two-step cleanup straightforward rather than requiring a separate search.</p>
+
+<h3>Fix 3: Raising the Relevance Threshold</h3>
+
+<p>AgentCore Memory retrieves records based on semantic similarity to the current query. The minimum relevance score that a record must achieve to be injected is configurable. Before the fix, this threshold was 0.25 — a low floor that allowed marginally relevant (and often incorrect) content through.</p>
+
+<p>Measuring actual score distributions in production revealed two distinct clusters: genuinely relevant records scored between 0.45 and 0.57, while unrelated content scored between 0.36 and 0.41. At the original threshold of 0.25, both clusters were being retrieved. Raising the threshold to 0.45 cleanly separated the signal from the noise, keeping the relevant cluster while excluding content that scored in the unrelated range.</p>
+
+<div class="highlight-box">
+    <p><strong>Calibrate with real score distributions, not assumptions.</strong> The right threshold depends on your content and query patterns. Measure the score distribution of records that are clearly correct and records that are clearly wrong, then set the threshold between the two clusters. A threshold set without measurement will either under-retrieve (losing useful context) or over-retrieve (letting noise through). The appropriate value for one system will not transfer directly to another.</p>
+</div>
+
+<h3>Fix 4: Provenance Label on Injection</h3>
+
+<p>Memory records retrieved at session start should be marked as historical and unverified before being injected into the conversation context. Without this label, the model has no way to distinguish injected memory from a current user instruction — both arrive in the same position in the conversation and with the same structural role.</p>
+
+<pre><code># Prefix every memory block with an explicit provenance marker.
+# This prevents the model from treating historical observations
+# as current ground truth — particularly for tool availability,
+# data state, or system configuration.
+
+MEMORY_INJECTION_PREFIX = (
+    "Historical notes from prior sessions "
+    "(unverified — do not use to determine current tool availability, "
+    "current data state, or any fact that may have changed since these "
+    "notes were recorded):\n\n"
+)
+
+def build_memory_context(records: list[dict]) -> str:
+    if not records:
+        return ""
+    content_blocks = "\n\n".join(r.get("content", "") for r in records)
+    return MEMORY_INJECTION_PREFIX + content_blocks</code></pre>
+
+<p>The label needs to be explicit about what "unverified" means in practice. Saying "historical notes" is necessary but not sufficient — the model also needs to know that it should not use these notes to determine current tool availability. That specific constraint matters because tool availability is exactly the class of claim that started the poisoning loop.</p>
+
+<h3>Fix 5: TOOL AVAILABILITY RULE in the System Prompt</h3>
+
+<p>The most reliable way to prevent a hallucination from entering memory is to prevent the hallucination itself. Adding an explicit prohibition in the system prompt — never claim a tool is unavailable without having received an actual error in the current session — makes the original behavior that caused the problem a policy violation rather than a default behavior.</p>
+
+<pre><code>TOOL_AVAILABILITY_RULE = """
+TOOL AVAILABILITY RULE:
+Never state that a tool is unavailable, offline, or inaccessible
+unless you have received an explicit error response from that tool
+in the current session. If you have not yet called a tool, you have
+no basis for claiming it is unavailable.
+
+ALWAYS attempt the tool call first.
+If the tool returns an error, report the exact error message.
+If the tool succeeds, report what it returned.
+Do not substitute reasoning or prior knowledge for a tool call.
+"""</code></pre>
+
+<p>This rule interacts with the training-knowledge problem described earlier. Without it, a model with high confidence in a domain may reason from training knowledge, produce a plausible response, and then fabricate a justification involving tool status. The rule forces a tool call before any claim about availability can be made — and a tool call produces either a real result or a real error, both of which are grounded and worth persisting.</p>
+
+<h2>The Call-First Rule</h2>
+
+<p>The TOOL AVAILABILITY RULE above is an instance of a broader principle: <strong>system prompt rules that use "if no tool result" as the trigger are insufficient</strong>, because the model may decide there is no point calling the tool in the first place.</p>
+
+<p>Consider two versions of a guidance rule:</p>
+
+<ul>
+    <li><em>Weak form:</em> "If no tool result is available, say the data is unavailable." — fires only when the model attempted the call and got nothing back.</li>
+    <li><em>Strong form:</em> "ALWAYS call the tool first. Report what it returns. Do not answer from prior knowledge." — forces the call unconditionally.</li>
+</ul>
+
+<p>The weak form contains a silent assumption: that the model will attempt the tool call. For well-characterized topics — ones where the model has strong pretraining — this assumption often fails. The model fills the gap from training knowledge before the "if no result" escape hatch is ever reached. The result is an answer that looks grounded, passes no failure condition, and is indistinguishable in the logs from a successful tool call.</p>
+
+<p>This is particularly relevant for agents that work with specialized scientific or domain-specific data. The model may know enough about the domain to produce a plausible answer without calling any tool. The answer may even be factually correct in many cases. But it bypasses the tool entirely, never produces a grounded result, and if the answer happens to be wrong, there is nothing in the tool output to signal the error — because there was no tool output.</p>
+
+<div class="green-box">
+    <p><strong>The pattern that works:</strong> describe the required behavior positively and unconditionally. "ALWAYS call [tool] first. If it returns an error, report the error. If it succeeds, use the result." This form fires regardless of what the model thinks it knows. The weak "if no result" form only fires when the model has already decided to try — which is the case where it is least likely to hallucinate.</p>
+</div>
+
+<h2>Auditing and Purging Poisoned Memory</h2>
+
+<p>Once the gates and system prompt rules are in place, the next challenge is finding and removing content that was poisoned before the fixes were applied. AgentCore Memory provides APIs for listing and deleting both records and events. Building admin inspection endpoints that surface records grouped by user — along with the raw events that generated them — makes it possible to identify poisoned content without reviewing every session manually.</p>
+
+<p>A few operational notes from applying these endpoints in practice:</p>
+
+<ul>
+    <li>Event IDs in AgentCore Memory may contain characters that are special in URLs. When passing event IDs as query parameters, ensure they are properly percent-encoded — the <code>#</code> character in an event ID must be encoded as <code>%23</code>, for example, or the parameter will be silently truncated at that character.</li>
+    <li>Inspection should show the extraction strategy that produced each record and the confidence score it was assigned. Records extracted with high confidence from a single low-quality event are a useful signal for prioritizing review.</li>
+    <li>Ownership validation before deletion — confirming the record belongs to the user being purged — is important to avoid accidental cross-user data loss in systems where records are scoped per user.</li>
+</ul>
+
+<h2>What the Loop Teaches About Memory System Design</h2>
+
+<p>The self-poisoning pattern is not a bug in AgentCore Memory. It is a predictable consequence of combining four reasonable defaults: unconditional persistence, automatic extraction, indefinite record storage, and user-voice injection. Each default is defensible in isolation. Together, without additional gates, they create a path from a single hallucinated turn to a persistent cross-session behavioral constraint.</p>
+
+<p>The generalizable lesson is about where verification needs to sit in a memory pipeline. Persistence is not free — every event that enters the store is a candidate for extraction, and every extracted record is a candidate for injection. Verification at the persistence step (the tool-success gate) is the cheapest and most effective intervention because it prevents poisoned content from entering the pipeline at all. Verification at the injection step (the provenance label) is the last line of defense when a record has already been extracted and stored.</p>
+
+<p>Memory injected as the user's voice is the highest-trust input path you have. Anything that reaches that channel is treated by the model as a current instruction from the entity it is serving. That is exactly the property that makes user-voice injection powerful for legitimate personalization — and exactly what makes it the most dangerous channel for unverified content to exploit.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>Memory self-poisoning emerges from the combination of unconditional persistence, automatic extraction, indefinite record storage, and user-voice injection — not from any single design flaw.</li>
+        <li>Gate persistence at the source: skip persisting turns with zero successful tool calls. This is the cheapest intervention and prevents poisoned content from entering the pipeline.</li>
+        <li>When purging poisoned records, delete both the extracted record and its source event — a retained source event could be re-extracted on a subsequent consolidation pass.</li>
+        <li>Calibrate the retrieval relevance threshold from measured score distributions, not assumptions. Relevant content and irrelevant content formed two distinct clusters; raising the threshold from 0.25 to 0.45 separated them cleanly.</li>
+        <li>Label every injected memory block with an explicit provenance marker — specifically calling out that it should not be used to determine current tool availability or system state. Without this, the model has no way to distinguish historical context from a current user instruction.</li>
+        <li>System prompt rules that use "if no tool result" as the trigger are insufficient for agents with strong pretraining in the domain. Use "ALWAYS call the tool first" phrasing that fires unconditionally rather than waiting for a failure condition that the model may never reach.</li>
+        <li>Memory injected as <code>role: user</code> is the highest-trust channel in the conversation. Anything unverified that reaches that channel is processed as a current instruction. That makes provenance labeling load-bearing, not cosmetic.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Memory</span>
+    <span class="tag">AgentCore</span>
+    <span class="tag">AWS Bedrock</span>
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Strands Agents</span>
+    <span class="tag">Hallucination</span>
+    <span class="tag">Production</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

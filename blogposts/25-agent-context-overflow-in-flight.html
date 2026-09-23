@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Context-Window Overflow Was Not Where We Looked</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="The Context-Window Overflow Was Not Where We Looked">
+    <meta property="og:description" content="We suspected loaded session history was overflowing our research agent's context window. Measurement proved it couldn't be. Here's how we traced the real cause — and the conversation-manager trade-offs that shaped the fix.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/25-agent-context-overflow-in-flight.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/25-agent-context-overflow-in-flight.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Context-Window Overflow Was Not Where We Looked">
+    <meta name="twitter:description" content="We suspected loaded session history was overflowing our research agent's context window. Measurement proved it couldn't be. Here's how we traced the real cause — and the conversation-manager trade-offs that shaped the fix.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/25-agent-context-overflow-in-flight.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Accumulation diagram */
+        .accum-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+        .accum-label { font-size: 12px; color: #64748b; width: 110px; text-align: right; flex-shrink: 0; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .accum-bar-track { flex: 1; background: #f1f5f9; border-radius: 4px; height: 20px; position: relative; }
+        .accum-bar { height: 20px; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: white; font-weight: 600; white-space: nowrap; overflow: hidden; transition: width 0.3s; }
+        .accum-bar-blue { background: linear-gradient(90deg, #6366f1, #818cf8); }
+        .accum-bar-orange { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .accum-note { font-size: 11px; color: #94a3b8; flex-shrink: 0; width: 130px; }
+        .accum-arrow { text-align: center; color: #94a3b8; font-size: 18px; margin: 4px 0; }
+        .accum-phase { font-size: 11px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 0 6px; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/25-agent-context-overflow-in-flight.png" alt="Blog cover">
+
+<div class="header-badge">AGENTIC AI</div>
+<h1>The Context-Window Overflow Was Not Where We Looked</h1>
+<p class="subtitle">We suspected loaded session history. Measurement proved it couldn't be. Here's how we traced the real cause — and the conversation-manager trade-offs that shaped the fix.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · September 2026</div>
+    </div>
+</div>
+<p>A research query against a scientific research agent — multi-stage, pulling from a dozen data sources — returned a partial result with a note the agent hadn't seen before: context window exceeded. The agent had been running for several minutes, called tools across a wide surface of APIs and schemas, accumulated the responses, and then hit a wall somewhere in synthesis. Partial results were surfaced; the run ended early.</p>
+
+<p>Our first instinct was the obvious one. This was a session-enabled agent. Users asked follow-up questions. Session history accumulated. History grows. History overflows. The natural diagnosis was that a long-running session had crossed the context limit at load time — the moment history was pulled from the store and injected into the model.</p>
+
+<p>That diagnosis was wrong. The overflow wasn't in loaded history. It was happening in-flight, inside a single request, with no connection to the session store at all. Getting to the right diagnosis — instead of deploying a guard that would have done nothing — shaped every decision that followed, including a set of conversation-manager trade-offs that took several failed attempts to resolve correctly.</p>
+
+<h2>The Fix We Rejected: A Load-Time Budget</h2>
+
+<p>The natural remedy for "history grows and overflows the context window" is a byte budget at load time. Pull history from the session store, measure its serialized size, drop the oldest turns if over the limit, proceed. Simple. Defensive. Easy to reason about.</p>
+
+<p>The proposal: set the budget at 750,000 bytes. The session store had an existing cap on item size — the store itself would reject writes above a certain threshold. The load-time budget would serve as an extra guard, ensuring we never loaded more than the model could handle.</p>
+
+<p>Before writing the code, we asked a question that sounds obvious in retrospect: how large is history actually getting? If the existing store cap is lower than the proposed load-time budget, the budget adds no safety at all — it fires in precisely zero sessions.</p>
+
+<div class="stale-box">
+    <p><strong>The bug with the intuitive fix:</strong> the session store already capped stored items at 300,000 bytes per write. A load-time budget at 750,000 bytes — 2.5× the write cap — could never fire on any real session. It would be dead code from day one.</p>
+</div>
+
+<h2>What the Measurement Showed</h2>
+
+<p>We serialized the last-30-turn slice from 86 live sessions and measured the byte sizes. The results removed any ambiguity:</p>
+
+<ul>
+    <li><strong>Maximum observed:</strong> 268,000 bytes across all 86 sessions</li>
+    <li><strong>Session store write cap:</strong> 300,000 bytes</li>
+    <li><strong>Proposed load-time budget:</strong> 750,000 bytes</li>
+    <li><strong>Sessions above the proposed budget:</strong> zero</li>
+</ul>
+
+<p>Loaded history was bounded by construction. The session store cap enforced a ceiling the load-time budget could never reach. The maximum real measurement — 268KB — sat comfortably below the 300KB store cap, exactly as designed. If the overflow was in loaded history, it would have shown up in these measurements. It did not.</p>
+
+<div class="highlight-box">
+    <p><strong>The revert decision:</strong> we removed the load-time budget before it ever shipped. Not because defensive code is bad — but because "defensive" code that can never fire for any real user provides no defence. If our reasoning about the overflow was wrong, the budget would mask rather than fix the real issue. We needed to find where the overflow was actually happening.</p>
+</div>
+
+<h2>The Real Cause: In-Flight Accumulation</h2>
+
+<p>A Strands Agents agent loop works roughly like this: the model receives the system prompt, the conversation history, and the user message; it decides to call a tool; the tool result is appended to the messages list; the updated messages are sent back to the model; the model decides to call another tool or produce a final response. This continues until the model stops calling tools or an explicit call cap is reached.</p>
+
+<p>In a research agent that consults many data sources — schemas, APIs, reference databases — a single user query can involve up to around 80 tool calls before the call cap fires. Each tool call appends two messages to the live list: the tool use request and the tool result. Some results are small. A schema response from a database with many tables can be tens of kilobytes on its own. Multiplied across a full research trace, the in-flight messages list can grow to a size that the model cannot accept.</p>
+
+<p>Here is the structural problem: in the Strands version we ran (1.51.0), the conversation manager's <code>apply_management</code> method is called <strong>once, after the entire agent invocation ends</strong> (in a finally block) — not after each individual tool call, and not mid-flight while tool calls are accumulating. Separately, when a <code>ContextWindowOverflowException</code> occurs mid-loop, the manager's <code>reduce_context</code> runs. For the whole duration of a long multi-tool request, the messages list is otherwise unconstrained. There is no trimming, no capping, no enforcement of any size policy until the invocation has already finished. If the window overflows mid-loop, it overflows — <code>apply_management</code> has not yet been called.</p>
+
+<div class="diagram-container">
+    <div class="accum-phase">Request lifecycle — messages buffer grows in-flight</div>
+
+    <div class="accum-row">
+        <span class="accum-label">Request starts</span>
+        <div class="accum-bar-track">
+            <div class="accum-bar accum-bar-blue" style="width: 12%;">history</div>
+        </div>
+        <span class="accum-note">Loaded session history</span>
+    </div>
+
+    <div class="accum-arrow">↓</div>
+
+    <div class="accum-row">
+        <span class="accum-label">Tool call 1</span>
+        <div class="accum-bar-track">
+            <div class="accum-bar accum-bar-blue" style="width: 20%;">+ result</div>
+        </div>
+        <span class="accum-note">Result appended</span>
+    </div>
+
+    <div class="accum-arrow">↓</div>
+
+    <div class="accum-row">
+        <span class="accum-label">Tool call 10</span>
+        <div class="accum-bar-track">
+            <div class="accum-bar accum-bar-blue" style="width: 38%;">accumulating…</div>
+        </div>
+        <span class="accum-note">No trimming yet</span>
+    </div>
+
+    <div class="accum-arrow">↓</div>
+
+    <div class="accum-row">
+        <span class="accum-label">Tool call 40</span>
+        <div class="accum-bar-track">
+            <div class="accum-bar accum-bar-orange" style="width: 74%;">large results × N</div>
+        </div>
+        <span class="accum-note">Still growing</span>
+    </div>
+
+    <div class="accum-arrow">↓</div>
+
+    <div class="accum-row">
+        <span class="accum-label">Tool call N</span>
+        <div class="accum-bar-track">
+            <div class="accum-bar accum-bar-orange" style="width: 96%; background: linear-gradient(90deg, #dc2626, #ef4444);">OVERFLOW</div>
+        </div>
+        <span class="accum-note" style="color: #dc2626; font-weight: 600;">Context exceeded</span>
+    </div>
+
+    <div class="accum-arrow" style="font-size: 13px; color: #64748b; margin-top: 10px;">apply_management() would run here — but it's too late</div>
+
+    <p class="diagram-caption">Tool results append to the live messages list with no mid-flight trimming. apply_management runs once per invocation, after the event loop ends — it cannot prevent an overflow that happens mid-loop (when reduce_context would run instead).</p>
+</div>
+
+<p>This is not a bug in Strands — it is the intended design. The framework's event loop is not meant to trim the conversation mid-call; it delegates that to the conversation manager after each complete agent invocation. The question is: what should the conversation manager do, and which of the available options preserves correctness for a session-enabled agent?</p>
+
+<h2>Three Ways to Manage the Conversation</h2>
+
+<p>When the in-flight accumulation problem became clear, the apparent options collapsed quickly to three. Each makes a different trade against the same constraint: a session-enabled agent needs to know how many new messages were added during a run, so it can write exactly those new messages back to the session store. That count — call it the delta-slice anchor — is computed as the difference between the message count at the start of the run and the count at the end. If the conversation manager removes messages during or after the run, the anchor becomes invalid and the wrong messages get persisted.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Manager</th>
+            <th>Trims messages?</th>
+            <th>Caps tool result bytes?</th>
+            <th>Preserves delta anchor?</th>
+            <th>Risk</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>NullConversationManager</code></td>
+            <td class="decision-cell-green">No</td>
+            <td class="decision-cell-red">No</td>
+            <td class="decision-cell-green">Yes</td>
+            <td>Large results re-billed every model call — quadratic token spend</td>
+        </tr>
+        <tr>
+            <td><code>SlidingWindowConversationManager</code></td>
+            <td class="decision-cell-yellow">Yes (oldest first)</td>
+            <td class="decision-cell-yellow">Yes (often bundled)</td>
+            <td class="decision-cell-red">No — pops change the base count</td>
+            <td>Silently corrupts the delta anchor; wrong messages persisted to session store</td>
+        </tr>
+        <tr>
+            <td>Cap-only manager<br>(wraps <code>NullConversationManager</code>)</td>
+            <td class="decision-cell-green">No</td>
+            <td class="decision-cell-green">Yes</td>
+            <td class="decision-cell-green">Yes</td>
+            <td>Caps per-result size; overflow exception handles extremely large results</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Option 1: NullConversationManager</h3>
+
+<p><code>NullConversationManager</code> performs no management at all. It never trims the message history and never caps tool result content. The delta-slice anchor is safe — messages are never removed — so session persistence works correctly.</p>
+
+<p>The problem is token spend. Every model call within the loop sends the full accumulated message history to the API. If a tool returns a large schema document and that document sits unmodified in the messages list, it is re-billed as input tokens on every subsequent model call in the same run. With dozens of tool calls, this compounds: the token cost per run grows quadratically with the number and size of tool results. For a research workload where tool results can each be tens of kilobytes and a run can have many tool calls, <code>NullConversationManager</code> alone produces billing that scales badly.</p>
+
+<h3>Option 2: SlidingWindowConversationManager</h3>
+
+<p><code>SlidingWindowConversationManager</code> trims the oldest messages from the list whenever the message count exceeds the configured window size. This prevents unbounded growth and keeps token spend bounded per run.</p>
+
+<p>For a session-enabled agent, this creates a correctness problem. At the start of a run, the agent records the message count as a baseline. At the end of the run, it computes <em>new messages added = final count − baseline count</em>, then writes exactly those new messages to the session store. If the sliding window has removed messages from the list during the run, the final count is not what the baseline arithmetic expects. The resulting write may duplicate earlier messages, drop new ones, or write malformed turns. The failure is silent — the persistence operation succeeds without error, but the session history is corrupted.</p>
+
+<h3>Option 3: Cap-Only Manager (the one we chose)</h3>
+
+<p>The cap-only manager wraps <code>NullConversationManager</code> and adds exactly one behaviour: after each invocation ends, its <code>apply_management</code> method runs on <code>agent.messages</code> and truncates any tool-result content blocks that exceed a configurable byte limit. It never removes messages from the list, so the delta-slice anchor is always valid. Because results are truncated in-place before the session store persists them, oversized outputs are not carried forward into saved history — later turns and sessions are not re-billed for them. The re-billing problem is across turns, not within a single run.</p>
+
+<pre><code>from typing import TYPE_CHECKING, Any
+from strands.agent.conversation_manager import NullConversationManager
+
+if TYPE_CHECKING:
+    from strands.agent.agent import Agent
+
+class CapToolResultsManager(NullConversationManager):
+    """
+    Caps the byte size of each tool result in agent.messages.
+    apply_management runs once after each invocation (in Strands' finally block),
+    operating on agent.messages in place. Oversized results are truncated before
+    session persistence, so future turns are not re-billed for them.
+    Never removes messages, so the delta-slice anchor for
+    session persistence remains valid.
+    """
+    def __init__(self, max_bytes_per_result: int = 8_000):
+        super().__init__()
+        self._max_bytes = max_bytes_per_result
+
+    def apply_management(self, agent: "Agent", **kwargs: Any) -> None:
+        for msg in agent.messages:
+            if msg.get("role") == "user":
+                for block in msg.get("content", []):
+                    if isinstance(block, dict) and "toolResult" in block:
+                        for item in block["toolResult"].get("content", []):
+                            if "text" in item:
+                                encoded = item["text"].encode()
+                                if len(encoded) > self._max_bytes:
+                                    item["text"] = item["text"][: self._max_bytes] + " … [truncated]"
+        # Intentionally does NOT call super() to remove messages</code></pre>
+
+<div class="highlight-box">
+    <p><strong>Why wrapping NullConversationManager matters:</strong> <code>NullConversationManager</code> also defines the overflow behaviour — when the context window is genuinely exceeded it raises <code>ContextWindowOverflowException</code> rather than silently returning a degraded response. That exception is the right signal for a session-enabled agent: it means the in-flight chain was too large even after capping. The correct response is to bank whatever partial results have been gathered and surface a useful message to the user, not to corrupt the conversation with a silent partial answer.</p>
+</div>
+
+<h2>Handling the Overflow Exception</h2>
+
+<p>Even with per-result caps in place, a sufficiently large research query — many tool calls, many results, all of them legitimately large after capping — can exceed the context window. <code>ContextWindowOverflowException</code> is the framework's signal for this case. The handling pattern matters:</p>
+
+<pre><code>from strands.types.exceptions import ContextWindowOverflowException
+
+async def run_research_query(agent, prompt: str, session_id: str) -> dict:
+    try:
+        result = await agent.invoke_async(prompt)
+        return {"status": "complete", "result": result}
+    except ContextWindowOverflowException:
+        # Bank whatever partial results accumulated before the overflow.
+        # The agent's tool call history up to the overflow point is preserved.
+        partial = extract_partial_results(agent)
+        persist_session(session_id, agent)   # save what we have
+        return {
+            "status": "partial",
+            "result": partial,
+            "message": (
+                "The query required more data than could fit in one pass. "
+                "Partial results are shown. Try narrowing the query scope."
+            )
+        }</code></pre>
+
+<p>The key discipline: harvest partial results <em>inside</em> the <code>except</code> block, before re-raising or returning. If the exception unwinds without a harvest, the work that completed before the overflow is lost.</p>
+
+<h2>The Silent Truncations We Found During the Fix</h2>
+
+<p>Fixing the main agent's conversation management exposed a second class of problem in sub-agent pods: the framework was silently truncating results, and the metric we were using to track completeness was reading from the same truncated source.</p>
+
+<h3>agent.messages is working state, not a log</h3>
+
+<p>Strands' default conversation manager — used when you pass <code>conversation_manager=None</code> — resolves to <code>SlidingWindowConversationManager(window_size=40)</code>. After each agent invocation it trims the oldest messages from <code>agent.messages</code> in place. Forty messages corresponds to roughly 19 tool calls — the request and result pair for each. Inside normal operating range for a focused query. At the edge of a longer research trace, the earliest tool results are silently discarded.</p>
+
+<p>The dangerous part was not the loss itself but the metric. A monitoring counter logged "queued N tool results" where N came from walking <code>agent.messages</code> after the run. Because N was derived from the same truncated list, a run that lost 10 tool results due to trimming would report itself as healthy — the counter showed the survivors, not the total. The failure was invisible to the monitoring layer.</p>
+
+<div class="warn-box">
+    <p><strong>Do not harvest from agent.messages after the run.</strong> It is working state the framework has mutated. Attach a handler that banks each tool result as it is emitted during the run. Keep the post-run walk only as a backstop, and merge the two de-duplicated by ID. Set the conversation manager explicitly, sized above the realistic ceiling (2 messages per tool call plus the prompt). Never rely on the framework default for something whose failure mode is silent loss.</p>
+</div>
+
+<pre><code>from strands import Agent
+from strands.agent.conversation_manager import SlidingWindowConversationManager
+
+# Sub-agent with an explicit window above the realistic tool-call ceiling.
+# 2 messages per tool call, plus prompt and system message.
+# window_size=150 handles up to 74 tool calls comfortably.
+sub_agent = Agent(
+    model=model,
+    tools=tools,
+    conversation_manager=SlidingWindowConversationManager(window_size=150),
+    callback_handler=capture_tool_results_handler,   # banks each result at emission
+)
+
+# Correct: read from the handler's bank, not from agent.messages
+results = capture_tool_results_handler.get_results()</code></pre>
+
+<h3>The [:16000] inter-stage slice</h3>
+
+<p>The same pass that swept for conversation-manager issues uncovered a separate truncation: a literal <code>[:16000]</code> slice on the inter-stage context prompt. When one pipeline stage passed its output to the next, the receiving stage was injecting the prior stage's output into its own prompt — but capped at 16,000 characters. Everything past 16KB of the upstream stage's evidence was silently dropped. The downstream stage reasoned over a fraction of what the upstream stage had gathered, with one WARNING log line as the only trace.</p>
+
+<p>After the fix was shipped, the sweep rule became: after touching any conversation-management code, grep the entire request path — not just the file you edited — for large literal slices (<code>[:N]</code> where N is in the thousands), the strings <code>truncat</code>, <code>window_size</code>, and <code>max_bytes</code>. Each one is a potential silent loss point that looks like working code.</p>
+
+<h2>Tests That Haven't Failed Are Not Evidence</h2>
+
+<p>Two pre-existing tests were green while both of the above truncations were active. The first test asserted that a function named <code>harvest_tool_results</code> was present in the module. The function existed — behind an <code>if False:</code> guard that had been left in during a refactor. The test passed; the function never executed.</p>
+
+<p>The second test asserted that <code>[:16000]</code> did not appear in the inter-stage prompt builder. It passed because the slice had been replaced with a constant — but the comment explaining the removal still contained the literal string <code>[:16000]</code>. The test matched the comment.</p>
+
+<div class="stale-box">
+    <p><strong>Substring matching against source text proves presence, not behaviour.</strong> If you need to verify that a truncation has been removed, parse the AST and confirm the slice node is absent — or better, observe the behaviour directly: pass an input longer than the limit and assert the output is not truncated. Then deliberately restore the truncation and watch the test go red. A test you have not seen fail is not evidence that the behaviour it checks is correct.</p>
+</div>
+
+<p>The stronger form of this lesson: the tests that passed here were not pointless — they failed to catch a specific class of breakage because they tested code structure rather than code behaviour. Adding an integration test that injects a 20,000-character upstream output and measures the downstream input length would have caught the <code>[:16000]</code> slice on the day it was introduced. That test now exists.</p>
+
+<h2>An Unrelated Fix That Surfaced the Same Way</h2>
+
+<p>While this work was in progress, a separate overflow-adjacent problem was discovered and fixed in the Critic stage: a synchronous Bedrock call inside an async FastAPI handler was blocking the event loop. The grounding check — a call to Claude that validates whether the agent's final response is supported by the tool results it received — was written as a synchronous function and called directly inside an async event generator.</p>
+
+<p>With a modest input size, the Bedrock call completed fast enough that the event loop blockage was never noticed. When the Critic's input was substantially enlarged, the call's latency pushed past the liveness probe's kill window. The pod was restarted mid-response.</p>
+
+<pre><code>import asyncio
+import botocore
+
+# Before: blocks the event loop
+result = bedrock_client.invoke_model(...)   # DO NOT do this inside async def
+
+# After: offloads to a thread pool
+_loop = asyncio.get_event_loop()
+result = await _loop.run_in_executor(
+    None,
+    lambda: bedrock_client.invoke_model(...)
+)
+
+# Also: add a read timeout so a single throttle does not block indefinitely
+config = botocore.config.Config(
+    read_timeout=35,
+    retries={"max_attempts": 1}
+)</code></pre>
+
+<p>A per-tool budget was also added to the grounding check's input preparation: instead of filling a global character cap from the first tool results in the list — which starved later results entirely — each tool's output got a proportional share. A tool that appears last in the results no longer contributes zero characters to the grounding input because the earlier tools filled the budget first.</p>
+
+<h2>What Shipped</h2>
+
+<p>Here is a summary of what shipped:</p>
+
+<div class="green-box">
+    <p><strong>Confirmed shipped:</strong></p>
+    <ul>
+        <li>Measurement of 86 live sessions confirming the overflow could not be in loaded history — and the consequent revert of the load-time budget</li>
+        <li>Cap-only conversation manager for the main agent: stops quadratic re-billing, preserves the delta-slice anchor for session persistence</li>
+        <li><code>ContextWindowOverflowException</code> handling: banks partial results before returning an actionable message to the user</li>
+        <li>Sub-agent pods: explicit window size above the realistic tool-call ceiling; capture-at-event handler rather than post-run walk of <code>agent.messages</code></li>
+        <li>Removal of the <code>[:16000]</code> inter-stage slice on the prior-stage context prompt</li>
+        <li>AST-level and behaviour-observed tests replacing the substring-of-source-text assertions</li>
+        <li>Grounding check moved to <code>run_in_executor</code> with a read timeout and per-tool budget</li>
+    </ul>
+</div>
+
+<h2>The Lessons</h2>
+
+<p>These are the generalizable findings, free of the specifics of this agent or framework:</p>
+
+<p><strong>Measure before fixing.</strong> The load-time budget was the natural fix. It was also completely inert on real data — the store cap made it so. Ten minutes of measurement prevented shipping code that did nothing while the real problem remained. If the load-time budget had been shipped, the overflow would have continued, the budget would never have fired, and the real diagnosis would have been delayed by weeks of confident but wrong monitoring data.</p>
+
+<p><strong>Framework defaults silently truncate.</strong> <code>SlidingWindowConversationManager(window_size=40)</code> is the default behaviour when you pass no conversation manager to a Strands agent. It trims <code>agent.messages</code> in place after each agent invocation; when a <code>ContextWindowOverflowException</code> occurs, the manager's <code>reduce_context</code> runs. If you are reading from <code>agent.messages</code> after the run, you are reading from a list the framework has already rewritten. The only indication anything was trimmed is in the conversation manager's internal state — not in any warning or exception visible to the calling code. Every place in your pipeline that reads from a framework-managed list after the fact is a potential silent truncation point.</p>
+
+<p><strong>Capture at the event, not after the fact.</strong> Attach a handler that receives each tool result as it is emitted. The handler sees the result before any trimming can occur. The post-run list walk is a last resort, not the primary path. Never derive a "how many did I get" count from the same list that may have been trimmed.</p>
+
+<p><strong>A test you haven't seen fail is not evidence.</strong> Two tests passed while two separate bugs were active. They tested the presence of code, not the behaviour of code. Write tests that observe outcomes, then deliberately break the code they protect and verify the test goes red. If a test has never been red, it has never been tested.</p>
+
+<p>These patterns appear in the observability context too — if you are instrumenting a multi-stage pipeline, the earlier posts on <a href="11-observability-for-agents.html">building observability for agents</a> and on <a href="23-langfuse-llm-observability.html">LLM trace observability in production</a> cover the mechanisms for surfacing exactly the silent truncations and unexpected token counts that these bugs produce. Measuring what you think you're sending to the model is different from measuring what the framework actually sends.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Measure the overflow location before fixing it.</strong> Load-time history was bounded at 268KB by the session store's 300KB write cap. A 750KB load-time budget would have fired zero times. The real overflow was in-flight, within a single request.</li>
+        <li><strong>In-flight accumulation is structural, not incidental.</strong> The conversation manager's <code>apply_management</code> runs once after the event loop — not mid-flight. Tool results accumulate unconstrained during the run. On a large research query with many tool calls and verbose API responses, the context window can be exceeded before the loop ends.</li>
+        <li><strong>The delta-slice anchor constrains your manager options.</strong> For a session-enabled agent, any manager that removes messages corrupts the "how many new messages did I add" count, breaking session persistence silently. Cap-only management — truncating tool result bytes in <code>agent.messages</code> after each invocation without removing messages — preserves the anchor and prevents oversized results from being carried into session history, stopping quadratic re-billing across turns.</li>
+        <li><strong><code>ContextWindowOverflowException</code> is a condition to handle, not just suppress.</strong> Bank partial results in the exception handler before returning. If the overflow path does not harvest, real work is lost.</li>
+        <li><strong>agent.messages is working state.</strong> The framework default trims it in place after each agent invocation. Capture tool results at the event, not from the post-run list. Never compute completeness counts from the source you may have truncated.</li>
+        <li><strong>Sweep the whole path, not just the file you're editing.</strong> The <code>[:16000]</code> inter-stage slice was two files away from the conversation-manager change. It had been silently capping downstream evidence for as long as it had existed. One grep pass across the request path surfaces all of them at once.</li>
+        <li><strong>A test you haven't seen fail is not evidence.</strong> Substring matching against source text is not behavioural testing. Parse the AST or observe the output. Then break the code deliberately and watch the test go red.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Strands Agents</span>
+    <span class="tag">Conversation Management</span>
+    <span class="tag">Context Window</span>
+    <span class="tag">AWS Bedrock</span>
+    <span class="tag">Session Management</span>
+    <span class="tag">Debugging</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>
