@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silent Wrong Data: Eight Ways a Research Pipeline Lied Without a Single Visible Error</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Silent Wrong Data: Eight Ways a Research Pipeline Lied Without a Single Visible Error">
+    <meta property="og:description" content="None of these failures surfaced an error. No alert, no visible exception, no bad log line — just quietly wrong answers delivered with full confidence by a scientific research agent.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/26-silent-wrong-data-agent-pipelines.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/26-silent-wrong-data-agent-pipelines.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Silent Wrong Data: Eight Ways a Research Pipeline Lied Without a Single Visible Error">
+    <meta name="twitter:description" content="None of these failures surfaced an error. No alert, no visible exception, no bad log line — just quietly wrong answers delivered with full confidence by a scientific research agent.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/26-silent-wrong-data-agent-pipelines.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/26-silent-wrong-data-agent-pipelines.png" alt="Blog cover">
+
+<div class="header-badge">DATA ENGINEERING</div>
+<h1>Silent Wrong Data: Eight Ways a Research Pipeline Lied Without a Single Visible Error</h1>
+<p class="subtitle">None of these failures surfaced an error. No alert, no visible exception, no bad log line — just quietly wrong answers delivered with full confidence.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · September 2026</div>
+    </div>
+</div>
+
+<p>The most instructive data bug we hit in the past year did not throw an exception. It did not log an error. It returned a dictionary, fully populated, carrying 297,497 synonyms and 473,381 cross-references. The response time was normal. The downstream join ran to completion. We only noticed because a researcher asked why a query about a human cancer cell line was returning results that matched a mouse hybridoma.</p>
+
+<p>A single line of XML parsing code was reading an element as an attribute. The field that served as the join key was blank for all 50,000 rows in the dataset. When the filter ran, it matched everything, and the first row in the table happened to be a mouse hybridoma. The data looked healthily populated. Every call succeeded. The answers were consistently, silently wrong.</p>
+
+<p>That was one incident. There were seven others like it — different mechanism, same pattern: the pipeline completed without complaint, the data it produced was wrong, and the wrongness propagated into answers that the system delivered with full confidence. None of them involved schema drift, null propagation, or stale sources (those are covered in our earlier post on <a href="22-data-infrastructure-quality-ai-readiness.html">data infrastructure quality for AI readiness</a>). These are a different class of failure: structural corruption that the type system, the exception handler, and the monitoring dashboard all agreed was fine.</p>
+
+<p>Here is a catalogue of all eight, with what happened, why nothing errored, the fix, and the verification that would have caught each one.</p>
+
+<h2>Failure 1: Case Normalisation Erased the Only Discriminator</h2>
+
+<p>Our ingestion pipeline resolves biological specimen identifiers by name — a common step when joining data from sources that use slightly different spellings or capitalisations. After an initial pass produced 79 unresolved entries, we added a normalisation step: <code>name.strip().upper()</code> before every lookup. The 79 failures persisted.</p>
+
+<p>Characterising them revealed the problem: <strong>all 79 were pure case-variant collisions</strong>. <code>INS-1</code> and <code>Ins-1</code> are different organisms — rat insulinoma versus a human line. <code>Li-7</code> and <code>LI-7</code> are different species — human hepatocellular carcinoma versus a mouse hybridoma. <code>rMC-1</code> and <code>RMC-1</code>, <code>K562-R</code> and <code>K562-r</code> — same pattern. Every one of the 79 entries resolves uniquely on an exact-case match. Case <em>was</em> the discriminator, and the normalisation discarded it before the lookup ran.</p>
+
+<div class="stale-box">
+    <p><strong>Why nothing errored:</strong> <code>name.strip().upper()</code> does not throw. The normalised value found a match — just the wrong one. Nothing in the pipeline checked whether the match was unambiguous.</p>
+</div>
+
+<pre><code># Before — normalise up front, silently collapse case variants
+normalised = name.strip().upper()
+match = registry.get(normalised)          # "INS-1" and "Ins-1" fold to the same key; wrong match is silent
+
+# After — exact-case primary index + separate case-folded index for fuzzy lookup
+# Build phase (once, at registry load):
+case_index = {}                      # folded key -> list of ALL entries that fold to it
+for key, entry in registry.items():
+    case_index.setdefault(key.strip().upper(), []).append(entry)
+
+# Lookup phase — most-specific first:
+match = registry.get(name) or registry.get(name.strip())
+if not match:
+    candidates = case_index.get(name.strip().upper(), [])
+    if len(candidates) == 1:
+        match = candidates[0]    # "hela" -> "HELA" -> [HeLa] -> resolved
+    # len > 1: ambiguous collision — surface all candidates, do not pick one silently</code></pre>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> exact-case primary lookup first; only falls through to a separately-built case-folded index when no exact match exists. The case-folded index maps each folded key to <em>all</em> entries that fold to it — so <code>hela</code> finds HeLa (one candidate) while <code>INS-1</code> and <code>Ins-1</code> each resolve by exact match before reaching the folded index. On collision (multiple candidates), all are surfaced rather than one being silently chosen. <strong>Verification that would have caught it:</strong> a test fixture with at least one known case-variant pair (INS-1 / Ins-1) asserting they resolve to different entries, run before the normalisation change shipped.</p>
+</div>
+
+<p>The broader lesson: before applying any normalisation, ask what information the transform discards. In biological identifiers, case, hyphens, whitespace, and Greek letters all carry meaning. <code>IFN-γ</code> vs <code>IFNG</code>, <code>Ins-1</code> vs <code>INS-1</code>, <code>CDK1</code> vs <code>CDK2</code> — the thing you stripped was the only thing that distinguished them.</p>
+
+<h2>Failure 2: Guessing Enum Values Sent 44% of Rows to the Wrong Bucket</h2>
+
+<p>When integrating clinical development stage data from a public drug-target database, the pipeline needed to map stage labels to confidence weights. We wrote the mapping from intuition:</p>
+
+<pre><code># Guessed values — three of six keys do not exist in the live API
+STAGE_WEIGHTS = {
+    "PHASE_4":    0.95,
+    "APPROVED":   0.95,   # actual key is APPROVAL
+    "PHASE_3":    0.85,
+    "PHASE_2":    0.70,
+    "PHASE_1":    0.60,
+    "PRECLINICAL": 0.50,
+}</code></pre>
+
+<p>The live API, sampled across 305 rows, uses <code>APPROVAL</code> (not <code>APPROVED</code>), <code>PREAPPROVAL</code>, <code>PHASE_1_2</code>, <code>PHASE_2_3</code>, and <code>UNKNOWN</code>. Three of our six keys did not exist. The key <code>APPROVAL</code> covers 44% of all rows. Every drug in that bucket fell through to the default — which we set to 0.5, below even <code>PHASE_1</code>'s 0.6.</p>
+
+<p>The result: querying the ranking of drugs targeting HER2 by confidence returned pertuzumab (an approved therapy) at 0.5, below an obscure phase-1 compound at 0.6. Because the confidence score carried a source annotation, the inversion was authoritatively attributed to the data source. The data source was right. The mapping was wrong.</p>
+
+<div class="stale-box">
+    <p><strong>Why nothing errored:</strong> a missing dictionary key in Python returns the default. The code path completed normally. There was no log line, no sentinel value, no warning that 44% of rows hit the fallback.</p>
+</div>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> sample the live API before writing the mapping — a <code>GROUP BY</code> or a short loop collecting <code>set(values)</code> across ten representative entities is enough to surface all real keys. Log any unrecognised value explicitly and score it conservatively so that a new enum variant surfaces immediately rather than silently landing mid-range. <strong>Verification:</strong> a single assertion — <code>assert weight("APPROVAL") &gt; weight("PHASE_3") &gt; weight("PHASE_1") &gt; weight("UNKNOWN")</code> — would have caught this before the code shipped.</p>
+</div>
+
+<h2>Failure 3: Reading the Producer Code Instead of Capturing the Payload</h2>
+
+<p>We built four data extractors for a knowledge graph. One was written against a captured payload — a real API response logged to disk and used as the ground truth for the consumer. The other three were written by reading the producer's source code and inferring the return shape. Two of those three had defects that code inspection had already "confirmed."</p>
+
+<p>The first defective extractor read columns named <code>fdr</code> and <code>pvalue</code>. The real dataset uses <code>adj_p_val</code> and <code>p_value</code>. The column names were not wrong — they were simply never there. Every edge in that extractor landed on the fallback confidence of 0.6 regardless of statistical significance. A gene with adjusted p-value of 1×10⁻¹² and one at 0.49 were recorded as equally confident. Because the knowledge graph's edge merge keeps the maximum confidence seen, 0.6 became a permanent floor — unreachable by any downstream update.</p>
+
+<p>The second defective extractor had the right column names but wrong semantics. The source is multi-species, and the extractor keyed nodes on bare gene symbol. A record from a non-human species would silently overwrite a human node's Ensembl ID, because the property merge was an unconditional set rather than a conditional update.</p>
+
+<div class="warn-box">
+    <p><strong>Why nothing errored:</strong> reading <code>record.get("fdr")</code> on a record that has no <code>fdr</code> key returns <code>None</code>, not an exception. The confidence value defaulted silently. The extractor ran to completion and reported success.</p>
+</div>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> capture a real payload before writing anything that consumes it. Call the tool, log the response to disk, and write the consumer against that. If capturing is impossible, the consumer is not ready to ship. <strong>Verification:</strong> an integration test that calls the actual tool, captures one response, and asserts that each expected field is present and non-null — run on every change to either the producer or the consumer.</p>
+</div>
+
+<p>The trap with code inspection is that it shows you the keys on the path you happened to read. It does not tell you which of nine possible return shapes your extractor will receive, what error returns look like, or whether the identifiers in the payload join to anything in your graph.</p>
+
+<h2>Failure 4: The Hand-Curated Lookup Table Was Data, Not Code</h2>
+
+<p>A 14-row alias table mapping informal gene names to canonical HGNC symbols was written from memory. It felt too small to audit carefully — 14 rows, straightforward mappings. The table contained one entry: <code>BCL2L → BCL2</code>. This is wrong. <code>BCL2L</code> is an HGNC alias for <strong>BCL2L1</strong> (Bcl-xL), a different gene from BCL2. Bcl-xL and Bcl-2 are related anti-apoptotic proteins but they have different tissue expression, different inhibitor profiles (navitoclax vs venetoclax), and different toxicological implications.</p>
+
+<p>A query about Bcl-xL activity would have been answered with Bcl-2 evidence, and the response would have annotated the canonical symbol as <code>BCL2</code> to justify it. Two other rows in the same table were ambiguous rather than wrong: the alias <code>NEU</code> also matches NEU1, and <code>PD1</code> is a legacy symbol for <code>SNCA</code>. These were not caught because nobody queried the registry.</p>
+
+<div class="stale-box">
+    <p><strong>Why nothing errored:</strong> the mapping was a valid Python dictionary with a valid string value. The lookup succeeded. The canonical symbol <code>BCL2</code> exists in every downstream database. Every query completed. The answers were about the wrong gene.</p>
+</div>
+
+<pre><code># Before — written from memory, unvalidated
+GENE_ALIASES = {
+    "BCL2L":    "BCL2",    # WRONG — BCL2L is an alias for BCL2L1, not BCL2
+    "NEU":      "ERBB2",   # AMBIGUOUS — NEU also resolves to NEU1
+    "PD1":      "PDCD1",   # AMBIGUOUS — PD1 is also a legacy symbol for SNCA
+}
+
+# After — each row validated against the HGNC registry
+# GET https://rest.genenames.org/search/BCL2L (Accept: application/json)
+# → alias_symbol for BCL2L1, not BCL2
+GENE_ALIASES = {
+    "BCL2L":    "BCL2L1",  # confirmed via HGNC
+    ...
+}</code></pre>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> treat hand-curated identifier tables as data and validate every row against the authoritative registry API before shipping. Query HGNC, MONDO, ChEBI, or UniProt for each entry, print a per-row verdict (OK / WRONG / AMBIGUOUS / NOMATCH), and gate the commit on zero WRONG rows. <strong>Verification:</strong> a table-driven test that asserts each mapping and asserts that already-canonical symbols are returned unchanged.</p>
+</div>
+
+<h2>Failure 5: A Blank Join Key Returns Everything, Not Nothing</h2>
+
+<p>This is the one from the opening paragraphs. A public biological specimen database provides an XML export containing roughly 50,000 entries. Each entry has an accession identifier that serves as the primary key for all downstream joins. Our parser read that identifier with:</p>
+
+<pre><code># Wrong — reads an XML attribute that does not exist at this element
+accession = elem.get("accession", "")   # "" for every row</code></pre>
+
+<p>In the actual XML schema, the accession is a child element, not an attribute on the root cell-line element:</p>
+
+<pre><code>&lt;!-- Actual XML structure (simplified) --&gt;
+&lt;cell-line category="Hybridoma" ...&gt;       &lt;!-- category IS an attribute --&gt;
+  &lt;accession-list&gt;
+    &lt;accession type="primary"&gt;CVCL_XXXX&lt;/accession&gt;
+  &lt;/accession-list&gt;
+&lt;/cell-line&gt;</code></pre>
+
+<pre><code># Correct — reads the child element, mirrors how adjacent fields were parsed
+acc = elem.find("accession-list/accession[@type='primary']")
+accession = acc.text.strip() if acc is not None and acc.text else ""</code></pre>
+
+<p>Because <code>elem.get("accession", "")</code> on an element with no such attribute returns an empty string rather than raising an error, every one of 50,000 rows got a blank accession. The assembly function that filters rows by accession value then matched everything — because every row matched the empty-string key. The first row in the table was a mouse hybridoma entry. Every query returned that row, with the whole-table counts of 297,497 synonyms and 473,381 cross-references attached as though they belonged to it.</p>
+
+<div class="stale-box">
+    <p><strong>Why nothing errored:</strong> <code>elem.get()</code> is the correct function to read XML attributes; it silently returns the default when the attribute is absent. The sibling fields that <em>are</em> attributes — category, sex, species — populated normally, so the response appeared healthy.</p>
+</div>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> add an explicit blank-key guard after parsing — skip any record whose primary identifier is empty and log a counter. <strong>Verification that would have caught it:</strong> parse a known entry (e.g., HeLa, accession CVCL_0030) and assert the returned accession is non-empty and matches the expected value. This test costs ten lines and would have fired immediately.</p>
+</div>
+
+<div class="highlight-box">
+    <p><strong>The general principle:</strong> a blank join key is the most dangerous kind of bad data. A filter on a blank key matches everything rather than nothing. You get confidently wrong answers, not errors — and the data looks fully populated because it is.</p>
+</div>
+
+<h2>Failure 6: The Counter Was Measuring Write Events, Not Entities</h2>
+
+<p>A knowledge graph service exposed a statistics endpoint that reported node and edge counts by entity type. The gene count on a live table showed 2,015. The actual number of distinct gene nodes on that table was 435. The total node count showed 3,137; the actual was 784 — a 4× inflation.</p>
+
+<p>The counter incremented on every upsert, not on every creation. A single research query re-upserts the same gene node from multiple sources as it processes results. That gene gets counted each time. The more the system was used, the more wrong the number got — the exact opposite of how people intuitively expect a metric to behave.</p>
+
+<p>There was a second problem layered underneath. The code that read the counter had a subtle serialisation bug: it was passing typed DynamoDB values to the wrong client method, which double-serialised them on a boto3 resource Table and caused a <code>ValidationException</code>. That exception was caught by a broad <code>except</code> block that logged at DEBUG level and returned a fallback value computed as <code>int(table.item_count * 0.6)</code>. The write-event counter had accumulated 3,137 against 784 actual nodes (2,015 against 435 gene nodes), but the read path never reached it — the serialisation failure caused every <code>get_stats()</code> call to fall back to <code>int(table.item_count * 0.6)</code>. The number reaching users and the agent's tool calls was a fabricated 60/40 split of raw item count; the already-inflated write-event counter was not even being read.</p>
+
+<div class="stale-box">
+    <p><strong>Why nothing errored:</strong> the upsert function did not distinguish new items from updates. The except block hid the serialisation error. The fallback returned a plausible integer. The statistics endpoint returned 200 with a well-formed JSON response.</p>
+</div>
+
+<pre><code># Before — increments on every write regardless of whether the item is new
+def upsert_node(entity_type, entity_id, props):
+    table.put_item(Item={"pk": entity_id, **props})
+    counters.increment(entity_type)     # fires on update AND creation
+
+# After — increment only when the item did not previously exist
+def upsert_node(entity_type, entity_id, props):
+    response = table.update_item(
+        Key={"pk": entity_id},
+        UpdateExpression="SET #d = :d",
+        ExpressionAttributeNames={"#d": "data"},
+        ExpressionAttributeValues={":d": props},
+        ReturnValues="UPDATED_OLD"
+    )
+    if not response.get("Attributes"):  # no previous item → new creation
+        counters.increment(entity_type)</code></pre>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> gate the increment on <code>ReturnValues="UPDATED_OLD"</code> returning empty Attributes — that is DynamoDB's signal that the item was newly created, not updated. Separately: a fallback that invents a number must never ship. Log the error at ERROR level and return an explicit unavailable signal. A zero that means UNKNOWN is indistinguishable from a zero that means empty. <strong>Verification:</strong> reconcile the counter against a scan of actual items before trusting it; a ratio far from 1.0 tells you what the counter actually measures.</p>
+</div>
+
+<h2>Failure 7: An Entity ID Without the Type Prefix Is Permanently Invisible</h2>
+
+<p>A knowledge graph uses a DynamoDB composite GSI where the sort key index is constructed as <code>{entity_type}:{search_term}</code>. This means every search query is structured as a <code>begins_with</code> filter over that composite pattern. A node whose entity ID does not start with its entity type is written successfully, passes the provenance gate, appears in scans — and can never be returned by any search.</p>
+
+<p>While writing new extractors, we used what felt like natural sub-kind prefixes as the entity ID prefix. For entities of type <code>evidence_item</code>, we wrote IDs like <code>study:record_001</code> and <code>result:record_002</code>, because "study" and "result" felt like more descriptive identifiers. The node was stored. No error was raised. But every subsequent search for evidence items ran:</p>
+
+<pre><code># Search function — always prefixes the query with entity_type
+Key("entity_type").eq("evidence_item") &amp;
+    Key("entity_id_lc").begins_with("evidence_item:")
+
+# A node stored as  pk = "study:record_001"  with entity_type = "evidence_item"
+# will NEVER be returned — the begins_with condition fails silently</code></pre>
+
+<pre><code># Wrong — sub-kind used as prefix
+entity_id = f"study:{record_id}"          # entity_type is "evidence_item"
+entity_id = f"result:{record_id}"         # entity_type is "evidence_item"
+
+# Correct — entity_type is always the prefix, sub-kind follows the colon
+entity_id = f"evidence_item:study_{record_id}"
+entity_id = f"evidence_item:result_{record_id}"</code></pre>
+
+<div class="stale-box">
+    <p><strong>Why nothing errored:</strong> <code>put_item</code> does not validate the content of a string field against any convention. The node was written. Reads via direct key lookup (where the full partition key is known) would have succeeded. Only searches — the primary access pattern — would have silently returned empty results.</p>
+</div>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> assert the type-prefix invariant in every extractor before it writes a node: <code>assert entity_id.lower().startswith(entity_type.lower() + ":")</code>. This fires at write time, not at search time — the earliest possible moment. <strong>Verification:</strong> a unit test that writes a node with a valid ID, searches for it, and asserts the returned count is non-zero. Run it for each new extractor before the extractor is integrated.</p>
+</div>
+
+<p>The permanence matters here. The graph had no delete route and TTL was disabled. A node written with the wrong ID prefix was not just temporarily invisible — it was unreachable for the lifetime of the data store. Fixing the extractor code would not repair the stored nodes.</p>
+
+<h2>Failure 8: Null Values Silently Excluded Records From Results</h2>
+
+<p>A dose-response data service returned an empty result set for a compound that was confirmed present in the underlying data. The underlying database had one record for that compound. The service said it found a record but could not retrieve it. The researcher reported a data gap.</p>
+
+<p>The service filtered results before returning them:</p>
+
+<pre><code># Before — silently excludes records where curve fit did not converge
+valid_records = [r for r in results if r.get("potency_metric") is not None]
+return valid_records</code></pre>
+
+<p>Records where the curve-fit algorithm did not converge carry a null for the potency metric field. Those records are real data — a null potency metric means "curve did not converge," not "compound was not tested." The filter was removing them without logging or signalling the exclusion. The caller received an empty list, saw that the total match count was 1, and could not reconcile the two facts.</p>
+
+<div class="stale-box">
+    <p><strong>Why nothing errored:</strong> list comprehension filtering does not raise on null values. The empty list is a valid return. The match count came from a separate database query and was not cross-checked against the returned list length.</p>
+</div>
+
+<pre><code># After — include all records; surface the exclusion explicitly
+all_records = results
+converged = [r for r in results if r.get("potency_metric") is not None]
+
+if len(converged) &lt; len(all_records):
+    logger.info(
+        "%d of %d records have null potency_metric (curve did not converge); returning all",
+        len(all_records) - len(converged),
+        len(all_records)
+    )
+
+# Return all records; let the caller decide how to handle non-converged entries
+return all_records</code></pre>
+
+<div class="green-box">
+    <p><strong>Fix:</strong> return all records and expose the convergence flag, letting the caller decide how to handle unconverged entries. Add an explicit log line when the returned list is shorter than the matched count. <strong>Verification:</strong> a test fixture that includes at least one record with a null potency metric, asserting it appears in the return value and that the log contains the exclusion count.</p>
+</div>
+
+<h2>Patterns Across All Eight</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Failure</th>
+            <th>Root mechanism</th>
+            <th>Why it was silent</th>
+            <th>Minimum verification</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Case normalisation</strong></td>
+            <td>Discriminating information stripped before lookup</td>
+            <td>Wrong match is still a match</td>
+            <td>Known case-variant pair in the test fixture</td>
+        </tr>
+        <tr>
+            <td><strong>Guessed enum</strong></td>
+            <td>Missing key falls through to default</td>
+            <td>Default is a valid score, not an error sentinel</td>
+            <td>Assert ordering: <code>APPROVAL &gt; PHASE_3 &gt; PHASE_1 &gt; UNKNOWN</code></td>
+        </tr>
+        <tr>
+            <td><strong>Inferred payload shape</strong></td>
+            <td>Consumer written against imagined schema</td>
+            <td><code>.get()</code> returns None silently; default used</td>
+            <td>Integration test against a captured real payload</td>
+        </tr>
+        <tr>
+            <td><strong>Curated alias table</strong></td>
+            <td>Wrong canonical symbol hand-written from memory</td>
+            <td>Wrong symbol exists in every downstream database</td>
+            <td>Registry API validation, per-row verdict printed</td>
+        </tr>
+        <tr>
+            <td><strong>Blank join key</strong></td>
+            <td>Attribute vs child element in XML parsing</td>
+            <td>Empty string matches everything in the filter</td>
+            <td>Parse known entry, assert non-empty accession</td>
+        </tr>
+        <tr>
+            <td><strong>Write-event counter</strong></td>
+            <td>Increment on upsert, not on creation</td>
+            <td>Integer return value; plausible fallback hid the error</td>
+            <td>Reconcile counter against scan before trusting it</td>
+        </tr>
+        <tr>
+            <td><strong>Type-prefix violation</strong></td>
+            <td>Entity ID prefix mismatches entity type</td>
+            <td>Write succeeds; only search is broken</td>
+            <td>Write node, search for it, assert result count &gt; 0</td>
+        </tr>
+        <tr>
+            <td><strong>Null potency filter</strong></td>
+            <td>List comprehension silently excludes null records</td>
+            <td>Empty list is valid; match count came from separate query</td>
+            <td>Fixture with null-potency record; assert it appears in response</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="takeaway">
+    <h3>A Checklist for Silent Wrong Data</h3>
+    <p>Before a data integration ships, run through these eight checks:</p>
+    <ol>
+        <li><strong>Normalisation audit:</strong> for every transform applied to an identifier before a lookup, document what information it discards and whether that information is a discriminator in your domain.</li>
+        <li><strong>Enum sampling:</strong> for any field mapped to a weight or category, query the live API for real values — a <code>GROUP BY</code> across a representative sample. Never write enum keys from intuition.</li>
+        <li><strong>Payload capture:</strong> for every data consumer, capture at least one real payload from the producer before writing the consumer. Keep the capture in the repo next to the consumer.</li>
+        <li><strong>Reference table validation:</strong> for every hand-curated identifier mapping, query the authoritative registry API for each row and print a per-row verdict. Gate the commit on zero WRONG rows.</li>
+        <li><strong>Blank key guard:</strong> immediately after parsing a primary identifier, assert it is non-empty. Skip and log any record with a blank key — a blank key that enters your pipeline will match everything.</li>
+        <li><strong>Counter semantics:</strong> check whether your metrics increment on creation or on write. Reconcile the counter against a real count of items before trusting any reported figure. Never let a fallback invent a number.</li>
+        <li><strong>Entity ID invariant:</strong> for any graph or index that uses a typed-prefix convention on IDs, assert the invariant at write time for every extractor. Write + search in the same test.</li>
+        <li><strong>Silent filter audit:</strong> for every list comprehension or filter that removes records before returning results, add a log line when the output is shorter than the input. Make the exclusion explicit, not silent.</li>
+    </ol>
+</div>
+
+<p>The common thread across all eight is that the failure mode was designed in, not accidental. Case normalisation is a useful operation in many contexts — it just should not be unconditional. Enum defaults are useful — they just must not shadow a known category. A counter is useful — it just must measure what its name says it measures. In each case the error was not in the operation itself but in the assumption that the operation was safe to apply without first verifying what it would throw away.</p>
+
+<p>The verification step in every case is small — a single test, a one-time API query, an assertion at write time. The cost of skipping it is paid later, quietly, by users who get wrong answers that the system delivered with full confidence.</p>
+
+<div class="tag-list">
+    <span class="tag">Data Engineering</span>
+    <span class="tag">Agent Pipelines</span>
+    <span class="tag">Data Quality</span>
+    <span class="tag">Silent Failures</span>
+    <span class="tag">Knowledge Graph</span>
+    <span class="tag">Bioinformatics</span>
+    <span class="tag">Testing</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

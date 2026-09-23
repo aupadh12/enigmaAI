@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Missing Pricing Key Silently Deleted Three Days of AI Cost Data</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="One Missing Pricing Key Silently Deleted Three Days of AI Cost Data">
+    <meta property="og:description" content="A recognised-but-incomplete pricing entry is more dangerous than an unknown model. Here's how a single KeyError inside a pagination callback quietly discarded whole days of Bedrock invocation data.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/27-finops-pipeline-silent-day-loss.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/27-finops-pipeline-silent-day-loss.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="One Missing Pricing Key Silently Deleted Three Days of AI Cost Data">
+    <meta name="twitter:description" content="A recognised-but-incomplete pricing entry is more dangerous than an unknown model. Here's how a single KeyError inside a pagination callback quietly discarded whole days of Bedrock invocation data.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/27-finops-pipeline-silent-day-loss.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        .flow-step {
+            display: flex; align-items: flex-start; gap: 16px; margin-bottom: 12px;
+        }
+        .flow-step-icon {
+            flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px; color: white;
+        }
+        .flow-step-icon.ok { background: #16a34a; }
+        .flow-step-icon.warn { background: #d97706; }
+        .flow-step-icon.err { background: #dc2626; }
+        .flow-step-body { font-size: 14px; line-height: 1.6; padding-top: 6px; }
+        .flow-step-body strong { color: #1a1a2e; }
+        .flow-step-body code { font-size: 12px; }
+        .flow-arrow {
+            text-align: center; color: #94a3b8; font-size: 18px;
+            margin: -4px 0 -4px 16px; line-height: 1;
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/27-finops-pipeline-silent-day-loss.png" alt="Blog cover">
+
+<div class="header-badge">FINOPS</div>
+<h1>One Missing Pricing Key Silently Deleted Three Days of AI Cost Data</h1>
+<p class="subtitle">A recognised-but-incomplete pricing entry is more dangerous than an unknown model. Here's how a single KeyError inside a pagination callback quietly discarded whole days of Bedrock invocation data — and what it took to find and recover them.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · September 2026</div>
+    </div>
+</div>
+
+<p>Three whole days of Bedrock cost data for one account in our seven-account FinOps pipeline vanished silently. Not a partial outage — one day had no file at all, two others captured fewer than half their actual invocations. The internal dashboard showed the gap. No alert fired. The CronJob running the extraction had been exiting non-zero for weeks, but nothing had been wired to watch that status.</p>
+
+<p>The investigation started, reasonably enough, with CloudWatch: were we hitting retention limits? Query service quotas? Region connectivity issues? None of those theories held. The signal was in a per-window log line that the per-day summary had papered over: <code>filter_log_events error KeyError: 'cache_read'</code>. A single Python dictionary key — <code>cache_read</code> — was missing from one pricing table entry. One embedding invocation hit that entry, raised a KeyError inside a pagination callback, got silently caught, and the entire day was thrown away.</p>
+
+<p>This post walks through the mechanism, the detection method, and the fix. If you're building a CloudWatch-based cost extraction pipeline, several of these failure modes are independent of pricing — including the truncated-day signature and the empty-pages-with-nextToken trap covered in the detection section.</p>
+
+<h2>The Pipeline and the Price Table</h2>
+
+<p>The dashboard in question extracts Amazon Bedrock invocation logs from CloudWatch Logs across a set of AWS accounts. The basic extraction loop (which we covered in depth in <a href="21-cross-account-cloudwatch-region-trap.html">post #21 on cross-account CloudWatch extraction</a>) pages through CloudWatch using <code>filter_log_events</code>, parses each log record, computes per-invocation cost, aggregates by model and calendar day, and writes a day-file per account. The pipeline runs several times daily; each run covers a trailing window of recent days.</p>
+
+<p>Cost calculation uses a pricing dictionary. Each entry maps a model identifier to a dict of rates:</p>
+
+<pre><code>PRICING = {
+    "anthropic.claude-3-sonnet": {
+        "input":         3.00,   # per million input tokens
+        "output":       15.00,   # per million output tokens
+        "cache_read":    0.30,   # per million cache-read tokens
+        "cache_write_5m": 3.75, # per million cache-write tokens
+    },
+    "cohere.embed-english-v3": {
+        "input":  0.10,
+        "output": 0.00,
+        # cache_read not added when this entry was created
+    },
+    # ... more entries ...
+}</code></pre>
+
+<p>The cost calculation function subscripts several of these keys. Some of the subscripts use <code>.get()</code> for optional fields. A few use direct key access. The exact mix creates an asymmetric risk: guarded fields fail safely, unguarded fields crash on absence.</p>
+
+<h2>The Inversion That Matters: Incomplete Over Unknown</h2>
+
+<p>The pricing table has a fallback path: if a model identifier doesn't match any explicit entry, it falls through to a default rate (approximately Sonnet-class pricing) and emits a loud <code>UNPRICED MODEL</code> warning in the log. The fallback entry has all four required keys. So a completely unknown model is handled gracefully.</p>
+
+<p>A model with a partial entry is not handled gracefully. It matches the explicit lookup — so it never reaches the fallback — and then crashes when a required key is absent.</p>
+
+<div class="stale-box">
+    <p><strong>The inversion:</strong> the model you've partially configured is more dangerous than the model you've never seen. An unknown model gets a fallback and a warning. A recognised-but-incomplete model gets a KeyError inside a pagination callback that's wrapped in a blanket except.</p>
+</div>
+
+<p>The Cohere embedding model had been in the pricing table for some time, with <code>input</code> and <code>output</code> rates set. Nobody noticed that <code>cache_read</code> was missing, because Cohere models had never been observed in CloudWatch logs before a new workload started using them in production. The first invocation triggered the first lookup, and the first lookup crashed.</p>
+
+<h2>Anatomy of a Silent Discard</h2>
+
+<p>Here is the exact sequence that turned one KeyError into a discarded day:</p>
+
+<div class="diagram-container">
+    <div class="flow-step">
+        <div class="flow-step-icon ok">1</div>
+        <div class="flow-step-body">
+            <strong>filter_log_events returns a page of records</strong><br>
+            The pagination loop calls <code>on_batch(events)</code> for each page. This is inside the per-window query function, which has a blanket <code>except Exception</code> around the entire page-processing path.
+        </div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+        <div class="flow-step-icon ok">2</div>
+        <div class="flow-step-body">
+            <strong>on_batch parses each record and computes cost</strong><br>
+            For each log event, the batch handler calls the cost calculation function, passing the model ID and token counts from the parsed JSON.
+        </div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+        <div class="flow-step-icon warn">3</div>
+        <div class="flow-step-body">
+            <strong>_calc_cost looks up the model in PRICING</strong><br>
+            <code>cohere.embed-english</code> matches an explicit entry — it is not unknown. The function proceeds to subscript the entry's keys: <code>p["input"]</code> ... <code>p["output"]</code> ... <code>p["cache_read"]</code>.
+        </div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+        <div class="flow-step-icon err">4</div>
+        <div class="flow-step-body">
+            <strong>KeyError: 'cache_read'</strong><br>
+            The entry has no <code>cache_read</code> key. The exception propagates up through <code>on_batch</code> and reaches the <code>except Exception</code> in the pagination loop. The except block logs <code>filter_log_events error KeyError: 'cache_read'</code> and returns <code>False</code>.
+        </div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+        <div class="flow-step-icon err">5</div>
+        <div class="flow-step-body">
+            <strong>Caller treats False as a failed CloudWatch query</strong><br>
+            The caller cannot distinguish a pricing error from a network timeout or a permission failure — they all produce <code>False</code>. The window is added to <code>failed_windows</code>.
+        </div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step">
+        <div class="flow-step-icon err">6</div>
+        <div class="flow-step-body">
+            <strong>Day discarded at write time</strong><br>
+            Any day with one or more failed windows is not written. All successfully-processed windows for that day — hours of valid records — are discarded because one window touched one unpriceable model.
+        </div>
+    </div>
+    <p class="diagram-caption">A single missing dictionary key in a pricing table entry propagates through six layers to discard an entire day of extraction data.</p>
+</div>
+
+<p>The asymmetry that makes this worse: the very next line in the cost calculation function, which handles <code>cache_write_5m</code>, uses <code>.get()</code> and defaults to zero. That one field was guarded. The three others were not. A reviewer reading the function would see the guarded call and assume the pattern was consistent.</p>
+
+<div class="warn-box">
+    <p><strong>Note on window size:</strong> shrinking the extraction window is not a mitigation here. Any failed window of any size causes the entire day to be discarded. The failure mode is in the cost calculation, not in the CloudWatch query volume.</p>
+</div>
+
+<h2>The Summary Log That Lied</h2>
+
+<p>The extraction pipeline logs a per-day summary line for each account and each day it processes. For the affected days, the summary showed something like: <em>"us-east-1 [date] query failed"</em>. That message pattern is used for network failures, permission errors, log group not found, query timeouts, and — as it turns out — pricing calculation errors. They all map to the same <code>False</code> return from the window query function.</p>
+
+<p>The first investigation spent time on CloudWatch infrastructure: retention policies (was data expiring?), service quotas (were queries being throttled?), cross-account role permissions (were credentials expiring?). All of those are plausible causes for "query failed" messages. None of them was the cause here.</p>
+
+<p>The real signal was in the per-window log at ERROR level — not the per-day summary. The detail line said <code>filter_log_events error KeyError: 'cache_read'</code>. The summary line had abstracted the error type away.</p>
+
+<div class="highlight-box">
+    <p><strong>Lesson:</strong> when investigating a cost extraction pipeline failure, grep for the per-window error lines before diagnosing infrastructure. A per-day summary that says "query failed" is an aggregation of failure types the logging layer cannot distinguish. The per-window detail line carries the actual exception.</p>
+</div>
+
+<h2>Detecting Truncated Days</h2>
+
+<p>The investigation needed a way to quickly scan all stored day-files across all accounts and find candidates for incomplete data. The truncated-day signature provides a single-pass check:</p>
+
+<pre><code>import json, os, pathlib
+
+def find_truncated_days(data_root: pathlib.Path):
+    """
+    Any day-file whose extracted_at DATE matches its date field
+    was written during that day and is therefore incomplete.
+    A healthy day is always overwritten by a later trailing run,
+    so its extracted_at date is strictly later than its date.
+    """
+    truncated = []
+    for path in data_root.rglob("*.json"):
+        with open(path) as f:
+            record = json.load(f)
+        extracted_date = record.get("extracted_at", "")[:10]
+        day_date = record.get("date", "")
+        if extracted_date and day_date and extracted_date == day_date:
+            truncated.append((path, day_date, record.get("extracted_at")))
+    return truncated</code></pre>
+
+<p>The logic depends on how <code>extracted_at</code> is set: it is stamped at run start — before the first CloudWatch query — not at write time. This means a day that was only ever written by an intra-day run holds only the hours before that run started. A correctly-completed day is always overwritten by a later trailing run whose run-start timestamp falls on a later calendar date.</p>
+
+<p>Two expected false positives:</p>
+<ul>
+    <li><strong>Today</strong> — always mid-flight by definition.</li>
+    <li><strong>Yesterday</strong> — if the early-morning trailing run has not yet completed.</li>
+</ul>
+
+<p>Confirm false positives by re-running the check after the pipeline completes its next full pass.</p>
+
+<div class="warn-box">
+    <p><strong>Subtlety around the cutoff:</strong> because <code>extracted_at</code> is the run-start time, a truncated file can legitimately contain a small amount of data from events that arrived after the apparent cutoff. The extractor was already scanning when those events were written. Do not interpret a record count slightly higher than what you'd expect for a clean half-day boundary as evidence of log retention expiry — that was the wrong conclusion I drew before re-running with proper pagination.</p>
+</div>
+
+<h2>Distinguishing Loss from Real Zeros: The Flanking Test</h2>
+
+<p>Not every absent day file represents lost data. AI workloads have genuine zero-usage periods — weekends, maintenance windows, early deployment periods before a service goes live. Treating all gaps as loss would trigger unnecessary recovery work.</p>
+
+<p>The flanking test: a missing or truncated day file is more likely to represent real loss if it is flanked by days with non-zero usage from the same account in the same period. A gap surrounded on both sides by non-zero days, on a high-traffic account, is suspicious. A gap surrounded by other gaps on a low-traffic account is more plausibly genuine.</p>
+
+<p>For each suspicious gap, confirm by pulling the raw CloudWatch event count for that day directly — either with a paginated filter_log_events probe, or by running a CloudWatch Logs Insights query. If CloudWatch shows events on a day that the pipeline shows as empty, the data was lost in extraction. If CloudWatch also shows zero events, the pipeline was correct.</p>
+
+<p>Applying this method across all accounts found a large number of gap days on several accounts. All but three came back as genuine zeros — real zero-usage days, correctly not written. The three exceptions all belonged to one account, all produced non-zero event counts in CloudWatch, and all had a <code>cohere.embed-english</code> invocation in that day's logs. The flanking test narrowed the field quickly.</p>
+
+<h2>Empty Pages Are Not Empty: The filter_log_events Pagination Trap</h2>
+
+<p>A related failure mode surfaced during the investigation: an early ad-hoc probe of one affected day reported "no Cohere events found on this day" — which seemed to contradict the KeyError theory. The probe had been reading only the first page of results.</p>
+
+<p>The AWS CloudWatch filter_log_events API can return a page with zero matching events and a non-null <code>nextToken</code>. That is not a "no matches" result — it means the service is still scanning through log streams and hasn't found a match on this page yet. A probe that stops at the first empty page will silently report "no events" for a day that has plenty of them on later pages.</p>
+
+<p>The production extractor handles this correctly: it checks <code>if events: on_batch(events)</code> on each page, then continues paginating as long as a <code>nextToken</code> is present. Any ad-hoc diagnostic probe must follow the same rule. Treat every negative from a non-paginating probe as unproven until a fully-paginated run confirms it.</p>
+
+<div class="highlight-box">
+    <p><strong>Always paginate to completion.</strong> The only reliable termination condition for filter_log_events is the absence of <code>nextToken</code> in the response. Do not stop on an empty page; do not assume a single-page response is the complete result.</p>
+</div>
+
+<h2>The Fix: Validate Pricing Entries at Load Time</h2>
+
+<p>The root cause is a timing problem: the incomplete pricing entry was valid at load time and only failed at use time, inside code where the failure was silently swallowed and misreported. The fix moves the validation to load time.</p>
+
+<h3>Part 1: Complete the entries</h3>
+
+<p>The immediate fix was adding the missing <code>cache_read</code> key to every Cohere pricing entry. The convention already in use by other providers in the table is to set <code>cache_read</code> equal to <code>input</code> when no cache discount applies to that provider — not <code>0.0</code>, which would price cached reads as free. Matching the existing convention is important: future readers can see the pattern and verify new entries against it.</p>
+
+<h3>Part 2: Validate at load time</h3>
+
+<p>The second part ensures that any future incomplete entry fails loudly at startup rather than silently inside a pagination callback:</p>
+
+<pre><code>import logging
+
+def drop_incomplete_entries(pricing: dict) -> dict:
+    """
+    Validate pricing entries at load time.
+
+    An entry missing required keys will crash _calc_cost() inside
+    the pagination callback, where the exception is silently caught
+    and the query is marked as failed — discarding the entire day.
+
+    Drop incomplete entries here so they degrade to the auditable
+    fallback rate instead, and log an ERROR so the gap is visible.
+    """
+    REQUIRED = {"input", "output", "cache_read"}
+    clean = {}
+    for model_id, rates in pricing.items():
+        missing = REQUIRED - rates.keys()
+        if missing:
+            logging.error(
+                "PRICING ENTRY DROPPED — model %r is missing keys %s; "
+                "invocations for this model will use fallback rates and "
+                "appear in the unpriced_models list",
+                model_id, sorted(missing)
+            )
+        else:
+            clean[model_id] = rates
+    return clean
+
+
+def load_pricing(config: dict) -> dict:
+    raw = config.get("pricing", {})
+    return drop_incomplete_entries(raw)</code></pre>
+
+<p>The result: a half-populated entry is a startup error, visible in the CronJob logs on the first run after a bad config change. It no longer silently survives to reach the pagination callback. The affected models fall through to the auditable fallback rate — they are overstated, but they are counted, and they are flagged.</p>
+
+<div class="green-box">
+    <p><strong>Degrade to auditable, not to silent drop.</strong> The validation function removes incomplete entries rather than blocking startup entirely. A model that falls to the fallback still appears in the output with a loud UNPRICED MODEL marker. The day is written. The cost is wrong for that model, but a human can see it and correct it. Crashing the extractor on startup would leave the day with no data at all — which is worse than a known-wrong estimate.</p>
+</div>
+
+<h2>Sourcing Bedrock Pricing: What the Price List API Doesn't Cover</h2>
+
+<p>Fixing the immediate entries led to an audit of all pricing data sources, which surfaced a less obvious problem: the AWS Price List API doesn't list most of the models in the estate.</p>
+
+<p>The standard programmatic source — <code>pricing:GetProducts</code> for <code>ServiceCode=AmazonBedrock</code> — returns only a small subset of Bedrock models. Cohere models are absent entirely. Modern Claude versions (anything beyond Claude 3 Haiku, Claude 3 Sonnet, Claude 2.0, Claude 2.1, and Claude Instant) are also absent. The only reliable source for these models is the AWS Bedrock pricing page at <code>aws.amazon.com/bedrock/pricing/</code>.</p>
+
+<p>However, that page cannot be scraped with <code>curl</code>. A standard HTTP GET returns approximately 900 KB of HTML that contains zero model names — the entire pricing table is client-side rendered via JavaScript. Extracting actual rates requires a headless browser. A second trap: the Cohere on-demand token table is region-gated within the page — clicking the region selector is required to reveal it. A scrape that captures only the initial page state may see only the per-query table and incorrectly conclude that no per-token rates exist for Cohere models.</p>
+
+<div class="warn-box">
+    <p><strong>Do not rely on the AWS Price List API alone for Bedrock pricing.</strong> It returns no Cohere data and no modern Claude models. The pricing page is the primary source for most of the estate — and it requires a headless browser to access the data.</p>
+</div>
+
+<h2>Models That Cannot Have a Per-Token Rate</h2>
+
+<p>The pricing audit also identified a category of models that should be deliberately left unpriced: models with billing dimensions that the invocation log doesn't carry.</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Model</th>
+            <th>Billing dimension</th>
+            <th>Why a per-token rate is wrong</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Amazon Nova Canvas</td>
+            <td>Per image ($0.04–$0.08 by size and quality)</td>
+            <td>The invocation log carries token counts, not image counts. Cost is unknowable from the log alone.</td>
+        </tr>
+        <tr>
+            <td>Amazon Nova Sonic (multimodal)</td>
+            <td>Four rates: speech-in, speech-out, text-in, text-out — differing by ~9×</td>
+            <td>The log does not distinguish speech from text. Applying any single rate produces a number that's wrong by up to 9× for each invocation.</td>
+        </tr>
+        <tr>
+            <td>Cohere Rerank</td>
+            <td>Per 1,000 queries</td>
+            <td>Token-based pricing doesn't map to query-based billing. A per-token rate would produce a near-zero cost that suppresses the real billing.</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The rule is: leave these unpriced. A fabricated per-token rate for a per-image or per-query model is worse than no rate at all. It suppresses the UNPRICED MODEL warning in the output, removes the model from the list of models flagged for manual attribution, and makes the wrong number invisible. An explicitly unpriced model is surfaced in the output; a silently misattributed model is not.</p>
+
+<h2>Two Models That Were Priced at the Wrong Rate</h2>
+
+<p>Separate from the KeyError fix, the audit found two models falling through to the default fallback because they had no explicit entry. Both were observed in production logs, so the misattribution was affecting live cost data.</p>
+
+<p><strong>Cohere Embed v4</strong> had no pricing entry and was falling through to the default Sonnet-class rate of approximately $3.00 per million input tokens. The published on-demand rate for Cohere Embed 4 in US East (N. Virginia) is $0.12 per million input tokens. That's approximately 25× lower than the fallback — meaning September's cost estimate for this model was roughly 25× higher than the actual Bedrock charge.</p>
+
+<p><strong>Amazon Nova Micro</strong> was similarly absent from the pricing table. Its published rates are $0.035 per million input tokens, $0.14 per million output tokens, and $0.00875 per million cache-read tokens. Priced at the default $3.00/MTok fallback instead, the one invocation we observed was overstated by roughly 89×.</p>
+
+<p>Neither of these caused a crash — they just inflated cost figures for those models in the dashboard. Adding correct entries for both was part of the same update that fixed the Cohere Embed English entry.</p>
+
+<div class="highlight-box">
+    <p><strong>Fallback overstatement and understatement both mislead.</strong> A model at the wrong fallback rate doesn't fail a conservation check — the day total still adds up across all models. The error is local to that model's row in the breakdown. If nobody is looking at per-model cost trends, it can persist indefinitely. Adding new models to CloudWatch workloads should trigger a pricing table audit before the first scheduled run.</p>
+</div>
+
+<h2>Recovery and Validation</h2>
+
+<p>With the corrected pricing deployed, the three affected days were re-extracted from CloudWatch. Each recovery run reported zero errors. A conservation check — verifying that the sum of per-model costs equalled the day total — passed for all three days. The <code>by_model</code> breakdown confirmed that Cohere Embed v4 and Nova Micro were now priced at their correct rates.</p>
+
+<p>The before-and-after comparison, expressed as percentage of the true invocation count:</p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Day</th>
+            <th>Stored before fix</th>
+            <th>Stored after fix</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Day A</td>
+            <td class="decision-cell-red">~23% of true total</td>
+            <td class="decision-cell-green">100%</td>
+            <td>Partial data — Cohere invocations appeared in a later window; earlier windows completed successfully.</td>
+        </tr>
+        <tr>
+            <td>Day B</td>
+            <td class="decision-cell-red">0% (no file)</td>
+            <td class="decision-cell-green">100%</td>
+            <td>Every extraction window on this day encountered the pricing error. No file was ever written.</td>
+        </tr>
+        <tr>
+            <td>Day C</td>
+            <td class="decision-cell-red">~47% of true total</td>
+            <td class="decision-cell-green">100%</td>
+            <td>Partial data — roughly half the windows succeeded before a Cohere-heavy window failed.</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The estate-wide scan found these three to be the only affected days. The flanking test and the truncated-day signature together provided the narrowing. For completeness, CloudWatch was queried directly for each of the 47 other gap days found across accounts — all came back with zero events, confirming they were genuine zero-usage days, not suppressed data.</p>
+
+<p>For multi-tenant attribution patterns and the broader design of this FinOps pipeline, see <a href="16-multi-tenant-finops.html">post #16 on multi-tenant FinOps</a>. For the cross-account extraction architecture and region-aware querying, see <a href="21-cross-account-cloudwatch-region-trap.html">post #21</a>.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Recognised-but-incomplete beats unknown for danger.</strong> A model with no pricing entry gets a fallback and a warning. A model with a partial entry crashes at the calculation step, where the exception is silently swallowed and misreported as a CloudWatch query failure.</li>
+        <li><strong>Move validation to load time.</strong> A function that checks all pricing entries for required keys at startup converts a runtime KeyError into a startup ERROR. Incomplete entries are dropped and fall through to an auditable fallback — the day is written, the model is flagged, a human can correct it.</li>
+        <li><strong>The per-day summary can lie.</strong> "query failed" covers infrastructure failures and pricing bugs equally. Read the per-window ERROR log lines before diagnosing infrastructure when a day goes missing.</li>
+        <li><strong>The truncated-day signature:</strong> <code>extracted_at[:10] == date</code> means the file was last written during that day and is incomplete. Scan all stored files for this condition when investigating data loss. Two expected false positives: today and yesterday before the overnight run completes.</li>
+        <li><strong>filter_log_events returns empty pages with a valid nextToken.</strong> An ad-hoc probe that stops on the first empty page will silently miss events on subsequent pages. Always paginate to nextToken absence.</li>
+        <li><strong>The flanking test distinguishes loss from genuine zeros.</strong> A gap surrounded by non-zero days on a normally-active account is suspicious; probe CloudWatch directly to confirm. A gap surrounded by other gaps during a known low-traffic period is more likely genuine.</li>
+        <li><strong>The AWS Price List API does not cover most Bedrock models.</strong> Cohere and modern Claude models are absent. The pricing page is JS-rendered and requires a headless browser; the Cohere token-rate table is additionally region-gated within the page.</li>
+        <li><strong>Never fabricate a per-token rate for per-image or per-query models.</strong> A fake rate suppresses the UNPRICED MODEL warning and removes the model from the manual-attribution list. Leave them unpriced; an explicitly unpriced model is visible, a silently misattributed one is not.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">FinOps</span>
+    <span class="tag">AWS Bedrock</span>
+    <span class="tag">CloudWatch</span>
+    <span class="tag">Cost Attribution</span>
+    <span class="tag">Data Pipelines</span>
+    <span class="tag">Silent Failures</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Measuring AI Coding-Assistant Adoption: Claude Code on Amazon Bedrock and Kiro</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Measuring AI Coding-Assistant Adoption: Claude Code on Amazon Bedrock and Kiro">
+    <meta property="og:description" content="Two tools, two telemetry shapes — and what we learned about cost attribution, daily credits, and why 'group coverage' is not 'licence utilisation.'">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/29-ai-coding-assistant-usage-analytics.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/29-ai-coding-assistant-usage-analytics.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Measuring AI Coding-Assistant Adoption: Claude Code on Amazon Bedrock and Kiro">
+    <meta name="twitter:description" content="Two tools, two telemetry shapes — and what we learned about cost attribution, daily credits, and why 'group coverage' is not 'licence utilisation.'">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/29-ai-coding-assistant-usage-analytics.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/29-ai-coding-assistant-usage-analytics.png" alt="Blog cover">
+
+<div class="header-badge">FINOPS</div>
+<h1>Measuring AI Coding-Assistant Adoption: Claude Code on Amazon Bedrock and Kiro</h1>
+<p class="subtitle">Two tools, two telemetry shapes — and what we learned about cost attribution, daily credits, and why "group coverage" is not "licence utilisation."</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · September 2026</div>
+    </div>
+</div>
+
+<p>I filtered AWS Cost Explorer on <code>SERVICE = "Amazon Bedrock"</code> expecting to see our Claude Code spend for the month. The result came back as the equivalent of a rounding error — essentially zero. I briefly concluded that the usage must be missing, billed to a different account, or routed through a reseller arrangement. None of those were true. The usage was there and correctly attributed. I was looking at the wrong service line entirely.</p>
+
+<p>That confusion was the first of several metric-definition surprises encountered while building a unified analytics dashboard for two AI coding assistants deployed across an engineering organisation: Claude Code running against Amazon Bedrock, and Kiro, a purpose-built AI IDE assistant with its own credit-based usage model. The two tools route through different telemetry pipelines, store data in different shapes, and require different aggregation logic before their numbers become trustworthy. This post documents those differences and the specific traps that made obvious-looking queries produce wrong answers.</p>
+
+<h2>Two Tools, Two Telemetry Shapes</h2>
+
+<p>Claude Code, when configured to use Amazon Bedrock as its model provider, routes every completion request through the Bedrock API. Bedrock model invocation logging records each call as a structured JSON entry in a CloudWatch log group. The crucial property of this log structure is that the caller's identity, the model identifier, and the token counts for that call all appear in the <em>same</em> record. Per-user and per-model attribution does not require joining two separate sources; it is built into the log format.</p>
+
+<p>Kiro operates differently. It is a managed SaaS tool with its own credit-based billing. Each user's daily activity is distilled into a credit report: a row per user per day containing the date, the user's identity, total credits consumed, and model message counts. The reports are delivered as daily files rather than as a continuous event stream.</p>
+
+<div class="diagram-container">
+  <div class="pipeline-grid">
+    <div class="pipeline-col">
+      <div class="pipeline-col-header">Claude Code on Amazon Bedrock</div>
+      <div class="pipeline-step"><span class="pipeline-label">1</span> Developer invokes Claude Code in the IDE</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">2</span> Bedrock API call — carries <code>identity.arn</code>, <code>modelId</code>, token counts in one record</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">3</span> CloudWatch log group <code>/aws/bedrock</code> — one JSON entry per invocation</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">4</span> Scheduled extractor (6 h cadence) — CloudWatch Logs Insights query, writes day-files</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">5</span> Dashboard — per-user × per-model cost table, no secondary join needed</div>
+    </div>
+    <div class="pipeline-col">
+      <div class="pipeline-col-header">Kiro</div>
+      <div class="pipeline-step"><span class="pipeline-label">1</span> Developer uses Kiro in the IDE</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">2</span> Kiro service aggregates activity into daily credit reports per user</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">3</span> Daily report files land in S3 — credits are incremental, not cumulative</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">4</span> Scheduled extractor (2× per week) — copies and converts to Parquet, fetches AD group membership</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">5</span> Dashboard — per-user credits + group enrichment, with explicit "no group" bucket</div>
+    </div>
+  </div>
+  <p class="diagram-caption">The two pipelines share no infrastructure. The key structural difference: Bedrock attribution is record-level (identity + model + tokens in one entry); Kiro attribution is file-level (one daily file per user, credits pre-aggregated by the provider).</p>
+</div>
+
+<p>The pipelines share no infrastructure and require different extraction patterns, different cadence assumptions, and different approaches to group-level attribution. Getting the numbers right means understanding both shapes independently before trying to report on them together.</p>
+
+<h2>Claude Code on Bedrock: Attribution Is in the Record</h2>
+
+<p>Bedrock model invocation logging, when enabled for an account, writes one structured JSON record per API call to a configured CloudWatch log group. Each record contains three things that matter for attribution:</p>
+
+<ul>
+    <li><strong><code>identity.arn</code></strong> — the IAM ARN of the caller. For an engineer using Claude Code, this is the ARN of the assumed role or user that issued the Bedrock API call.</li>
+    <li><strong><code>modelId</code></strong> — the Bedrock model identifier, e.g. <code>us.anthropic.claude-sonnet-4-5-20251101-v1:0</code>.</li>
+    <li><strong>Token counts</strong> — input tokens, output tokens, and (when prompt caching is active) cache read and write tokens, all in the same record as the above two fields.</li>
+</ul>
+
+<p>Because all three appear together, grouping by <code>(identity.arn, modelId)</code> and summing token counts produces a complete per-user × per-model attribution table from a single log source. There is no secondary join with a billing table or a user directory. A CloudWatch Logs Insights query that captures this looks like:</p>
+
+<pre><code># Per-user × per-model token summary from Bedrock invocation logs
+fields identity.arn, modelId
+| filter @logStream like /ModelInvocationLog/
+| stats
+    sum(inputTokenCount)           as input_tokens,
+    sum(outputTokenCount)          as output_tokens,
+    sum(cacheReadInputTokenCount)  as cache_read_tokens,
+    count()                        as invocations
+  by identity.arn, modelId
+| sort by input_tokens desc</code></pre>
+
+<p>The resulting table gives you one row per (user, model) pair for the query window, with token counts that can be multiplied by per-model published prices to produce a cost estimate. Because the invocation log records the model at the time of the call, you get a natural audit trail when users switch between model versions — Sonnet versus Haiku versus Opus — without any configuration change on the analytics side.</p>
+
+<h3>Stripping ARNs to Readable Display Names</h3>
+
+<p>A raw caller identity ARN like <code>sts::ACCOUNT_ID:assumed-role/SomeRoleName/firstname.lastname</code> is not a useful dashboard label. The extractor strips it down to a readable username by matching against a configured list of account-specific prefixes. Because a real account's usernames frequently use mixed casing — the same person's ARN might appear with an uppercase prefix in some log entries and a lowercase one in others — the prefix list must cover both variants:</p>
+
+<pre><code>def simplify_arn(arn: str, prefix_list: list[str]) -> str:
+    """Extract a readable username from a caller ARN.
+
+    prefix_list entries should be ordered longest-first and must cover
+    all casing variants, e.g. ["ACCOUNT-users-", "account-users-"].
+    """
+    # The username is the final path segment of the ARN
+    username = arn.rsplit("/", 1)[-1] if "/" in arn else arn
+    for prefix in prefix_list:          # longest match first
+        if username.startswith(prefix):
+            return username[len(prefix):]
+    return username                     # return as-is if no prefix matches</code></pre>
+
+<div class="warn-box">
+    <p><strong>Case sensitivity bites in two places.</strong> The <code>startswith</code> match is case-sensitive, and if the same account has users whose ARN prefixes appear in mixed casing across log entries, a single-casing prefix list silently leaves some users labelled with their full ARN rather than a clean display name. The fix is to list both casings explicitly, longest first. The impact is cosmetic only — per-user totals aggregate on the full ARN, not the display name — but it affects every label in the dashboard. When onboarding an additional account, always verify the actual casing distribution in the log before finalising the prefix list.</p>
+</div>
+
+<h2>The Cost Explorer Blind Spot</h2>
+
+<p>The opening confusion — filtering Cost Explorer on <code>SERVICE = "Amazon Bedrock"</code> and finding essentially zero spend — is a naming issue built into how AWS bills Bedrock usage.</p>
+
+<p>Model inference charges do not appear under the "Amazon Bedrock" service line. They appear under per-model service lines, each named <code>&lt;Model Name&gt; (Amazon Bedrock Edition)</code>. In a typical active month, the ratio looks something like this:</p>
+
+<table>
+    <thead>
+        <tr><th>Cost Explorer service line</th><th>Share of Bedrock-related spend</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><code>Claude Sonnet X (Amazon Bedrock Edition)</code></td><td class="decision-cell-green">~60–70%</td></tr>
+        <tr><td><code>Claude Opus X (Amazon Bedrock Edition)</code></td><td class="decision-cell-yellow">~20–30%</td></tr>
+        <tr><td><code>Amazon Bedrock</code></td><td class="decision-cell-red">Essentially zero (&lt;0.1%)</td></tr>
+    </tbody>
+</table>
+
+<p>The "Amazon Bedrock" parent line covers non-inference charges — knowledge base storage, guardrails, retrieval requests — and carries a negligible share of spend in workloads dominated by model calls. A FinOps dashboard that reads model spend from the <code>SERVICE = "Amazon Bedrock"</code> line is reporting effectively nothing while the real spend accumulates invisibly elsewhere.</p>
+
+<p>The correct approach is to group Cost Explorer by <code>SERVICE</code> for the billing period and then sum every line whose name ends in <code>(Amazon Bedrock Edition)</code>:</p>
+
+<pre><code>aws ce get-cost-and-usage \
+  --time-period Start=YYYY-MM-01,End=YYYY-MM-DD \
+  --granularity MONTHLY \
+  --metrics UnblendedCost \
+  --group-by Type=DIMENSION,Key=SERVICE \
+  --query 'ResultsByTime[0].Groups[?contains(Keys[0], `Amazon Bedrock Edition`)]'</code></pre>
+
+<p>A side benefit: the model name in each service line tells you which models are actually in use across the account — cheaper than grepping configuration files, and accurate in the way that only billing data can be.</p>
+
+<div class="highlight-box">
+    <p><strong>Why this matters for multi-model cost visibility:</strong> when an organisation deploys multiple AI workloads in the same account — a coding assistant, a research agent, an API-facing service — the per-model service lines immediately tell you which workload is the dominant spender, even before any tagging strategy is in place. If Claude Sonnet accounts for 80% and Opus for 20%, and you know Claude Code primarily uses Sonnet while your research pipeline uses Opus, the cost split follows without additional joins.</p>
+</div>
+
+<h2>Kiro Credits: Daily, Not Cumulative</h2>
+
+<p>Kiro's daily report files are incremental. Each file records what a user spent on that calendar day. Credits do not carry forward; they reset at the start of each day's file. This means summing credits across any date range is safe — you are summing independent daily increments, not re-counting a running total.</p>
+
+<p>The complexity arises when you compare a user's total spending against their overage allowance. The allowance is defined per month — a fixed credit cap that applies to usage above the base subscription level. When the analytics window is a rolling 30 or 90 days rather than a fixed calendar month, you need to scale that monthly cap to match the window.</p>
+
+<h3>The Boundary Bug</h3>
+
+<p>An intuitive implementation counts the distinct calendar months that appear in the window:</p>
+
+<pre><code>import pandas as pd
+
+# BUGGY: counting distinct calendar months
+def months_in_window_naive(dates: pd.Series) -> int:
+    return dates.dt.to_period("M").nunique()
+
+# Window examples:
+# 2026-09-01 → 2026-09-30:  1 distinct month  ✓ correct
+# 2026-08-15 → 2026-09-13:  2 distinct months ✗ cap is doubled for a 30-day window
+# 2026-09-15 → 2026-10-14:  2 distinct months ✗ same problem, different dates</code></pre>
+
+<p>Any 30-day window that straddles a month boundary returns 2. The monthly cap doubles. A user who spent their full monthly allowance over 30 consecutive days appears to have used only 50% of capacity. The bug is invisible when the window is calendar-aligned (starting on the first of a month) but affects every relative window — "last 30 days", "last 90 days" — which is how rolling analytics dashboards almost always define their windows.</p>
+
+<p>The fix replaces calendar-month counting with proportional scaling:</p>
+
+<pre><code>def months_in_window(days: int) -> int:
+    """Scale a monthly cap to the selected window length.
+
+    Uses proportional rounding rather than distinct calendar months,
+    so a 30-day window always applies exactly 1× the monthly cap
+    regardless of which dates it covers.
+
+    max(1, ...) prevents a zero result for windows shorter than 15 days.
+    """
+    return max(1, round(days / 30))</code></pre>
+
+<p>With this formula:</p>
+<ul>
+    <li>30-day window → <code>max(1, round(30/30))</code> = 1× cap — regardless of month boundaries</li>
+    <li>45-day window → <code>max(1, round(45/30))</code> = 2× cap</li>
+    <li>90-day window → <code>max(1, round(90/30))</code> = 3× cap</li>
+    <li>14-day window → <code>max(1, round(14/30))</code> = <code>max(1, 0)</code> = 1× cap — at least one month's allowance</li>
+</ul>
+
+<div class="stale-box">
+    <p><strong>The non-obvious failure mode:</strong> the bug disappears on any window that starts on the first of a month, because a 30-day span from the 1st stays within one calendar month. A test that always validates against month-aligned windows will pass consistently and never expose the regression. The failure only appears in production where users navigate to relative windows like "last 30 days" from a mid-month date — which is the normal way people use a rolling dashboard.</p>
+</div>
+
+<p>The UI benefits from showing the cap calculation explicitly. An amber banner for non-30-day windows, displaying both the per-month cap and the scaled window cap, eliminates the confusion that arises when a user sees their "overage" number and does not understand what denominator the percentage was computed against.</p>
+
+<h2>Group Coverage Is Not Licence Utilisation</h2>
+
+<p>Once you have per-user Kiro credit data, the natural next question is: what fraction of the tool's assigned users are actually using it? The intuition is straightforward — join the user list from your identity provider against the usage data, and compute the ratio of active users to assigned users.</p>
+
+<p>Here is what the data showed once we separated "active" from "assigned".</p>
+
+<h3>Users Spending Credits While in No Group</h3>
+
+<p>The "assigned users" denominator was sourced from AD security groups whose names correspond to the tool being measured. Members of those groups were treated as the licence population. The coverage ratio was then:</p>
+
+<pre><code>coverage = (users in a group with >= 1 credit in window)
+         / (distinct members across all relevant groups)</code></pre>
+
+<table>
+    <thead>
+        <tr>
+            <th>Window</th>
+            <th>Coverage ratio</th>
+            <th>Active users in <em>no</em> group</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>30 days</td>
+            <td class="decision-cell-yellow"><strong>61.0%</strong></td>
+            <td>present (small share)</td>
+        </tr>
+        <tr>
+            <td>90 days</td>
+            <td class="decision-cell-green"><strong>69.8%</strong></td>
+            <td>present (grows with window)</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The "active users in no group" column is the critical one. A small share of active users spent credits while appearing in none of the relevant groups; with a longer window, that share grows. These users demonstrably hold a licence — they are spending credits — but they are absent from every group, so they are not in the denominator at all.</p>
+
+<p>Group coverage is not licence utilisation — define the denominator explicitly and state the window. A group-based denominator counts only people in groups, so define it explicitly and document what it includes and excludes.</p>
+
+<div class="warn-box">
+    <p><strong>Never call this ratio "licence utilisation."</strong> It is <em>group coverage</em> — the fraction of known group members who used the tool in the window. Licence utilisation would require a confirmed list of licence holders, which identity provider group membership cannot provide if some users hold licences through paths other than group assignment. The distinction matters when reporting to stakeholders who may act on the number: "61% utilisation" implies 39% of paid licences are wasted, which overstates the waste when the denominator covers only group-assigned members.</p>
+</div>
+
+<p>The AD mail casing trap and multi-group membership accounting are covered in detail in <a href="16-multi-tenant-finops.html">post #16 on multi-tenant FinOps data joins</a>.</p>
+
+<h3>State the Window on Every Number</h3>
+
+<p>61.0% and 69.8% are not two measurements of the same thing. They measure different populations — 30-day active users versus 90-day active users — against the same denominator. A user who used the tool once in the last quarter but not in the last month appears in the 90-day numerator but not the 30-day one. Reporting either number without the window creates apparent contradictions when someone checks the figure at a later date or compares it to a figure from a different report. Every dashboard cell that shows a coverage ratio should display its window alongside the number.</p>
+
+<div class="green-box">
+    <p><strong>The explicit "no group" bucket.</strong> The dashboard shows a dedicated "(No group)" row in the group breakdown, listing the count and total credits for users who appear in the usage data but in no relevant group. This makes the denominator gap visible rather than merged into an "other" category. When the "no group" population grows — which can happen when a new team starts using the tool without going through the formal group assignment process — the bucket gives immediate visibility rather than the coverage ratio silently improving for the wrong reason.</p>
+</div>
+
+<h2>Onboarding an Additional Account</h2>
+
+<p>Adding a new account to the Bedrock analytics pipeline involves two things that deserve explicit attention.</p>
+
+<p><strong>Confirm that invocation logging is already enabled before creating anything.</strong> Run <code>aws bedrock get-model-invocation-logging-configuration --region &lt;region&gt;</code> in the target account. In at least one account we onboarded, invocation logging had already been active for well over a year — auto-configured during an earlier Bedrock setup, with a very long log retention period. Attempting to create logging configuration in that account would have been a no-op at best. The check takes ten seconds and avoids confusion about whether new log data is the result of a fresh setup or pre-existing data.</p>
+
+<p><strong>Username prefix matching is case-sensitive in two separate implementations.</strong> The extractor that reads CloudWatch logs uses a <code>startswith</code> check to strip ARN prefixes to readable usernames. An independent copy of the same logic exists in the API layer that serves the dashboard. Real accounts mix casing: the same underlying population may appear as <code>ORG-ACCOUNT-firstname.lastname</code> in 83% of log entries and <code>org-account-firstname.lastname</code> in the remainder, because different mechanisms created the IAM identities at different times. Always list both casings in the prefix configuration, and list longer variants before shorter ones so a more specific prefix wins over a partial match:</p>
+
+<pre><code># prefix_list for an account with mixed-casing usernames
+username_prefixes:
+  - "ORG-ACCOUNT-users-"   # uppercase variant — longest first
+  - "org-account-users-"   # lowercase variant
+  - "ORG-ACCOUNT-"         # shorter fallback
+  - "org-account-"</code></pre>
+
+<p>Extra non-matching entries in the list are free — they are simply skipped — so listing both casings is a complete fix rather than a heuristic. Our landing zone requires a permissions boundary on new IAM roles; that is worth verifying in the target account before attempting role creation.</p>
+
+<h2>Pulling It Together: What the Numbers Actually Tell You</h2>
+
+<p>After building both pipelines, the combined dashboard answers three distinct questions that were previously answered with guesswork:</p>
+
+<p><strong>Who is spending what on which models?</strong> The Bedrock per-user × per-model table answers this directly, derived from log records rather than from cost allocation tags, which tend to be incomplete in early-stage deployments. The Cost Explorer per-model service lines answer the complementary question: which models are active across the whole account, and in roughly what proportion.</p>
+
+<p><strong>How active is Kiro relative to the assigned population?</strong> The group coverage ratio at 30 and 90 days answers this, noting that the denominator covers only explicitly group-assigned members. The "no group" bucket makes that boundary explicit rather than hiding it in the coverage number.</p>
+
+<p><strong>Is overage usage concentrated or distributed?</strong> Comparing per-user credit totals against the scaled cap — using <code>max(1, round(days/30))</code> as the multiplier — identifies which users have exceeded their monthly allowance over the selected window, without the boundary artifact that inflates or deflates the cap depending on where month boundaries fall.</p>
+
+<p>None of these are difficult to measure once the telemetry shape is understood. The difficulty is in the details: the wrong Cost Explorer filter, the wrong overage cap formula, the wrong denominator for the coverage ratio. Each of those gives you a number that looks plausible and is wrong in a way that only becomes apparent when you trace it back to the source.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>Bedrock model usage does <strong>not</strong> appear under the "Amazon Bedrock" Cost Explorer service line. It appears under per-model <code>(Amazon Bedrock Edition)</code> lines. The parent line is essentially zero for inference-heavy workloads. Filter on the per-model lines, not the parent.</li>
+        <li>Every Bedrock invocation log record carries identity, model ID, and token counts together. Per-user × per-model cost attribution is built into the log structure — no secondary join required.</li>
+        <li>Username prefix matching is case-sensitive in every implementation that uses <code>startswith</code>. List both casings explicitly, longest prefix first, to avoid leaving a fraction of users labelled with their raw ARN.</li>
+        <li>Kiro credits are daily increments, not cumulative totals. Sum them safely across any window. Scale the monthly overage cap with <code>max(1, round(days/30))</code>, not by counting distinct calendar months — the calendar approach doubles the cap for any window that straddles a month boundary.</li>
+        <li>"Group coverage" is not "licence utilisation." A group-membership denominator counts only assigned group members; users spending credits outside any group fall outside it. Show the "no group" bucket explicitly. State the window alongside every coverage number — 61.0% (30-day) and 69.8% (90-day) measure different populations against the same denominator.</li>
+<li>Before onboarding a new account, confirm whether invocation logging is already active. Check casing distribution in the actual logs before finalising the prefix list for that account.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">FinOps</span>
+    <span class="tag">AI-Assisted Development</span>
+    <span class="tag">Amazon Bedrock</span>
+    <span class="tag">Claude Code</span>
+    <span class="tag">Kiro</span>
+    <span class="tag">Platform Engineering</span>
+    <span class="tag">Cost Attribution</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

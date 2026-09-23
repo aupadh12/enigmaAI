@@ -8,9 +8,41 @@
     <lastBuildDate>Thu, 24 Sep 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://aupadh12.github.io/enigmaAI/feed.xml" rel="self" type="application/rss+xml"/>
 
+    <item>
+      <title>Measuring AI Coding-Assistant Adoption: Claude Code on Amazon Bedrock and Kiro</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/29-ai-coding-assistant-usage-analytics.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/29-ai-coding-assistant-usage-analytics.html</guid>
+      <pubDate>Thu, 24 Sep 2026 00:00:00 +0000</pubDate>
+      <description>Two tools, two telemetry shapes — and what we learned about cost attribution, daily credits, and why &quot;group coverage&quot; is not &quot;licence utilisation.&quot;</description>
+      <category>AI-Assisted Development</category>
+    </item>
 
+    <item>
+      <title>Upgrading an Agent Platform to Claude Opus 5 on Amazon Bedrock: Eight Gotchas We Hit</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/28-opus-5-bedrock-migration.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/28-opus-5-bedrock-migration.html</guid>
+      <pubDate>Thu, 24 Sep 2026 00:00:00 +0000</pubDate>
+      <description>Billed for a full response, parsed an empty string. A 400 misread as &quot;model unavailable.&quot; Thinking that burns max_tokens before the answer starts. The migration was worth it — but not without friction.</description>
+      <category>Agentic AI</category>
+    </item>
 
+    <item>
+      <title>One Missing Pricing Key Silently Deleted Three Days of AI Cost Data</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/27-finops-pipeline-silent-day-loss.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/27-finops-pipeline-silent-day-loss.html</guid>
+      <pubDate>Thu, 24 Sep 2026 00:00:00 +0000</pubDate>
+      <description>A recognised-but-incomplete pricing entry is more dangerous than an unknown model. Here&apos;s how a single KeyError inside a pagination callback quietly discarded whole days of Bedrock invocation data — and what it took to find and recover them.</description>
+      <category>FinOps</category>
+    </item>
 
+    <item>
+      <title>Silent Wrong Data: Eight Ways a Research Pipeline Lied Without a Single Visible Error</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/26-silent-wrong-data-agent-pipelines.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/26-silent-wrong-data-agent-pipelines.html</guid>
+      <pubDate>Thu, 24 Sep 2026 00:00:00 +0000</pubDate>
+      <description>None of these failures surfaced an error. No alert, no visible exception, no bad log line — just quietly wrong answers delivered with full confidence.</description>
+      <category>Data Engineering</category>
+    </item>
 
     <item>
       <title>The Context-Window Overflow Was Not Where We Looked</title>

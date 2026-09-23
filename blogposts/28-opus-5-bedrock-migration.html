@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrading an Agent Platform to Claude Opus 5 on Amazon Bedrock: Eight Gotchas We Hit</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Upgrading an Agent Platform to Claude Opus 5 on Amazon Bedrock: Eight Gotchas We Hit">
+    <meta property="og:description" content="Billed for a full response, parsed an empty string. Eight production gotchas from migrating a multi-agent research platform to Claude Opus 5 on Amazon Bedrock — with measurements, code, and what we'd do differently.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/28-opus-5-bedrock-migration.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/28-opus-5-bedrock-migration.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Upgrading an Agent Platform to Claude Opus 5 on Amazon Bedrock: Eight Gotchas We Hit">
+    <meta name="twitter:description" content="Billed for a full response, parsed an empty string. Eight production gotchas from migrating a multi-agent research platform to Claude Opus 5 on Amazon Bedrock — with measurements, code, and what we'd do differently.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/28-opus-5-bedrock-migration.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/28-opus-5-bedrock-migration.png" alt="Blog cover">
+
+<div class="header-badge">LLM PLATFORM</div>
+<h1>Upgrading an Agent Platform to Claude Opus 5 on Amazon Bedrock: Eight Gotchas We Hit</h1>
+<p class="subtitle">Billed for a full response, parsed an empty string. A 400 misread as "model unavailable." Thinking that burns max_tokens before the answer starts. The migration was worth it — but not without friction.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · September 2026</div>
+    </div>
+</div>
+
+<p>The first real Opus 5 call in our staging environment returned a full bill and an empty string — that thinking-block trap is the starting point for the section below.</p>
+
+<p>This post documents eight production gotchas from migrating a multi-stage research agent platform from Claude Sonnet to <code>global.anthropic.claude-opus-5</code> on Amazon Bedrock. The migration was worth it — the quality improvement on synthesis tasks was real and measurable. But the path from "swap the model ID" to "this is actually working correctly" took more than a weekend. If you're planning a similar migration, here is what we would have liked to know in advance.</p>
+
+<h2>Gotchas 1 &amp; 2: Two We've Covered Before</h2>
+
+<p>Two of the Opus 5 breaking changes are documented in full in <a href="4-finops-for-agentic-ai.html">FinOps for Agentic AI</a> and only need a brief recap here. First, <code>content[0]["text"]</code> returns an empty string when the first block is a thinking block — not an error, just silently empty; the fix is to filter content blocks by <code>type == "text"</code> rather than index by position. Second, <code>temperature</code> / <code>top_p</code> are rejected with a <code>ValidationException</code> on Opus 5; if your error handler classifies any <code>ValidationException</code> as "model not available," it silently downgrades to a fallback model — a request defect must surface as an error, not a substitution.</p>
+
+<p>Two details are specific to Opus 5 that weren't in the earlier post: if you're using Strands' <code>BedrockModel</code> on the Converse path, you're unaffected by the content-block issue — Strands parses <code>reasoningContent</code> correctly; only raw <code>invoke_model</code> callers need the type-filter fix. And Opus 4.6 and earlier <em>still accept</em> temperature, so a blanket strip across all Anthropic models breaks older versions — apply the parameter strip by version family, not globally.</p>
+
+<h2>Gotcha 3: Thinking Is Adaptive, Not Always-On</h2>
+
+<p>We initially assumed that Opus 5's extended thinking was always active — that every call would produce a thinking block and pay thinking-token costs. That assumption was wrong.</p>
+
+<p>With no explicit <code>thinking</code> field in the request, Opus 5 elects whether to think based on the difficulty of the prompt. Simple or short prompts return <code>blocks=['text']</code> with <code>thinking_tokens=0</code>. Complex reasoning tasks return <code>blocks=['thinking','text']</code>. This is true on both the raw <code>invoke_model</code> path and the Converse path.</p>
+
+<p>To disable thinking explicitly — for example, in a high-volume, low-complexity workflow where you want predictable latency:</p>
+
+<pre><code># Raw invoke_model
+body["thinking"] = {"type": "disabled"}
+
+# Strands BedrockModel (Converse path)
+model = BedrockModel(
+    model_id="global.anthropic.claude-opus-5",
+    additional_request_fields={"thinking": {"type": "disabled"}}
+)</code></pre>
+
+<div class="warn-box">
+    <p><strong>Hard constraint:</strong> disabled thinking works only at effort <code>high</code> or below. Combining <code>effort: "max"</code> with <code>"thinking": {"type": "disabled"}</code> throws a <code>ValidationException</code>. This is validated per request — a later call that raises effort will fail even if earlier calls in the same session passed. Don't disable thinking casually; the Bedrock docs document two failure modes it can trigger: tool calls emitted as plain text (silently never executed) and <code>&lt;thinking&gt;</code> tags leaking into output. Lower <code>effort</code> instead if cost is the concern.</p>
+</div>
+
+<h2>Gotcha 4: Thinking Bills Against max_tokens — and Will Fill All of It</h2>
+
+<p>This is the most consequential gotcha. On Opus 5, reasoning tokens bill against the same <code>max_tokens</code> ceiling as the text response. With no effort bound, thinking expands to consume as much of that budget as it can — and the text response is truncated, or never emitted at all.</p>
+
+<p>We measured this on Bedrock Converse with <code>global.anthropic.claude-opus-5</code>, varying effort and the <code>max_tokens</code> floor on a fixed reasoning-heavy prompt:</p>
+
+<table>
+    <thead>
+        <tr><th>Configuration</th><th>stop_reason</th><th>Output tokens</th><th>Chars in response</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>No effort, cap 1024</td>
+            <td class="decision-cell-red">max_tokens</td>
+            <td>1024</td>
+            <td class="decision-cell-red">0 — empty</td>
+        </tr>
+        <tr>
+            <td>effort=low, cap 1024</td>
+            <td class="decision-cell-yellow">max_tokens</td>
+            <td>1024</td>
+            <td class="decision-cell-yellow">2800 — truncated mid-sentence</td>
+        </tr>
+        <tr>
+            <td>No effort, floor 8000</td>
+            <td class="decision-cell-red">ReadTimeoutError</td>
+            <td>—</td>
+            <td class="decision-cell-red">Thinking ran unbounded</td>
+        </tr>
+        <tr>
+            <td>effort=low + floor 8000</td>
+            <td class="decision-cell-green">end_turn</td>
+            <td>2693</td>
+            <td class="decision-cell-green">7780 — clean</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The second row is the dangerous one: <code>effort=low</code> alone returns plausible text that is cut off mid-sentence. An empty response is obviously broken and you notice immediately. A truncated response silently grades as a wrong answer, a bad summary, or — if you're expecting JSON — a parse failure you'll attribute to prompt formatting.</p>
+
+<div class="highlight-box">
+    <p><strong>Both knobs are required, and testing them together hides the problem.</strong> If you set both effort and a generous <code>max_tokens</code> in your initial tests, everything looks fine. Only when one of those is absent does the truncation appear. Test the knobs independently — set effort without raising the cap, and see whether the response is complete.</p>
+</div>
+
+<p>The <code>stop_reason</code> field tells you whether output is complete. Always check it before doing anything with the response:</p>
+
+<pre><code>response = converse_client.converse(...)
+stop_reason = response["stopReason"]
+
+if stop_reason == "max_tokens":
+    # Response is incomplete — raise an error specific to this condition.
+    # Do NOT score this. Do NOT return it to users. Do NOT log it as a model failure.
+    # It is a harness/config limit, not a model weakness.
+    raise TokenBudgetExceededError(
+        f"Response truncated at {response['usage']['outputTokens']} tokens. "
+        "Raise max_tokens or lower effort."
+    )
+
+# Only process if stop_reason == "end_turn"
+text = extract_text_from_converse_response(response)</code></pre>
+
+<p>One more fingerprint worth knowing: if <code>outputTokens</code> is at exactly the <code>max_tokens</code> cap and <code>reasoning_tokens</code> is zero or absent, the thinking consumed the entire budget and no text was emitted. You paid full price for nothing, and Converse may report it as a success.</p>
+
+<div class="warn-box">
+    <p><strong>Grade the grader too.</strong> If you have an LLM-as-judge evaluation harness, the same truncation issue applies to the judge. We fixed our internal model-evaluation harness's candidate path but missed the judge — which was running at a 4096 cap with <code>effort=medium</code> and no <code>stop_reason</code> check. A truncated judge verdict that happened to parse as valid JSON produced a real score from an incomplete deliberation. We were diagnosing model quality differences that were actually evaluation harness artifacts. Check <code>stop_reason</code> in every LLM call, including the judge.</p>
+</div>
+
+<h2>Gotcha 5: Effort Nests Under output_config — and It's Live, Not Inert</h2>
+
+<p>Bedrock's Converse API has no top-level effort field. Effort must go inside <code>additionalModelRequestFields</code>, nested under <code>output_config</code>:</p>
+
+<pre><code># Correct nesting
+response = bedrock_client.converse(
+    modelId="global.anthropic.claude-opus-5",
+    messages=[...],
+    additionalModelRequestFields={
+        "output_config": {"effort": "medium"},
+        "thinking": {"type": "adaptive"}
+    },
+    inferenceConfig={"maxTokens": 8000}
+)</code></pre>
+
+<p>Both <code>{"effort": "medium"}</code> and <code>{"effort": {"type": "medium"}}</code> at the top level of <code>additionalModelRequestFields</code> throw <code>ValidationException</code>. The error message mentions the field name but not the nesting requirement, so this one costs time to debug by elimination.</p>
+
+<p>It's worth verifying that effort is actually doing something, not just being silently ignored. We measured output tokens on a fixed reasoning-heavy prompt across effort levels on <code>global.anthropic.claude-opus-5</code>:</p>
+
+<table>
+    <thead>
+        <tr><th>Effort level</th><th>Output tokens (same prompt)</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>low</td><td>1218</td></tr>
+        <tr><td>medium</td><td>1811</td></tr>
+        <tr><td>high</td><td>2972</td></tr>
+    </tbody>
+</table>
+
+<p>The parameter is live. A misconfigured effort value that throws a ValidationException and falls back to default isn't neutral — it changes the thinking depth and therefore the output quality and cost of every call.</p>
+
+<h2>Gotcha 6: global. Profiles Reject Dated Snapshots — and Converse Doesn't Tell You Which Version Ran</h2>
+
+<p>Opus 5 on Bedrock is accessed via the <code>global.</code> cross-region inference profile: <code>global.anthropic.claude-opus-5</code>. These profiles do not support dated snapshot suffixes:</p>
+
+<pre><code>global.anthropic.claude-opus-5           # resolves
+global.anthropic.claude-opus-5:0         # ValidationException
+global.anthropic.claude-sonnet-4-6:0     # ValidationException</code></pre>
+
+<p>That means you cannot version-pin Opus 5 on Bedrock. If you need a reproducible model version for an LLM judge or a grading baseline — where you want to be able to say "this score was produced by model version X" — the <code>global.</code> alias is the permanent answer. Bedrock's Converse response echoes back the ID you sent; it does not resolve to or report the underlying snapshot that served the call.</p>
+
+<div class="warn-box">
+    <p><strong>Do not write a plausible dated ID as a placeholder.</strong> A hand-constructed ID like <code>global.anthropic.claude-opus-5-20260901-v1:0</code> looks valid, passes a regex-based format check, and then fails at Bedrock with a ValidationException that reads like "model unavailable." You'll spend time debugging access rather than the ID itself. For <code>global.</code> profiles, "no dated snapshot" is the permanent answer — record that limitation explicitly rather than leaving a TODO.</p>
+</div>
+
+<p>This has a practical implication for evaluation infrastructure. Any score produced by a <code>global.</code> model is attributable to a name, not a version. For a production workload that's acceptable. For an evaluation baseline you intend to compare against in six months, it means your grading foundation can shift without warning. If you need full reproducibility, Haiku 4.5 is the only Bedrock model where a dated snapshot resolves successfully:</p>
+
+<pre><code>global.anthropic.claude-haiku-4-5-20251001-v1:0   # resolves</code></pre>
+
+<p>For everything else, document the provenance limitation explicitly and build a nightly drift check if the evaluation results need to stay stable. See <a href="5-benchmarking-llms-in-the-enterprise.html">Benchmarking LLMs in the Enterprise</a> for a broader treatment of model version stability in evaluation pipelines.</p>
+
+<h2>Gotcha 7: boto3 Floor Is Higher Than You Think</h2>
+
+<p>This one is easy to miss because the failure mode is silent. botocore 1.35.x parses Opus 5's Converse <code>reasoningContent</code> field as <code>SDK_UNKNOWN_MEMBER</code> and drops it. If your code relies on the Strands <code>BedrockModel</code> reasoning output, the reasoning simply isn't there — no error, no warning, just missing data.</p>
+
+<p>The floor is <code>boto3&gt;=1.40.0</code>. If your environment was pinned at <code>&gt;=1.35.0</code> (which was sufficient for the previous model generation), the thinking output disappears silently when you upgrade to Opus 5.</p>
+
+<pre><code># requirements.txt — wrong floor for Opus 5
+boto3>=1.35.0     # ← SDK_UNKNOWN_MEMBER on reasoningContent
+
+# Correct
+boto3>=1.40.0</code></pre>
+
+<p>Check this before anything else if reasoning output looks absent or incomplete after a model upgrade.</p>
+
+<h2>Gotcha 8: Prompt Caching Migration — TTL Ordering, Checkpoint Budget, and Cross-User Hits</h2>
+
+<p>Before the migration, our Sonnet deployment had a 70.5% cache hit rate on the message-level cache. That figure is worth pausing on: 70.5% sounds decent until you look at what it means. Roughly 30% of input tokens were paying full price, and the miss rate was caused by a code issue — there was no per-turn message cache point being injected. The gap drove us to fix the caching setup as part of the Opus 5 migration rather than after it.</p>
+
+<p>The Strands 1.51.0 API for prompt caching changed. The old string-based flags are deprecated:</p>
+
+<pre><code># Old API (Strands &lt;1.51.0) — deprecated, raises UserWarning
+model = BedrockModel(
+    model_id="global.anthropic.claude-opus-5",
+    cache_prompt="default",
+    cache_tools="default"
+)</code></pre>
+
+<pre><code># New API (Strands 1.51.0+)
+from strands.models.bedrock import BedrockModel, CacheConfig, CacheToolsConfig
+
+model = BedrockModel(
+    model_id="global.anthropic.claude-opus-5",
+    cache_config=CacheConfig(strategy="auto"),          # message cachePoint per turn; 5m TTL
+    cache_tools=CacheToolsConfig(type="default", ttl="1h"),  # tools are static — 1h TTL
+    max_tokens=16000
+)</code></pre>
+
+<p>There are three details in this migration that are easy to get wrong:</p>
+
+<h3>TTL Ordering</h3>
+
+<p>Cache entries with longer TTL must appear before entries with shorter TTL in the request. In the configuration above, the tools cache (1h TTL) appears before the message cache (5m TTL). That ordering is correct and required. Reverse it and the request will fail validation.</p>
+
+<h3>Checkpoint Budget</h3>
+
+<p>Opus 5 and Sonnet 4.6 allow 4 cache checkpoints per request. A typical configuration uses: system prompt (1) + tools (1) + messages (1) = 3 checkpoints. You have one checkpoint of headroom. If your agent architecture adds more checkpoints than the budget allows, the extra ones are silently dropped — they don't error, they just don't cache.</p>
+
+<h3>Cross-User Cache Hits Require a Static System Prompt</h3>
+
+<p>Bedrock's prompt cache is keyed on the exact token content of the cached prefix. If your system prompt includes anything user-specific — an email address, a user ID, a role interpolated from an identity context — every user gets a different cache key and there are zero cross-user hits. The system prompt cache write cost is paid on every session start rather than being amortized across users.</p>
+
+<div class="green-box">
+    <p><strong>The fix:</strong> move user identity out of the system prompt entirely. Put it in the first human turn message instead. In agent code, read user identity server-side from a request-scoped context variable when tools need it — never interpolate it into a prompt that participates in caching. With a static system prompt, every user who sends a similar request hits the same warm cache entry.</p>
+</div>
+
+<p>Cache reads cost roughly one-tenth of a standard input token; cache writes cost roughly 1.25×. A single cache hit on a large system prompt more than pays for the write. At production scale, the economics of cross-user cache hits depend entirely on whether the system prompt is static. Bedrock reports <code>cacheReadInputTokens</code> and <code>cacheWriteInputTokens</code> separately in the usage block — capture both, because cached tokens shift out of the standard <code>input_tokens</code> counter and cost reporting will undercount if you only look at the latter.</p>
+
+<p>For a broader view of how model cost attribution works in a multi-agent system, see <a href="4-finops-for-agentic-ai.html">FinOps for Agentic AI</a>.</p>
+
+<div class="takeaway">
+    <h3>Opus 5 on Bedrock — Migration Checklist</h3>
+    <ol>
+        <li><strong>Filter content blocks by type, not position.</strong> Replace any <code>content[0]["text"]</code> pattern with a type-filtered join. Thinking blocks are first when present; position-based indexing fails intermittently based on prompt complexity.</li>
+        <li><strong>Update sampling parameter handling.</strong> Strip <code>temperature</code>, <code>top_p</code>, and <code>top_k</code> for the Opus 5 / Sonnet 5 family only — not for all Anthropic models. Fix error classification so a <code>ValidationException</code> on bad parameters does not trigger a silent model downgrade.</li>
+        <li><strong>Never combine <code>effort: "max"</code> with <code>"thinking": {"type": "disabled"}</code>.</strong> This throws a <code>ValidationException</code> per request.</li>
+        <li><strong>Set both effort and a raised <code>max_tokens</code> together.</strong> Effort alone produces truncated text. A generous cap alone produces a timeout. Both are required for a clean response. Test the knobs in isolation.</li>
+        <li><strong>Always check <code>stop_reason</code>.</strong> <code>max_tokens</code> means the output is incomplete. Raise a distinct error; do not score or surface a truncated response. Apply this check to every LLM call — including judge calls in evaluation harnesses.</li>
+        <li><strong>Nest effort under <code>output_config</code></strong> inside <code>additionalModelRequestFields</code>. Top-level effort throws a <code>ValidationException</code>.</li>
+        <li><strong><code>global.</code> profiles do not support dated snapshot suffixes.</strong> Version pinning is not available for Opus 5 or Sonnet 4.6 on Bedrock. Document the provenance limitation; do not write a placeholder dated ID.</li>
+        <li><strong>Floor boto3 at <code>&gt;=1.40.0</code>.</strong> Earlier botocore versions silently drop <code>reasoningContent</code> as <code>SDK_UNKNOWN_MEMBER</code>.</li>
+        <li><strong>Migrate to <code>CacheConfig</code> / <code>CacheToolsConfig</code>.</strong> String-based cache flags are deprecated in Strands 1.51.0. Keep tools TTL (1h) before message TTL (5m) in the request. Make the system prompt a plain constant with no user interpolation to enable cross-user cache hits.</li>
+    </ol>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Amazon Bedrock</span>
+    <span class="tag">Claude Opus 5</span>
+    <span class="tag">Agentic AI</span>
+    <span class="tag">LLM Platform</span>
+    <span class="tag">Strands</span>
+    <span class="tag">Prompt Caching</span>
+    <span class="tag">Extended Thinking</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>
