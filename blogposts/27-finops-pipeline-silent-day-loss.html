@@ -171,7 +171,7 @@
 <p>Cost calculation uses a pricing dictionary. Each entry maps a model identifier to a dict of rates:</p>
 
 <pre><code>PRICING = {
-    "anthropic.claude-3-sonnet": {
+    "anthropic.claude-sonnet-4-6": {
         "input":         3.00,   # per million input tokens
         "output":       15.00,   # per million output tokens
         "cache_read":    0.30,   # per million cache-read tokens
@@ -386,7 +386,7 @@ def load_pricing(config: dict) -> dict:
 
 <p>Fixing the immediate entries led to an audit of all pricing data sources, which surfaced a less obvious problem: the AWS Price List API doesn't list most of the models in the estate.</p>
 
-<p>The standard programmatic source — <code>pricing:GetProducts</code> for <code>ServiceCode=AmazonBedrock</code> — returns only a small subset of Bedrock models. Cohere models are absent entirely. Modern Claude versions (anything beyond Claude 3 Haiku, Claude 3 Sonnet, Claude 2.0, Claude 2.1, and Claude Instant) are also absent. The only reliable source for these models is the AWS Bedrock pricing page at <code>aws.amazon.com/bedrock/pricing/</code>.</p>
+<p>The standard programmatic source — <code>pricing:GetProducts</code> for <code>ServiceCode=AmazonBedrock</code> — returns only a small subset of Bedrock models. Cohere models are absent entirely. Current Claude models such as Claude Sonnet 4.6 and Claude Opus 5 are also absent; only legacy Claude generations are listed. The only reliable source for these models is the AWS Bedrock pricing page at <code>aws.amazon.com/bedrock/pricing/</code>.</p>
 
 <p>However, that page cannot be scraped with <code>curl</code>. A standard HTTP GET returns approximately 900 KB of HTML that contains zero model names — the entire pricing table is client-side rendered via JavaScript. Extracting actual rates requires a headless browser. A second trap: the Cohere on-demand token table is region-gated within the page — clicking the region selector is required to reveal it. A scrape that captures only the initial page state may see only the per-query table and incorrectly conclude that no per-token rates exist for Cohere models.</p>
 
