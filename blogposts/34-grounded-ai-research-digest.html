@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>An AI-Written Weekly Digest Where Code Owns Every Number</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="An AI-Written Weekly Digest Where Code Owns Every Number">
+    <meta property="og:description" content="How a weekly research email keeps the model to prose: code computes every count, validators check every claim against the items it cites, and a fail-closed verifier has the last word.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/34-grounded-ai-research-digest.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/34-grounded-ai-research-digest.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="An AI-Written Weekly Digest Where Code Owns Every Number">
+    <meta name="twitter:description" content="How a weekly research email keeps the model to prose: code computes every count, validators check every claim against the items it cites, and a fail-closed verifier has the last word.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/34-grounded-ai-research-digest.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/34-grounded-ai-research-digest.png" alt="Blog cover">
+
+<div class="header-badge">DOMAIN AI</div>
+<h1>An AI-Written Weekly Digest Where Code Owns Every Number</h1>
+<p class="subtitle">How a weekly research email keeps the model to prose: code computes every count, validators check every claim against the items it cites, and a fail-closed verifier has the last word.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The first dry run against a real, busy week looked good at first glance. The executive summary read well, and the theme section had sensible labels. Then I scrolled to the snapshot table and every "key result" cell was a dash, and the "how this connects" line under each related item was missing entirely. Nothing had errored. The job had finished, archived its output and reported success.</p>
+
+<p>Two different causes were hiding behind those blanks. The missing lines were a validator being too strict about something harmless; the dashes were the fail-closed verifier doing exactly its job after the model declined to verify anything. Both are covered below, along with the validator that was too loose, which I found later. All of them come back to one design question: who owns the numbers.</p>
+
+<p>This post is about that design. It is a weekly email that summarises a team's shared list of research findings for senior readers. The pipeline is built and verified on dry runs against real weeks. The interesting part is not the email. It is the rule that governs it: <strong>code owns every number, and the model only writes words that must point back at the items they came from.</strong></p>
+
+<div class="highlight-box">
+    <p><strong>The split in one sentence.</strong> Anything that can be counted, sorted, clustered or looked up is computed by code and rendered by code. The model writes prose, each claim carries the IDs of the items it rests on, and a bank of deterministic validators checks the prose against exactly those items before it is allowed into the email.</p>
+</div>
+
+<h2>The Request and the Shape of the Answer</h2>
+
+<p>The ask was simple to state. A team keeps a shared list of research findings, each with a title, a free-text description, some structured fields such as platform and program, and a creation date. Someone wanted a weekly email that tells senior readers what is new, what changed, and how it fits the wider body of work. It had to carry real scientific detail, not a vague "exciting progress this week" paragraph, and it had to be right.</p>
+
+<p>"Right" is the hard word. A weekly digest has three kinds of content, and they fail in different ways:</p>
+
+<ul>
+    <li><strong>Counts and tables</strong> (how many new, how many updated, which programs are busiest, how activity trends). These are arithmetic. A model has no business producing them, and if it does, it will occasionally be off by one in a way nobody notices.</li>
+    <li><strong>Structure</strong> (which earlier work resembles this week's work, which themes the portfolio falls into). These are geometry over embeddings. Also code.</li>
+    <li><strong>Prose</strong> (an executive summary, a one-line key result per finding, a sentence on how two findings connect). This is where a model earns its place, and also where it can confidently say something that is not in the source.</li>
+</ul>
+
+<p>So the design assigns each kind to its natural owner. Code collects the week's items, computes every count and table, builds the embeddings-based structure, and renders the HTML. The model is asked for prose only, in a strict JSON shape, where every sentence names the item IDs it draws on. Then validators attack the prose.</p>
+
+<div class="diagram-container">
+  <div class="pipeline-grid">
+    <div class="pipeline-col">
+      <div class="pipeline-col-header">Code owns</div>
+      <div class="pipeline-step"><span class="pipeline-label">1</span> Collect the window's items, drop hidden ones</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">2</span> Every count, sort, trend and table</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">3</span> Related earlier work and themes, from embeddings</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">4</span> Validators, verifier gate, HTML rendering, archive</div>
+    </div>
+    <div class="pipeline-col">
+      <div class="pipeline-col-header">Model writes</div>
+      <div class="pipeline-step"><span class="pipeline-label">1</span> Per-item snapshot: target, key result</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">2</span> Executive summary and portfolio insights</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">3</span> One-line "how these connect" notes</div>
+      <div class="pipeline-arrow">&#8595;</div>
+      <div class="pipeline-step"><span class="pipeline-label">4</span> Theme labels, each claim citing item IDs</div>
+    </div>
+  </div>
+  <p class="diagram-caption">The model never produces a digit the reader could mistake for a measurement of the portfolio. Anything numeric in its prose must already exist in the items it cites.</p>
+</div>
+
+<p>There are three model calls per run. A cards call and an editorial call run in parallel, and each has its own tolerant JSON parser and its own single retry, so one of them failing never throws away the other. A third call, the verifier, runs after both. I will come back to it, because it is the piece that fails closed.</p>
+
+<h2>Validators: Treat Model Prose Like Untrusted Input</h2>
+
+
+
+<p>Each validator exists because a class of error is plausible for a model and damaging for a reader. All examples below use made-up tokens.</p>
+
+<table>
+    <thead>
+        <tr><th>Validator</th><th>What it catches</th><th>Made-up example</th><th>Real bug it caught</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Unknown IDs</td>
+            <td>A citation pointing at an item that is not in the window or the catalogue</td>
+            <td>"See item 9999" when no such item exists</td>
+            <td>None recorded; the cheapest check, run first</td>
+        </tr>
+        <tr>
+            <td>Ungrounded numbers and number words</td>
+            <td>A digit, or a spelled-out number, that is absent from every cited item</td>
+            <td>"Potency improved twelve-fold" when the cited text says "3-fold"</td>
+            <td>Substring matching let "12" ground against "0.125"; citation IDs read as numbers dropped every connection line</td>
+        </tr>
+        <tr>
+            <td>Count claims</td>
+            <td>Statements like "four studies this week" that the model cannot know</td>
+            <td>"Five programs reported results"</td>
+            <td>None recorded; a count is allowed only when the sentence cites exactly one item and the count is grounded in it</td>
+        </tr>
+        <tr>
+            <td>Names not in the cited item</td>
+            <td>Teams, platforms, functional groups or program names that the cited item does not carry</td>
+            <td>"Program A's screening platform" when the item belongs to another program</td>
+            <td>None recorded; a guard against misattribution between items</td>
+        </tr>
+        <tr>
+            <td>Gene-token matching</td>
+            <td>Identifier tokens that appear in the prose but not in the cited items, compared as whole tokens</td>
+            <td>"<code>ABC1</code>" must not ground against "<code>ABC10</code>"</td>
+            <td>Compound forms such as <code>ABC1xABC10</code> had to be split on both the claim and the source side</td>
+        </tr>
+        <tr>
+            <td>Modality words</td>
+            <td>A drug-modality word the item never used, even if it is a reasonable inference</td>
+            <td>"a multispecific approach" when the item says nothing of the kind</td>
+            <td>A correct inference was dropped; the fix was to allow modality words per item, from that item's own fields</td>
+        </tr>
+        <tr>
+            <td>Decision verbs (stemmed)</td>
+            <td>Words such as "selected", "advanced" or "nominated" that assert a decision the source does not record</td>
+            <td>"<code>CMPD-0001</code> was advanced" when the item only describes an assay</td>
+            <td>Stemming matters: "advanced" in the claim must find "advance" or "advancing" in the source</td>
+        </tr>
+        <tr>
+            <td>Units</td>
+            <td>A number carried with the wrong unit, or a unit swapped</td>
+            <td>"5 nM" when the source says "5 &micro;M"</td>
+            <td>Value and unit must both match, not just the digits</td>
+        </tr>
+        <tr>
+            <td>Lineage verbs in connection lines</td>
+            <td>Causal or historical claims between two items ("builds on", "led to")</td>
+            <td>"Theme 1 work led to the newer result"</td>
+            <td>None recorded; dropped unless one of the two items already uses the verb</td>
+        </tr>
+        <tr>
+            <td>Theme labels</td>
+            <td>Labels whose content words do not appear across several members of the cluster</td>
+            <td>A label naming a modality that only one member mentions</td>
+            <td>None recorded; falls back to a generic "Unlabelled theme" with representative titles shown anyway</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>Two design choices run through the whole table. First, the grounding corpus for a sentence is the union of everything in the items it cites: title, description, structured fields, platforms, teams. It is not the whole catalogue. A claim that is true of a different item is still a wrong claim, so a sentence can only lean on the evidence it names. Second, dropping is the default. A failed check removes the sentence or turns the field into a dash, rather than attempting to repair it. A repaired sentence is text the model never wrote and nobody reviewed.</p>
+
+
+
+<p>This echoes <a href="26-silent-wrong-data-agent-pipelines.html">the earlier post on silent wrong data</a>: a check that passes, or fails, for the wrong reason with no error raised. Broader data-quality context is in <a href="22-data-infrastructure-quality-ai-readiness.html">the data-readiness post</a>.</p>
+
+<h2>Numeric Grounding: Done Wrong and Done Right</h2>
+
+<p>The first version of numeric grounding was the obvious one. Pull the numbers out of the model's sentence, and check that each appears in the text of the cited items. "Appears in" was written as a substring test, because that is what Python's <code>in</code> operator does.</p>
+
+<pre><code># The first version. Looks right. Is not.
+def grounded_buggy(claim_number: str, corpus: str) -> bool:
+    return claim_number in corpus
+
+# claim says 12, corpus says "0.125 nM"     -> "12" in "0.125 nM" is True
+# claim says 3,  corpus says "item 412"     -> True as well
+</code></pre>
+
+
+
+<p>The right approach has two parts. Tokenise numbers on both sides with the same boundary rules, so <code>0.125</code> is one token and <code>12</code> is a different one. Then compare token sets. And before extracting numbers from the model's sentence, strip the citation IDs, because an ID like "item 412" is a label, not a measurement.</p>
+
+<pre><code>import re
+
+# Citation markers look like "item 412", "items 7, 9 and 12" or "#57".
+CITATION = re.compile(
+    r"\bitems?\s+#?\d+(?:\s*(?:,|and|&amp;)\s*#?\d+)*|#\d+", re.I)
+
+# A number token: not glued to a word or a preceding dot, keeps 0.125 whole.
+NUMBER = re.compile(r"(?&lt;![\w.])\d+(?:[.,]\d+)*(?!\w)")
+
+WORDS = {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+         "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10"}
+
+def numbers_in(text: str, strip_citations: bool) -> set[str]:
+    if strip_citations:
+        text = CITATION.sub(" ", text)
+    found = {m.group().replace(",", "") for m in NUMBER.finditer(text)}
+    for word, digit in WORDS.items():          # "three" grounds against "3"
+        if re.search(rf"\b{word}\b", text, re.I):
+            found.add(digit)
+    return found
+
+def ungrounded_numbers(claim: str, cited_texts: list[str]) -> list[str]:
+    allowed = numbers_in(" ".join(cited_texts), strip_citations=False)
+    return sorted(numbers_in(claim, strip_citations=True) - allowed)
+
+# ungrounded_numbers("Builds on item 412 with 12 nM",
+#                    ["Binding improved to 0.125 nM; three replicates."])
+#   -> ["12"]        (12 is not 0.125; 412 is a citation, not a number)
+# ungrounded_numbers("Three replicates at 0.125 nM, see #57", same) -> []
+</code></pre>
+
+<p>The corpus side is not stripped: the source text is the ground truth. Only the claim is cleaned of its own citation markers, and number words ground symmetrically.</p>
+
+<p>Gene and identifier tokens get the same treatment, because they fail the same way. A naive substring check lets <code>ABC1</code> ground against a source that only mentions <code>ABC10</code>, which is a different entity entirely. The matcher pulls identifier-shaped tokens out of both sides, splits compound forms on both sides, and compares lowercase whole tokens.</p>
+
+<pre><code>GENE  = re.compile(r"\b[A-Za-z]{2,}\d+[A-Za-z0-9]*\b")
+SPLIT = re.compile(r"[×·-]|(?&lt;=\d)x(?=[A-Za-z])")   # ABC1xABC10, ABC1×ABC10
+
+def gene_tokens(text: str) -> set[str]:
+    return {part.lower()
+            for tok in GENE.findall(text)
+            for part in SPLIT.split(tok) if part}
+
+def ungrounded_genes(claim, cited_texts):
+    return sorted(gene_tokens(claim) - gene_tokens(" ".join(cited_texts)))
+
+# ungrounded_genes("ABC10 only", ["ABC1 only"])  -> ["abc10"]
+# ungrounded_genes("ABC1×ABC10 works", ["ABC1xABC10 study"]) -> []
+</code></pre>
+
+<div class="green-box">
+    <p><strong>Symmetry is the whole trick.</strong> Any normalisation you apply to the claim must also be applied to the source, with the same rules, or the two sides will disagree about what a token is. Most of the validator bugs I hit were asymmetries: one side split, the other did not; one side stripped, the other did not.</p>
+</div>
+
+<h2>Bugs the Real Data Found</h2>
+
+<p>Fixtures written by the person who wrote the validators do not contain the shapes that break them. Real weeks did. These are the four that mattered, found on dry runs or by reading the code against them, none of them visible in a passing test suite.</p>
+
+<h3>1. Substring numeric grounding</h3>
+
+<p>The one above. A false pass produces no visible symptom at all, so it surfaced only in a line-by-line read of the code, never in any output.</p>
+
+<h3>2. Citation IDs read as numbers</h3>
+
+<p>The opposite failure, and the reason the connection lines in my cold open were missing. The connection lines the model wrote naturally cite the two items they link, for example "item 412 and item 57 share an assay format". The number extractor saw 412 and 57, looked for them in the source text, did not find them, and dropped the line as "ungrounded number". Every single connection line was dropped, because every connection line cites IDs by construction. The fix was the citation strip shown above. My first hypothesis was that the hash-prefixed form was the culprit, and I was wrong: it was the citations in general. The archived drop reasons are what pointed at the real cause.</p>
+
+<h3>3. A false drop on "Series 1"</h3>
+
+<p>A digit-plus-noun rule was meant to catch invented counts like "4 compounds". It also caught a program's own name, "Series 1 compounds", where the digit is part of a label and not a quantity. A validator that is too eager is a quiet way to make the email worse: the sentence vanished and nothing told the reader. The digit belonged to a name, so the rule needed to leave names alone.</p>
+
+<h3>4. An unsorted table hid the top entry</h3>
+
+<p>This one was not a validator at all. The programs table in the portfolio statistics was rendered in the order the data arrived, and the top program was missing from it. Every number in the table was correct and the table was still misleading. Code owning the numbers does not mean the numbers are presented honestly; sorting is part of correctness. It is the same lesson as a counter that counts the wrong thing, which <a href="26-silent-wrong-data-agent-pipelines.html">the silent-wrong-data post</a> covers under its "counter is not a count" failure.</p>
+
+
+
+<p>A green suite stood next to every one of these bugs; why tests can pass while unable to fail is covered in <a href="32-tests-that-cannot-fail.html">a separate post</a>.</p>
+
+<h2>A Verifier That Fails Closed</h2>
+
+<p>Deterministic validators can check that a number is present. They cannot check that it is attached to the right thing. "The lead candidate reached 5 nM" passes if "5 nM" appears somewhere in the cited item, even when it was the assay's control and not the candidate. So the third model call is a verifier. It receives each key result and each executive-summary bullet together with the full text of the items it cites, and returns a supported-or-not verdict per claim with a reason.</p>
+
+<p>The important property is what happens when the verifier cannot deliver. If a verdict is missing, or the call fails outright, or there is no time budget left, the answer is "unsupported". A key result becomes a dash. An executive bullet is dropped. If the whole call fails, the executive summary falls back to a plain sentence written by code from the counts and the titles. The email gets sparser; it never gets less true.</p>
+
+<p>That property was tested the hard way. On one early dry run the stronger model refused to act as the verifier at all. It returned an HTTP 200 with a refusal stop reason and no content. Because the verifier was fail-closed, the dry-run email that week was thin but contained nothing unverified. The whole refusal story, and the fallback that now handles it, is in <a href="31-llm-refusal-is-a-200.html">its own post</a>. For this design the point is only this: the verifier's default outcome has to be the safe one.</p>
+
+<h2>Themes by Clustering, Not by Asking the Model</h2>
+
+<p>Senior readers like a "what are the themes" section, and it is tempting to ask a model to invent them. Here code finds the themes and the model only names them.</p>
+
+<p>Each finding has a text embedding. For every finding created before the end of the window, the vectors are normalised and clustered with Ward linkage into a fixed k=10 clusters. Fixing k matters for stability; a data-driven k would reshuffle the themes week to week and make the section impossible to compare across emails. Each cluster gets a cohesion score, the mean pairwise cosine similarity excluding the diagonal. Clusters below 0.30 are too loose to call a theme, so they are merged into a single "cross-cutting" line that never counts among the themes. Of the rest, the top 6 by recent activity are shown, each with its counts and a few representative members chosen by closeness to the cluster's medoid.</p>
+
+<p>Related earlier work uses the same vectors. For each item in the window, the nearest earlier items by cosine similarity are candidates if they clear a similarity threshold of 0.45. Only one item per series is kept, so a program's five near-duplicate entries do not crowd out a genuinely different relative. Items created in the same window are not "earlier work" for each other; two sibling findings this week are shown as companions sharing one block.</p>
+
+<p>The model's role here is small and constrained: write a label for each cluster, and the label goes through the validators. A label is accepted only if its identifier tokens are grounded and every content word appears in at least two members' titles or descriptions. Otherwise the label is "Unlabelled theme", and the representative titles still tell the story. The structure is reproducible and the words are checked, which is the same split as before applied at the section level.</p>
+
+<h2>Operations: The Part That Decides Whether You Trust It</h2>
+
+
+
+<h3>Archive everything</h3>
+
+<p>Every run writes three artefacts to durable storage: a JSON record, the rendered HTML and the complete email message. The JSON holds the window, counts, themes with cohesion, related work with similarities, per-call latency and tokens, every validator drop with its reason, and the verifier verdicts. When a reader asks why a sentence is missing, the answer is a lookup, not an investigation.</p>
+
+<h3>Metrics by trigger and outcome</h3>
+
+<p>Each run emits a metric dimensioned by how it was triggered (a button, a job, or a shell command) and by outcome, including whether any model-written section survived or the email was code-only. A failed or unknown run sends an email to the sender address, so the failure arrives in the same place the success would have. "Unknown" is a real outcome: if the mail server times out after the message body has been handed over, you cannot know whether it was delivered, and you must not retry, because a retry can duplicate it.</p>
+
+<h3>Dry runs on a busy historical week</h3>
+
+<p>The most useful tool was the ability to run the whole pipeline against a historical window and stop before sending. A quiet week flatters every design. A busy week is where prompts get long, validators get exercised, and memory and time budgets show up. On the busy-week dry run the email came to 10 figures at 0.76 MB. The narrative stage took about 81 s in total, with the cards call at 32 s and the editorial call at 71 s running in parallel. Peak resident memory was 272 MB. Those numbers are the kind of thing you want to know before a design is called finished, and a dry run on last month's busiest week gives them to you without emailing anyone.</p>
+
+
+
+<h3>Tracking a run across replicas and workers</h3>
+
+<p>The operator page shows a step row (collect, narrate, render, send) and a table of recent runs. The naive design keeps run state in memory in the process that started the run. That cannot work here. The API runs as several processes (replicas times workers), so a status request can land on a process that never saw the run, and a run started by a job or a shell command is invisible to all of them. Instead, each run writes a durable record as it progresses, and the page reads the records. Any process can answer, and runs started from anywhere look the same.</p>
+
+<h3>A preview that cannot leak the audience</h3>
+
+<p>The page also has a preview of any archived run. It rebuilds the email from the archived message, embeds the figures as inline data, and serves the body only, under a restrictive content-security policy with the sandbox directive. It never returns the recipient list; the preview endpoint reads the message body and discards the headers that carry addresses. A tool that lets someone see what was sent should not double as a way to see who it was sent to.</p>
+
+<h2>Outlook-Safe HTML: Notes for Anyone Building an Email Renderer</h2>
+
+<p>Desktop Outlook renders HTML with a word-processor engine, and most of what you know about modern CSS does not apply. I learned the hard way about bars that looked perfect in a browser and were invisible in Outlook. These are the rules that held up:</p>
+
+<ul>
+    <li>Lay out with presentation tables and give cells explicit <code>width</code> attributes. Do not rely on <code>max-width</code> as the only width control, and do not use flexbox.</li>
+    <li>Draw bar charts as table cells with a background colour and a width and height attribute. A <code>div</code> with a width and a background renders as nothing.</li>
+    <li>No remote images, no SVG, and no inline <code>data:</code> images in the email itself. Figures travel as attachments referenced by content ID: the header carries the ID in angle brackets, the <code>src</code> uses it without them, and the disposition is inline. The message is a related multipart wrapping an alternative multipart, with width and height attributes on every image.</li>
+    
+    
+    <li>Check the result of the final send step. Some mail libraries return the server's final reply code from the data step instead of raising, so a rejection can be counted as a success unless you look at the code.</li>
+</ul>
+
+
+
+<p>The uncomfortable part of this design is that every validator trades false passes for false drops, and the right balance can only be found by looking at what was dropped. That is the next thing I want to build.</p>
+
+<h2>What I'd Build Next</h2>
+
+<p>The archive already records every sentence a validator dropped, with the rule that dropped it. The natural next step is to put human labels on those drops. Each week, a reviewer would open a small random sample of dropped sentences and mark each one right (it really was unsupported) or wrong (it was fine and the validator was too strict). After a few weeks that yields a measured false-drop rate per validator, instead of an intuition. Validators that cut good content can then be loosened with evidence, and the ones that are consistently right can be left alone. It turns tuning from a reaction to the last embarrassing email into a steady, measurable loop.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Code owns every number.</strong> Counts, tables, trends, clusters and similarities are computed and rendered by code. The model writes prose that must cite the records behind each claim.</li>
+        <li><strong>Treat model prose as untrusted input.</strong> Validate each checkable element (numbers, number words, identifiers, names, units, decision verbs) against only the records that sentence cites, and drop on failure rather than repairing.</li>
+        <li><strong>Match on tokens, not substrings.</strong> Substring grounding lets "12" pass against "0.125" and <code>ABC1</code> pass against <code>ABC10</code>. Tokenise both sides with the same rules, including splitting compound identifiers.</li>
+        <li><strong>Strip citation IDs before extracting numbers.</strong> Otherwise every sentence that cites an item fails the number check, and the whole section quietly disappears.</li>
+        <li><strong>A verifier must fail closed.</strong> A missing or failed verdict means "unsupported". The email gets sparser, never less true.</li>
+        <li><strong>Make every run leave evidence.</strong> Archive the output and every drop reason, emit metrics per trigger and outcome, track runs in durable records rather than process memory, and rehearse on a busy historical week.</li>
+        <li><strong>Outlook is a renderer of its own.</strong> Use tables with explicit widths, cell-based bars, content-ID images and a matching encoding, and check the final send result.</li>
+    </ul>
+</div>
+
+
+<div class="tag-list">
+    <span class="tag">Domain AI</span>
+    <span class="tag">LLM Grounding</span>
+    <span class="tag">Validation</span>
+    <span class="tag">Embeddings</span>
+    <span class="tag">Email Rendering</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

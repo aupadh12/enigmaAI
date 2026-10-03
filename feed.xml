@@ -5,8 +5,53 @@
     <link>https://aupadh12.github.io/enigmaAI/</link>
     <description>Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 24 Sep 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 03 Oct 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://aupadh12.github.io/enigmaAI/feed.xml" rel="self" type="application/rss+xml"/>
+
+    <item>
+      <title>An AI-Written Weekly Digest Where Code Owns Every Number</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/34-grounded-ai-research-digest.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/34-grounded-ai-research-digest.html</guid>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0000</pubDate>
+      <description>How a weekly research email keeps the model to prose: code computes every count, validators check every claim against the items it cites, and a fail-closed verifier has the last word.</description>
+      <category>Domain AI</category>
+    </item>
+
+    <item>
+      <title>Streaming an Agent Over SSE: The Traps 192 Green Tests Hid</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/33-strands-sse-streaming-traps.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/33-strands-sse-streaming-traps.html</guid>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0000</pubDate>
+      <description>Tool results that never arrive, a line separator the browser cannot parse, and a generator nobody closes: found only when tests drove the real libraries.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>Tests That Cannot Fail: Six Ways AI-Written Test Suites Pass Whatever the Code Does</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/32-tests-that-cannot-fail.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/32-tests-that-cannot-fail.html</guid>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0000</pubDate>
+      <description>A green suite is a claim, not evidence. A taxonomy of hollow tests written by AI coding agents, the cheap real checks that expose them, and a reviewer checklist.</description>
+      <category>AI-Assisted Development</category>
+    </item>
+
+    <item>
+      <title>A Refusal Is an HTTP 200: Designing for Model Refusals on Amazon Bedrock</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/31-llm-refusal-is-a-200.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/31-llm-refusal-is-a-200.html</guid>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0000</pubDate>
+      <description>The model declined, the API said success, and every safety net built on exceptions stayed silent. How to detect refusals on both API paths and retry the unchanged request on a second model.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>Agent-as-Tool: What a 2025 Paper Gets Right, and the Hand-Off Contract It Leaves Open</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/30-agent-as-tool-hierarchical-agents.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/30-agent-as-tool-hierarchical-agents.html</guid>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0000</pubDate>
+      <description>A review of the Agent-as-Tool paper, an honest reading of its results, and the design choice where our multi-agent research pipeline went the other way: raw structured evidence instead of processed summaries.</description>
+      <category>Multi-Agent AI</category>
+    </item>
 
     <item>
       <title>Measuring AI Coding-Assistant Adoption: Claude Code on Amazon Bedrock and Kiro</title>

@@ -402,7 +402,7 @@
         </div>
     </div>
 
-    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated September 2026 with lessons from a conference talk on why one agent isn't enough.</em></p>
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated October 2026 with lessons from a conference talk on why one agent isn't enough.</em></p>
 
     <h2>Retrieval Was Never the Hard Part</h2>
 
@@ -513,46 +513,20 @@
             <text x="360" y="145" text-anchor="middle" font-size="12" font-weight="600" fill="white">Orchestrator
                 (FastAPI Router)</text>
 
-            <!-- Arrows to scouts (3 tasks) -->
-            <path d="M300 160 L180 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" />
+            <!-- Arrow to scout -->
             <path d="M360 160 L360 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" />
-            <path d="M420 160 L540 195" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)" />
 
-            <!-- Data Scout pool (3 parallel tasks across 2 replicas) -->
-            <rect x="80" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
-            <rect x="80" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)" />
-            <rect x="80" y="211" width="160" height="8" fill="url(#scoutGrad)" />
-            <text x="160" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout: Primary
-                Data</text>
-            <text x="160" y="240" text-anchor="middle" font-size="10" fill="#475569">Query data lake</text>
-            <text x="160" y="255" text-anchor="middle" font-size="10" fill="#475569">Search KG / APIs</text>
+            <!-- Data Scout (single stage) -->
+            <rect x="250" y="195" width="220" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
+            <rect x="250" y="195" width="220" height="24" rx="8" fill="url(#scoutGrad)" />
+            <rect x="250" y="211" width="220" height="8" fill="url(#scoutGrad)" />
+            <text x="360" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout: Data
+                Tools</text>
+            <text x="360" y="240" text-anchor="middle" font-size="10" fill="#475569">Query data lake</text>
+            <text x="360" y="255" text-anchor="middle" font-size="10" fill="#475569">Search KG / APIs</text>
 
-            <!-- Data Scout task 2 -->
-            <rect x="280" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
-            <rect x="280" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)" />
-            <rect x="280" y="211" width="160" height="8" fill="url(#scoutGrad)" />
-            <text x="360" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout:
-                Ontology</text>
-            <text x="360" y="240" text-anchor="middle" font-size="10" fill="#475569">Fetch hierarchies</text>
-            <text x="360" y="255" text-anchor="middle" font-size="10" fill="#475569">Normalize entities</text>
-
-            <!-- Data Scout task 3 -->
-            <rect x="480" y="195" width="160" height="70" rx="8" fill="white" stroke="#3b82f6" stroke-width="2" />
-            <rect x="480" y="195" width="160" height="24" rx="8" fill="url(#scoutGrad)" />
-            <rect x="480" y="211" width="160" height="8" fill="url(#scoutGrad)" />
-            <text x="560" y="213" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scout:
-                Contradictions</text>
-            <text x="560" y="240" text-anchor="middle" font-size="10" fill="#475569">Cross-reference DBs</text>
-            <text x="560" y="255" text-anchor="middle" font-size="10" fill="#475569">Find counter-evidence</text>
-
-            <!-- Parallel indicator -->
-            <text x="360" y="280" text-anchor="middle" font-size="10" font-weight="600" fill="#3b82f6">3 PARALLEL SCOUT
-                TASKS</text>
-
-            <!-- Arrows down to analyst -->
-            <path d="M200 265 L310 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
-            <path d="M360 265 L360 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
-            <path d="M520 265 L410 295" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)" />
+            <!-- Arrow down to analyst -->
+            <path d="M360 265 L360 295" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
 
             <!-- Analyst -->
             <rect x="260" y="295" width="200" height="60" rx="8" fill="white" stroke="#8b5cf6" stroke-width="2" />
@@ -605,12 +579,12 @@
             <text x="730" y="320" text-anchor="middle" font-size="8" fill="#3b82f6">Spans</text>
 
             <!-- Dotted lines from agents to langfuse -->
-            <line x1="640" y1="240" x2="680" y2="200" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
+            <line x1="470" y1="230" x2="680" y2="200" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
             <line x1="460" y1="325" x2="680" y2="260" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
             <line x1="480" y1="410" x2="680" y2="320" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
             <line x1="460" y1="475" x2="680" y2="380" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3" />
         </svg>
-        <div class="diagram-caption">Figure 1: Multi-agent orchestration with parallel data scouting, sequential
+        <div class="diagram-caption">Figure 1: Multi-agent orchestration with a single data-gathering Scout, sequential
             analysis, synthesis, and adversarial critique — all traced by Langfuse</div>
     </div>
 
@@ -702,29 +676,26 @@
     <h2>The Orchestration Pattern</h2>
 
     <pre><code># Simplified multi-agent orchestration
-import asyncio
 from langfuse import observe
 
 class ResearchOrchestrator:
     def __init__(self):
         self.analyst = Agent(model="sonnet", tools=ANALYSIS_TOOLS, system_prompt=ANALYST_PROMPT)
-        self.synthesizer = Agent(model="opus", tools=[], system_prompt=SYNTH_PROMPT)
-        self.critic = Agent(model="opus", tools=[], system_prompt=CRITIC_PROMPT)
+        # Synthesizer: a small set of read tools; writes are blocked until review is done
+        self.synthesizer = Agent(model="opus", tools=READ_TOOLS, system_prompt=SYNTH_PROMPT)
+        # Critic: independent lookups only (knowledge graph, literature, skills)
+        self.critic = Agent(model="opus", tools=[KG_LOOKUP, LITERATURE_SEARCH, SKILL_LOOKUP],
+                            system_prompt=CRITIC_PROMPT)
 
     def _new_scout(self):
-        """Fresh scout per task — agents carry state, can't share concurrently."""
+        """Fresh Scout per task - agents carry state"""
         return Agent(model="sonnet", tools=SCOUT_TOOLS, system_prompt=SCOUT_PROMPT)
 
     @observe(name="multi-agent-research")
     async def research(self, query: str) -> ResearchReport:
-        # Phase 1: Parallel data gathering (fan-out)
-        # Strands Agent.__call__ is synchronous; use invoke_async() for await
-        # Each scout gets its own instance to avoid shared-state corruption
-        scout_results = await asyncio.gather(
-            self._new_scout().invoke_async(f"Find primary data: {query}"),
-            self._new_scout().invoke_async(f"Find ontology context: {query}"),
-            self._new_scout().invoke_async(f"Find contradicting evidence: {query}")
-        )
+        # Phase 1: Data gathering — one Scout call that receives the user's question
+        # (Strands Agent.__call__ is synchronous; use invoke_async() for await)
+        scout_results = await self._new_scout().invoke_async(query)
 
         # Phase 2: Analysis (sequential — needs scout output)
         analysis = await self.analyst.invoke_async(
@@ -741,7 +712,7 @@ class ResearchOrchestrator:
             f"Find flaws in this report:\n{report}"
         )
 
-        # Phase 5: Revision (if critique found issues)
+        # Phase 5: Revision (if critique found issues); any writes run only after review
         if critique.has_issues:
             report = await self.synthesizer.invoke_async(
                 f"Revise based on critique:\n{report}\n\nCritique:\n{critique}"
@@ -777,60 +748,46 @@ class ResearchOrchestrator:
             <!-- Time axis -->
             <line x1="180" y1="60" x2="660" y2="60" stroke="#cbd5e1" stroke-width="1" />
             <text x="180" y="55" font-size="9" fill="#94a3b8">0s</text>
-            <text x="300" y="55" font-size="9" fill="#94a3b8">2s</text>
-            <text x="420" y="55" font-size="9" fill="#94a3b8">4s</text>
-            <text x="540" y="55" font-size="9" fill="#94a3b8">6s</text>
-            <text x="650" y="55" font-size="9" fill="#94a3b8">8s</text>
+            <text x="340" y="55" font-size="9" fill="#94a3b8">100s</text>
+            <text x="500" y="55" font-size="9" fill="#94a3b8">200s</text>
+            <text x="660" y="55" font-size="9" fill="#94a3b8">300s</text>
 
             <!-- Labels -->
-            <text x="50" y="95" font-size="11" font-weight="600" fill="#1e293b">Scout 1</text>
-            <text x="50" y="125" font-size="11" font-weight="600" fill="#1e293b">Scout 2</text>
-            <text x="50" y="155" font-size="11" font-weight="600" fill="#1e293b">Scout 3</text>
-            <text x="50" y="195" font-size="11" font-weight="600" fill="#1e293b">Analyst</text>
-            <text x="50" y="235" font-size="11" font-weight="600" fill="#1e293b">Synthesizer</text>
-            <text x="50" y="275" font-size="11" font-weight="600" fill="#1e293b">Critic</text>
+            <text x="50" y="95" font-size="11" font-weight="600" fill="#1e293b">Scout</text>
+            <text x="50" y="135" font-size="11" font-weight="600" fill="#1e293b">Analyst</text>
+            <text x="50" y="175" font-size="11" font-weight="600" fill="#1e293b">Synthesizer</text>
+            <text x="50" y="215" font-size="11" font-weight="600" fill="#1e293b">Critic</text>
 
-            <!-- Scout bars (parallel — 3 tasks, 2 replicas serve them) -->
-            <rect x="180" y="82" width="200" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
-            <text x="280" y="95" text-anchor="middle" font-size="9" fill="white" font-weight="600">3 tool calls &#8594;
-                2.5s</text>
+            <!-- Scout (single stage, median 81s) -->
+            <rect x="180" y="82" width="130" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
+            <text x="245" y="95" text-anchor="middle" font-size="9" fill="white" font-weight="600">Scout &#8594; 81s</text>
 
-            <rect x="180" y="112" width="170" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
-            <text x="265" y="125" text-anchor="middle" font-size="9" fill="white" font-weight="600">2 tool calls &#8594;
-                2.1s</text>
+            <!-- Analyst (starts after Scout, median 46s) -->
+            <rect x="310" y="122" width="74" height="18" rx="4" fill="url(#analystGrad)" opacity="0.8" />
+            <text x="347" y="135" text-anchor="middle" font-size="9" fill="white" font-weight="600">46s</text>
 
-            <rect x="180" y="142" width="240" height="18" rx="4" fill="url(#scoutGrad)" opacity="0.8" />
-            <text x="300" y="155" text-anchor="middle" font-size="9" fill="white" font-weight="600">4 tool calls &#8594;
-                3.0s</text>
+            <!-- Synthesizer (median 71s) -->
+            <rect x="384" y="162" width="114" height="18" rx="4" fill="url(#synthGrad)" opacity="0.8" />
+            <text x="441" y="175" text-anchor="middle" font-size="9" fill="white" font-weight="600">Synth &#8594; 71s</text>
 
-            <!-- Analyst (starts after longest scout @ 3.0s) -->
-            <rect x="425" y="182" width="100" height="18" rx="4" fill="url(#analystGrad)" opacity="0.8" />
-            <text x="475" y="195" text-anchor="middle" font-size="9" fill="white" font-weight="600">Analysis &#8594;
-                1.2s</text>
-
-            <!-- Synthesizer (starts @ 4.2s) -->
-            <rect x="530" y="222" width="75" height="18" rx="4" fill="url(#synthGrad)" opacity="0.8" />
-            <text x="567" y="235" text-anchor="middle" font-size="9" fill="white" font-weight="600">Synth &#8594; 0.9s</text>
-
-            <!-- Critic (starts @ 5.1s) -->
-            <rect x="610" y="262" width="50" height="18" rx="4" fill="url(#criticGrad)" opacity="0.8" />
-            <text x="635" y="275" text-anchor="middle" font-size="9" fill="white" font-weight="600">0.6s</text>
+            <!-- Critic (median 89s) -->
+            <rect x="498" y="202" width="142" height="18" rx="4" fill="url(#criticGrad)" opacity="0.8" />
+            <text x="569" y="215" text-anchor="middle" font-size="9" fill="white" font-weight="600">Critic &#8594; 89s</text>
 
             <!-- Dependency arrows -->
-            <path d="M420 150 L425 188" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
+            <path d="M310 100 L314 118" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
                 marker-end="url(#arrow)" />
-            <path d="M525 192 L530 228" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
+            <path d="M384 140 L388 158" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
                 marker-end="url(#arrow)" />
-            <path d="M605 232 L610 268" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
+            <path d="M498 180 L502 198" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
                 marker-end="url(#arrow)" />
 
-            <!-- Total time: 3.0 + 1.2 + 0.9 + 0.6 = 5.7s -->
-            <rect x="500" y="45" width="140" height="20" rx="4" fill="#1e293b" />
-            <text x="570" y="59" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Total: ~5.7s |
-                ~$0.08</text>
+            <!-- Typical answer: ~290s (stage medians) -->
+            <rect x="420" y="255" width="240" height="20" rx="4" fill="#1e293b" />
+            <text x="540" y="269" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Typical answer: ~290s (stage medians)</text>
         </svg>
-        <div class="diagram-caption">Figure 2: Langfuse trace showing parallel scout execution, sequential dependencies,
-            and per-role cost/latency</div>
+        <div class="diagram-caption">Figure 2: Langfuse trace showing the single Scout stage, sequential dependencies,
+            and per-role latency (stage medians)</div>
     </div>
 
     <pre><code># Langfuse integration pattern (SDK v3)
@@ -847,11 +804,7 @@ async def research(query: str):
 
     @observe(name="scout-phase")
     async def scout_phase():
-        return await asyncio.gather(
-            run_scout("primary", query),
-            run_scout("ontology", query),
-            run_scout("contradictions", query)
-        )
+        return await run_scout(query)
 
     @observe(name="analyst-phase")
     async def analyst_phase(data):
@@ -876,8 +829,6 @@ async def research(query: str):
             <em>reduced</em> total cost because it caught errors that would have required users to re-run queries. Fewer
             retries = less total spend.
         </li>
-        <li><strong>Scout parallelism was bottlenecked.</strong> The "fast" scout phase was actually the slowest because
-            one scout was making 4 tool calls sequentially. The Langfuse waterfall made this obvious — completely invisible in aggregate logs.</li>
         <li><strong>Per-role token tracking revealed waste.</strong> The Analyst was receiving the Scout's full output
             but using only a fraction of it — a clear optimization target that the waterfall view alone exposed. Without per-role attribution, this inefficiency is invisible.</li>
     </ol>
@@ -1035,6 +986,10 @@ spec:
 
     <p><em>If you're building multi-agent systems or have questions about orchestrating AI roles in production, feel
             free to connect.</em></p>
+
+    <div class="highlight-box">
+    <p><strong>Follow-up (October 2026):</strong> <a href="30-agent-as-tool-hierarchical-agents.html">Agent-as-Tool: What a 2025 Paper Gets Right, and the Hand-Off Contract It Leaves Open</a> — a 2025 paper names this architecture; how our hand-off contract compares.</p>
+    </div>
 
     <div class="tag-list">
         <span class="tag">#MultiAgent</span>

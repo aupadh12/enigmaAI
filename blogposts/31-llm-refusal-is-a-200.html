@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Refusal Is an HTTP 200: Designing for Model Refusals on Amazon Bedrock</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="A Refusal Is an HTTP 200: Designing for Model Refusals on Amazon Bedrock">
+    <meta property="og:description" content="The model declined, the API said success, and every safety net built on exceptions stayed silent. How to detect refusals on both API paths and retry the unchanged request on a second model.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/31-llm-refusal-is-a-200.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/31-llm-refusal-is-a-200.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="A Refusal Is an HTTP 200: Designing for Model Refusals on Amazon Bedrock">
+    <meta name="twitter:description" content="The model declined, the API said success, and every safety net built on exceptions stayed silent. How to detect refusals on both API paths and retry the unchanged request on a second model.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/31-llm-refusal-is-a-200.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/31-llm-refusal-is-a-200.png" alt="Blog cover">
+
+<div class="header-badge">LLM PLATFORM</div>
+<h1>A Refusal Is an HTTP 200: Designing for Model Refusals on Amazon Bedrock</h1>
+<p class="subtitle">The model declined, the API said success, and every safety net built on exceptions stayed silent. How to detect refusals on both API paths and retry the unchanged request on a second model.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+
+<p>A scheduled job assembles a weekly research digest. One section of it is a short list of key results, and each line passes through a verifier before it is allowed into the email. The verifier is deliberately fail-closed: if it cannot confirm that a claim is supported by the text it cites, the claim does not ship. That is the right design for a document people read as fact. It also means that when the verifier goes quiet, the whole section goes quiet with it.</p>
+
+<p>On a dry run of a new report edition against a real, busy week, every key result in the digest rendered as an em dash. The executive summary degraded to a code-only skeleton. Two optional sections vanished. Nothing raised an alarm. The logs contained two log lines about a missing or empty JSON reply, repeated for every call. The obvious suspects were prompt formatting and response parsing, and neither was wrong.</p>
+
+<p>The verifier was not failing. It was being <em>refused</em>. The model had answered every verification call with an empty message and a stop reason that says, politely, that it chose not to continue. No exception. No error code. HTTP 200. My code looked for JSON, found nothing, and did precisely what fail-closed code does.</p>
+
+<div class="highlight-box">
+    <p><strong>The one-line version:</strong> on current Claude models a refusal is a successful response. Anything that treats "the call did not raise" as "the call worked" will mishandle it, and every error-based fallback you own will sit idle while it happens.</p>
+</div>
+
+<h2>What a Refusal Actually Looks Like on the Wire</h2>
+
+<p>The AWS model card for Claude Fable 5.1 states the contract plainly in its Content Restrictions section: the model "includes blocking classifiers for dual-use content in cybersecurity and life sciences. When a classifier blocks a request, the API returns a standard HTTP 200 response with <code>stop_reason: "refusal"</code> and a <code>stop_details</code> object containing the restriction category." It adds that refusal rates on that model "are materially higher than on previous Claude models", and gives the instruction that matters most for anyone writing a client: "Customers should handle <code>stop_reason: "refusal"</code> as a primary response path." (<a href="https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-fable-5-1.html" target="_blank" rel="noopener">Claude Fable 5.1 model card, Content Restrictions</a>.)</p>
+
+<p>Billing is spelled out too: prompt-stage refusals, blocked before inference begins, are not billed; mid-stream refusals, blocked after partial output, are billed for the tokens generated before the block. Hold on to that second clause, because it means a late refusal is a cost event as well as a correctness event.</p>
+
+<p>I checked the Claude Opus 5.5 model card for the same guidance. It is silent on refusals. What it does document is the surrounding surface: adaptive thinking that "is always on and cannot be disabled", a configurable effort level with a default of medium, and structured outputs listed as not supported on the runtime endpoint. (<a href="https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-opus-5-5.html" target="_blank" rel="noopener">Claude Opus 5.5 model card</a>.) So the refusal contract I describe below for Opus 5.5 is what I observed in live probes, not something that page promises. The safe reading of the Fable card is that any current model on the platform may return this shape, and a client should be ready for it everywhere.</p>
+
+<p>What I observed, on the raw InvokeModel path: HTTP 200, <code>stop_reason: "refusal"</code>, a <code>stop_details</code> object whose category was <code>bio</code>, an empty content array, and a handful of output tokens (6 to 8 in the first probe). The prompt that triggered it was a short, benign scientific fact-check. Three runs out of three were refused. The same prompt sent to Sonnet 5.5 and to Opus 5 was answered correctly, every time.</p>
+
+<h2>The Streaming Path Spells It Differently</h2>
+
+<p>The agent framework we use, Strands Agents, talks to Bedrock through the Converse streaming API, not InvokeModel. I replayed the same prompt there and the vocabulary changed. Three runs out of three ended with <code>stopReason: "content_filtered"</code>, 8 output tokens, and no content events at all. The stream opened, the stream closed, and nothing came between.</p>
+
+<p>That is a nasty shape for a consumer. There is no partial text to inspect, no error event, and in a typical streaming handler no branch that runs, because branches hang off content. A non-streaming Converse call with the same prompt answered once, which told me something I did not want to hear: this is not a deterministic property of the prompt. It is a classifier decision, made per request.</p>
+
+<table>
+    <thead>
+        <tr><th>Path</th><th>Transport status</th><th>Refusal signal</th><th>Content</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>InvokeModel</td><td>HTTP 200</td><td><code>stop_reason: "refusal"</code> plus <code>stop_details.category</code></td><td>Empty</td></tr>
+        <tr><td>Converse, streaming</td><td>Stream completes normally</td><td><code>stopReason: "content_filtered"</code></td><td>No content events</td></tr>
+        <tr><td>Guardrail block</td><td>Call completes</td><td><code>guardrail_intervened</code></td><td>Blocked whichever model generated it</td></tr>
+    </tbody>
+</table>
+
+<p>The third row is here on purpose. It looks like the other two and it is not the same thing, and the difference drives one of the design rules later.</p>
+
+<h2>Why Your Fallbacks Never Fire</h2>
+
+<p>The platform already had a model fallback. It lived in the thin client that wraps the Bedrock runtime: if a call raises a throttling, access or model-unavailable error, try the alternate model. That is the standard pattern and it works for the failures it was built for. Against a refusal it is structurally blind, because it is wired to exceptions and a refusal does not raise.</p>
+
+<p>The refusals were also intermittent, which made them look like flakiness rather than a rule. A longer prompt in the same weekly job, the one that builds the summary cards, was refused two times out of two in one window and answered two times out of two in another. One of those refusals arrived after roughly 2,000 output tokens. By then the model had been generating for a while. A client that only inspects the first few events will not see it coming, and a client that bills on completion will pay for the partial answer.</p>
+
+<p>So the failure had three properties that each defeat a different kind of monitoring. It is not an error, so error-rate alerts stay flat. It is not deterministic, so a single replayed test can pass. And it can be late, so a response that started well is not safe until the stop reason is read.</p>
+
+<h2>Step One: Detect It, Everywhere, Explicitly</h2>
+
+<p>Before any fallback, the code must be able to say "this response was a refusal" on every path that touches the model. The rule I settled on is one small predicate over a closed set of stop reasons, applied at every call site, with nothing inferred from the absence of content.</p>
+
+<pre><code># Stop reasons that mean "the model declined", not "the call failed".
+REFUSAL_STOP_REASONS = {"refusal", "content_filtered"}
+
+def is_refusal(stop_reason):
+    return (stop_reason or "") in REFUSAL_STOP_REASONS
+
+# (a1) InvokeModel: the stop reason is in the response body.
+def invoke_once(client, model_id, body):
+    resp = client.invoke_model(modelId=model_id, body=json.dumps(body))
+    result = json.loads(resp["body"].read())
+    if is_refusal(result.get("stop_reason")):
+        category = (result.get("stop_details") or {}).get("category", "unknown")
+        log.error("REFUSAL model=%s category=%s", model_id, category)
+        emit_metric("ModelRefusal", model=model_id)
+        return result, True
+    return result, False
+
+# (a2) Converse streaming: the signal arrives in the closing metadata,
+# and there may be no content events before it.
+def stream_once(client, model_id, messages):
+    resp = client.converse_stream(modelId=model_id, messages=messages)
+    text, stop_reason = [], None
+    for event in resp["stream"]:
+        if "contentBlockDelta" in event:
+            text.append(event["contentBlockDelta"]["delta"].get("text", ""))
+        elif "messageStop" in event:
+            stop_reason = event["messageStop"]["stopReason"]
+    return "".join(text), is_refusal(stop_reason)</code></pre>
+
+<p>Two details are easy to get wrong. The closed set deliberately omits <code>guardrail_intervened</code>, and I will come back to why. And the refusal metric is emitted with the model as a dimension, because once a fallback exists, the only way to see that it is working is to compare refusals on the primary model against refusals on the fallback.</p>
+
+<h2>Step Two: Retry the Refused Call, Unchanged, on a Different Model</h2>
+
+<p>The design question is what to do after detection. The tempting answers are all wrong. Retrying the same model repeats the same call: on that path the same model refused three times out of three, so the retry should go to a different model. Rewording the prompt until it passes is the opposite of what a safety classifier is for, and I did not want a system that quietly learned to argue with one.</p>
+
+<p>What I built instead is narrower. When a call is refused, the <em>same request, unchanged</em>, goes to a different model. Nothing is rewritten, trimmed, re-worded or disguised. The second model applies its own safeguards and makes its own decision: it may answer, and it may just as well refuse. If it refuses too, that refusal is final and the stage reports it. The fallback model here is Opus 5, which is a current model with its own safety behaviour, and which in my probes answered the fact-check prompt that Opus 5.5 declined.</p>
+
+<p>The rules, in the order I settled them with the product owner:</p>
+
+<ul>
+    <li><strong>Retry only the refused call.</strong> Not the stage, not the conversation from the top. In an agent loop the tools have already run and their results are in history. Re-running them would repeat side effects and spend.</li>
+    <li><strong>Stay on the fallback for the rest of the run.</strong> If a model refused once in this task, the next call in the same task is likely to be refused too. Stickiness is per run. The next run starts on the primary model again.</li>
+    <li><strong>Key eligibility on the model ID.</strong> A substring match against a configured list decides which models get a fallback. That covers both the <code>global.</code> and regional inference-profile prefixes with one entry, and it means a model swap next quarter does not need a code change.</li>
+    <li><strong>Never retry a guardrail block.</strong> A guardrail blocks content regardless of which model generated it. Sending the same payload to another model would fail the same way, a second time, at a second price.</li>
+    <li><strong>Respect the clock.</strong> If less than 120 seconds remain before the stage's deadline, skip the fallback. A rerun that cannot finish is worse than an honest refusal reported on time.</li>
+    <li><strong>Never loop.</strong> If the fallback target equals the primary, or the fallback refuses too, the second answer is final. There is no third attempt, because the same model refused three times out of three on that path, so repeating the call is not the answer; the retry goes to a different model.</li>
+    <li><strong>Every setting lives in configuration.</strong> The fallback model, the eligibility list and the deadline floor are all config values read at call time, not import time, and a blank fallback turns the whole thing off.</li>
+</ul>
+
+<h2>Step Three: The Hook</h2>
+
+<p>For direct InvokeModel calls the retry is a plain helper: call, check, call again once, and rebuild the request body per model so that model-specific fields (effort, for instance) are right for the second model. For the agent loop it needed more care.</p>
+
+<p>In Strands 1.51, an after-model-call hook can set <code>retry = True</code> on the event. That discards the just-produced message, which never reaches conversation history, and re-enters the model-call loop. Each iteration of that loop reads the agent's current model afresh. So if the hook assigns a new model to the agent and <em>then</em> sets the retry flag, the next call runs on the new model with the conversation intact, tool results included. No message surgery is required. In a probe, Opus 5 accepted the continuation of a tool-use turn that was produced by Opus 5.5, both with the earlier reasoning blocks left in and with them stripped out, so Bedrock accepted the mid-loop switch. Do not assume the first model's reasoning blocks carry over.</p>
+
+<pre><code>class RefusalRetryHook:
+    def __init__(self, primary_id, fallback_id, build_model, deadline=None):
+        self.current_id = primary_id
+        self.fallback_id = fallback_id
+        self.build_model = build_model      # factory: same limits, cache config, effort
+        self.deadline = deadline
+        self.fell_back = False
+        self.usage_ledger = {}              # model id -> token counts
+
+    def register_hooks(self, registry):
+        registry.add_callback(AfterModelCallEvent, self.on_after_call)
+
+    def on_after_call(self, event):
+        try:
+            if event.stop_response is None:          # exception path, nothing to inspect
+                return
+            self.book_usage(event)                    # refused calls are billed too
+            if not is_refusal(event.stop_response.stop_reason):
+                return
+            can_retry = (
+                not self.fell_back
+                and self.fallback_id
+                and self.fallback_id != self.current_id
+                and not self.too_close_to_deadline()  # e.g. under 120 s left
+            )
+            log.error("REFUSAL model=%s action=%s", self.current_id,
+                      "fallback" if can_retry else "final")
+            emit_metric_async("ModelRefusal", model=self.current_id)   # never block the loop
+            if can_retry:
+                event.agent.model = self.build_model(self.fallback_id)
+                self.current_id, self.fell_back = self.fallback_id, True
+                event.retry = True                    # set LAST
+        except Exception:
+            log.error("refusal hook error (ignored)", exc_info=True)   # a hook must never raise</code></pre>
+
+<p>Three things in that sketch earned their place the hard way. The metric call is dispatched to a background thread, because the callback runs inside the framework's event loop and a synchronous metrics call would block every other request on that worker. The hook swallows its own exceptions, because a bug in telemetry must not turn a recoverable refusal into a crashed run. And the usage is booked before the refusal check, because, as the Fable card says, a mid-stream refusal is billed for what it generated.</p>
+
+<p>There is a UI consequence worth a sentence. The chat front end replaces its streamed text when the final completion event arrives. If a refusal came late, after some text had already streamed, the fallback's answer simply replaces it on screen. No front-end change was needed.</p>
+
+<h2>Booking Usage Per Model</h2>
+
+<p>A fallback changes the accounting as well as the control flow. A single run can now touch two models. If all tokens are booked under whichever model the router originally chose, the usage ledger is wrong in a way that no test of the retry logic will catch: the counts will be internally consistent and attributed to the wrong price line.</p>
+
+<p>So each sub-agent's response carries a per-model token breakdown, the model that produced the final text, and a note of any fallback that happened. The router sums the breakdowns across stages, and the usage writer emits one row per model. Each query counts once, on the row of the model that answered, which also carries the duration, so that "number of requests" and "latency of the answer" stay attributable to something real. Responses from older pods during a rolling deploy carry no breakdown and are booked under the routing model as before, which keeps mixed-version fleets interoperable.</p>
+
+<p>This matters for the same reason the Cost Explorer trap in <a href="29-ai-coding-assistant-usage-analytics.html">the usage analytics post</a> matters: the bill is organised per model, so your internal ledger has to be organised per model if the two are ever to be reconciled. The design goal was simply that the ledger says which model did the work. The answer shown to users reports the real model as well, in logs, in the usage record, in a trace tag, and in the refusal metric, with no banner added to the answer itself.</p>
+
+<h2>What Else Is Different on the 5.5 Tier</h2>
+
+<p>The refusal work surfaced a cluster of neighbouring constraints that bite when you move an agent to the 5.5 tier. The sampling-parameter and thinking-budget changes are covered in <a href="28-opus-5-bedrock-migration.html">the Opus 5 migration post</a>, so I will not repeat them. These are the ones that specifically shaped this design.</p>
+
+<table>
+    <thead>
+        <tr><th>Behaviour</th><th>What I observed</th><th>Where it is documented</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Forced tool choice</td><td>Rejected with a validation error on Sonnet 5.5 and Opus 5.5; only the automatic setting is accepted</td><td>My live probes; not on the Opus 5.5 card</td></tr>
+        <tr><td>Structured output</td><td>The Converse text-format option is rejected on Sonnet 5, Sonnet 5.5, Opus 5 and Opus 5.5; accepted on Sonnet 4.6 and Haiku 4.5</td><td>Opus 5.5 card lists structured outputs as not supported; the per-model breakdown is from my probes</td></tr>
+        <tr><td>Thinking</td><td>Cannot be disabled on 5.5</td><td>Opus 5.5 card: adaptive thinking is always on</td></tr>
+        <tr><td>Default effort</td><td>Medium on Opus 5.5; high on Opus 5</td><td>Opus 5.5 card for the medium default; Opus 5 figure is from my notes</td></tr>
+    </tbody>
+</table>
+
+<p>Two of those interact with the fallback. First, structured output. The framework's structured-output feature quietly falls back to forced tool choice, and forced tool choice is itself rejected on the 5.5 models, so there is no supported schema-enforcement path on this tier. The replacement is unglamorous: ask for the shape in prose, parse it, validate it, and treat a parse failure as a first-class outcome. Which brings this story full circle, because a parser that fails on an empty refusal and a parser that fails on malformed JSON are logging the same message unless you teach them to look at the stop reason first.</p>
+
+<p>Second, effort. Because the default differs between the two models in the fallback pair, a retry that inherits "the default" silently changes how hard the second model thinks. The hook factory therefore recomputes effort for the model it builds, and the direct-call helper rebuilds the whole request body per model. The rule is to set effort explicitly on every call and never rely on a per-model default.</p>
+
+<h2>Why Not Just Catch It and Report It?</h2>
+
+<p>A reasonable objection: a refusal is a model doing what it was designed to do, so why engineer around it instead of showing the user a message? For a chat turn, surfacing a clear notice is sometimes the right answer, and the system still does that when the fallback also refuses. But the same hook covers the interactive research stages (the writer and reviewer agents and the single-agent research path) as well as the scheduled report, and these workloads are compound. The digest runs unattended and its verifier sits in the middle of a pipeline whose downstream steps assume an answer. A refusal in the middle of a multi-stage job that is reported as an empty string is strictly worse than either outcome it could have produced, because the operator sees neither the answer nor the reason.</p>
+
+<p>The distinction I would offer is between <em>the model's decision</em> and <em>the platform's response to it</em>. The decision belongs to the model and its safeguards, and the platform must not try to override it. The response belongs to the platform: route the unchanged request to a second model with its own safeguards, log the event with its category, meter it, and fail closed and loudly if both decline. Every one of those is engineering we control, and none of it touches the classifier.</p>
+
+<h2>Verification</h2>
+
+<p>Unit tests prove that the hook sets a model and a flag. They do not prove the system recovered. The check that mattered was a dry run of the previous busy week's digest against the live model pair: all three of the refused calls were answered by the fallback, all 10 of the key results came through, and the verifier passed 17 of 17. The section that had been blanked was back.</p>
+
+<p>I would make the same point about the original miss as about the fix. The job reported success when it was wrong. The only reliable signal was the artifact itself: did the key results have text in them? Checking the output the reader sees, rather than the status the scheduler reports, is what found the problem and what confirmed the repair.</p>
+
+<h2>What I'd Build Next</h2>
+
+<p>The fallback handles a refusal after it happens. The natural next step is to find refusals before they reach production, with a refusal canary. Every fixed prompt in the codebase (system prompts, verifier prompts, extraction and summarisation templates) is a known input that can be replayed. Before any model switch, run each one against the candidate model several times, because the behaviour is intermittent, and record a refusal rate per prompt.</p>
+
+<p>That turns a model upgrade into a gated release: a candidate model does not ship if any prompt's refusal rate crosses a threshold, and a prompt that trips it is routed to the fallback tier by configuration before anyone has been affected. The same per-prompt refusal rate, exported as a standing metric with the model as a dimension, gives a trend line that shows a classifier change on the provider's side as a step in a graph rather than as a blank section in a weekly email.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>On current Claude models a refusal is a successful HTTP 200. AWS's own guidance for Claude Fable 5.1 is to handle <code>stop_reason: "refusal"</code> as a primary response path, with the category in <code>stop_details</code>.</li>
+        <li>The signal has different names per API: <code>stop_reason: "refusal"</code> on InvokeModel, <code>stopReason: "content_filtered"</code> on Converse streaming, where there may be no content events at all. Check the stop reason explicitly on every path.</li>
+        <li>Exception-based fallbacks never see a refusal. Refusals can also be intermittent and late, so a single passing replay proves little and a response is not safe until its stop reason is read.</li>
+        <li>Retry only the refused call, with the request unchanged, on a second model that applies its own safeguards. Keep tool results, stay on the fallback for the rest of the run, skip it when the deadline is near, and never retry a guardrail block.</li>
+        <li>Book usage per model and report the real model that answered. Mid-stream refusals are billed, so count them too.</li>
+        <li>On the 5.5 tier, set effort explicitly, expect no forced tool choice and no structured-output path, and validate prose output instead.</li>
+        <li>Verify the artifact the reader sees. A job that reports success while rendering em dashes is still broken.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Amazon Bedrock</span>
+    <span class="tag">Claude Opus 5.5</span>
+    <span class="tag">Model Refusals</span>
+    <span class="tag">Reliability</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

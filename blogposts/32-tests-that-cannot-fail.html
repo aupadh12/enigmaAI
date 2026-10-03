@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tests That Cannot Fail: Six Ways AI-Written Test Suites Pass Whatever the Code Does</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Tests That Cannot Fail: Six Ways AI-Written Test Suites Pass Whatever the Code Does">
+    <meta property="og:description" content="A green suite is a claim, not evidence. A taxonomy of hollow tests written by AI coding agents, the cheap real checks that expose them, and a reviewer checklist.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/32-tests-that-cannot-fail.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/32-tests-that-cannot-fail.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tests That Cannot Fail: Six Ways AI-Written Test Suites Pass Whatever the Code Does">
+    <meta name="twitter:description" content="A green suite is a claim, not evidence. A taxonomy of hollow tests written by AI coding agents, the cheap real checks that expose them, and a reviewer checklist.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/32-tests-that-cannot-fail.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/32-tests-that-cannot-fail.png" alt="Blog cover">
+
+<div class="header-badge">AI-ASSISTED DEV</div>
+<h1>Tests That Cannot Fail: Six Ways AI-Written Test Suites Pass Whatever the Code Does</h1>
+<p class="subtitle">A green suite is a claim, not evidence. A taxonomy of hollow tests written by AI coding agents, the cheap real checks that expose them, and a reviewer checklist.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The suite was green: 279 tests, all passing, written by a coding agent alongside a new tool for a research assistant. Several of those tests asserted that the tool returned statuses such as <code>"busy"</code>, <code>"running"</code> and <code>"needs_clarification"</code> at the top level of its result. The agent's framework accepts exactly two top-level values, <code>"success"</code> and <code>"error"</code>. Anything else is forwarded to the model API, which rejects it, and the next model call in the turn fails. The paths the skill relied on most (the one that tells the model to stop and ask instead of guessing) would have killed the conversation on first contact with the real service.</p>
+
+<p>Nothing in those 279 tests could have told us. The model was mocked, so the API's validation never ran, and the tests had been written to agree with the code rather than with the contract. The suite was not weak in the ordinary sense of low coverage. It was weak in a more awkward way: it was large, tidy, green, and it protected nothing on the paths that mattered.</p>
+
+<p>This post is about that failure mode. When AI coding agents write your tests, you get volume that looks like assurance. Review is where the hollow ones get caught, and after enough rounds of it the hollow tests turn out to come in a small number of recurring shapes. I have grouped them into six families, each with short before-and-after snippets using neutral names. After that come the cheap, boring checks that catch them, and a table a reviewer can keep open while reading a diff. An earlier post, <a href="25-agent-context-overflow-in-flight.html">The Context-Window Overflow Was Not Where We Looked</a>, has a section called "Tests That Haven't Failed Are Not Evidence", which covers two tests matching source text instead of behaviour. This post extends that idea rather than repeating it.</p>
+
+<h2>A Claim Is Not Evidence</h2>
+
+<p>A coding agent will finish a task with a sentence like "added a batch of tests, all pass, mutation-checked." Each part of that sentence is a claim. "All pass" is the only one the test runner verifies, and it is the least informative, because a test that cannot fail also passes. "Mutation-checked" is the one I trust least, for a reason that comes up repeatedly below: the agent often reports the result of a mutation it described but did not actually apply, or applied to the wrong place.</p>
+
+<p>Here is the sharpest version of the pattern. A first pass on a weekly digest backend by a coding agent passed 1,591 tests. A line-by-line read of the code, plus rendering a fixture email, then found 20 real defects. They included:</p>
+
+<ul>
+<li>a mail-sending call whose data step <em>returns</em> the server's final reply code instead of raising, so a rejected send looked like a normal return and the code's error handling never fired;</li>
+<li>text from nested HTML elements counted twice, duplicating content in the rendered output;</li>
+<li>progress bars that rendered as nothing at all in a common desktop mail client;</li>
+<li>a MIME subtype that did not match the encoding of the bytes it labelled;</li>
+<li>numeric grounding that compared substrings, so a short number "matched" inside a longer one;</li>
+<li>no wall-clock budget on a run that called an external model repeatedly.</li>
+</ul>
+
+<p>None of those are exotic. They are all the kind of defect a test exists to catch. The suite was large and did not catch them, because the tests that existed had been written against the agent's own picture of the code rather than against the behaviour of the thing in the world. A line-by-line read of the code, plus rendering one fixture email and looking at it, found what more than a thousand tests had not.</p>
+
+<div class="highlight-box">
+<p><strong>The working rule.</strong> A guarantee is protected only if I have seen a test go red when that guarantee is broken, by a change I made myself, in a place I can name. Everything else is a hypothesis with a green tick next to it.</p>
+</div>
+
+<h2>A Taxonomy of Tests That Cannot Fail</h2>
+
+<p>After enough reviews, the patterns stopped looking like a long list of separate mistakes and started looking like six families. The useful part of a taxonomy is that it changes how you read a diff. Instead of asking "is this test good?", which is vague, you ask six specific questions. The snippets below are deliberately small and use neutral names; none of them is lifted from a real codebase.</p>
+
+<h3>Family 1: The test exercises the wrong thing</h3>
+
+<p>The test looks right and runs real code, but the code under test is not the code that matters. This is the most common family, and the hardest to see by reading only the test.</p>
+
+<p><strong>Patching the wrong mock.</strong> A helper builds its own HTTP client inside the function. The test patches the client at the module level, outside the helper, and asserts on the outer mock. The helper re-patched the client, so the outer mock was never touched.</p>
+
+<pre><code># Before: asserts on a mock nothing uses
+def test_dry_run_sends_nothing():
+    with patch("pkg.http.Client") as outer:
+        run_export(dry_run=True)       # builds and uses its own client inside
+    outer.return_value.post.assert_not_called()   # always true
+
+# After: assert on the mock actually in effect
+def test_dry_run_sends_nothing():
+    client = make_client_recorder()    # the same object the helper will use
+    run_export(dry_run=True, client=client)
+    assert client.calls == []</code></pre>
+
+<p><strong>Mocking the next function instead of the I/O boundary.</strong> A test for "listing never downloads anything" mocked the inner <code>ingest()</code> function, so the real path that would have requested a file named "list" never ran. For a guarantee of the form "no side effect happens", mock the thing that would carry the side effect, which is the HTTP client or the object-store client, and assert that no call was made.</p>
+
+<pre><code># Before: mocks a function, so the real path is never exercised
+def test_list_does_not_download(monkeypatch):
+    monkeypatch.setattr(mod, "ingest", lambda *a, **k: None)
+    mod.handle("list")
+
+# After: mock the boundary, assert zero calls on it
+def test_list_does_not_download(fake_store):
+    mod.handle("list")
+    assert fake_store.get_calls == []</code></pre>
+
+<p><strong>Calling the wrong validator.</strong> A test for "the product line is recognised" went through the modality check, while the defect lived in the identifier-token check. It passed for a reason unrelated to the fix. The remedy is to name the function under test and call it directly, not to reach it indirectly through a larger function with several validators in a row.</p>
+
+
+<h3>Family 2: It cannot go red by construction</h3>
+
+<p>Here the test does run the right code, but its structure guarantees a pass.</p>
+
+<p><strong>The tautology.</strong> A "mutation witness" test fed already-stripped input and asserted it differed from the unstripped version. It never ran the code under test; it compared two literals the test itself had written.</p>
+
+<p><strong>The if-guarded assertion.</strong> If the behaviour is absent, the branch is skipped and the test passes.</p>
+
+<pre><code># Before: passes whenever the feature is missing
+def test_trend_arrow_rendered():
+    out = render_row(sample_rows())
+    if "▲" in out:
+        assert out.count("▲") == 1
+
+# After: the fixture always produces the thing; the assertion is unconditional
+def test_trend_arrow_rendered():
+    out = render_row(rows_with_rising_value())
+    assert out.count("▲") == 1</code></pre>
+
+<p>The same shape turned up as <code>if line: assert len(line) &lt;= 160</code> and <code>if len(turns) == 4:</code>. Each is a test that passes for an empty result. The fix is always to build a fixture that is guaranteed to produce the thing, then assert without a condition.</p>
+
+<p><strong>The empty body.</strong> One <code>def test_...</code> contained only a comment. Its docstring claimed a mutation was caught. A simple AST pass that flags test functions with no <code>assert</code>, no <code>raises</code> and no call to a helper named like a check would find this in seconds.</p>
+
+<p><strong>Robot Framework variants.</strong> In a UI-testing seed suite, <code>Run Keyword And Return Status</code> wrapped checks and swallowed their failures: 36 swallowed failures in a run that reported 31 of 31 tests green. Related variants: a check that logs a warning instead of failing; <code>Page Should Not Contain</code> given an XPath expression, which treats it as literal page text and so always passes; an <code>IF ${count} &gt; 0</code> branch that never ran; a "verify" keyword that clicked and slept with no assertion afterwards; and two locators differing only by underscore, which the framework's name normalisation silently merged.</p>
+
+<p><strong>Substring checks against source text.</strong> Covered in <a href="25-agent-context-overflow-in-flight.html">the earlier post</a>. The short version: presence of a string in a file is not behaviour.</p>
+
+<h3>Family 3: The fixture supplies the answer, or avoids the hard question</h3>
+
+<p>This family is subtle, because every individual line of the test is reasonable. The problem is in what the fixture contains, or what it leaves out.</p>
+
+<p><strong>The fixture contains the value the fix removes.</strong> A fix said: strip item-ID citations before checking numbers against the source. The test used item titles such as "Study 7", so the number 7 was grounded through the title and the test passed with the fix deleted. When a test asserts that X is ignored, assert that the fixture does <em>not</em> contain X by another route.</p>
+
+<pre><code># Before: the title already contains the number, so the fix is invisible
+items = [{"id": 7, "title": "Study 7"}]
+assert check_numbers("see item 7", items) == []     # passes with or without the fix
+
+# After: make the fixture unable to answer by accident
+items = [{"id": 7, "title": "Overview of outcomes"}]
+assert str(items[0]["id"]) not in items[0]["title"]
+assert check_numbers("see item 7", items) == [Flag("7")]   # the fix strips the ID</code></pre>
+
+
+<p><strong>Round-trip that doesn't round-trip.</strong> A save-and-reload test built the reloaded object from the test's <em>input</em> rather than from the bytes the code actually wrote. Write regressions were invisible. Feed the real captured write back in.</p>
+
+<p><strong>Asymmetric matching.</strong> A validator split a text token into compound parts but did not split the corpus the same way, so <code>ABC1</code> never grounded against a title containing <code>ABC1xABC2xABC10</code>. The test used a hand-built corpus that was already split. Probe validators with the real shape of recent data before trusting them.</p>
+
+
+<p><strong>The combination nobody wrote.</strong> This is the one I find most instructive. A coding agent added an "allow" exception to a read-only mode in a policy filter: a particular safe read was permitted. It implemented the exception as an early return that said ALLOW before the deny checks ran. So a request combining the safe read with a write was allowed in read-only mode. The exception came with 21 tests, all green, because none of them combined the exception with a write. Each test was correct on its own terms. The defect lived only in the combination. The rule that came out of it: an allow-exception belongs inside the mode's branch, after every deny check, and narrows exactly one deny reason. And when you probe an exception, probe it against each thing it must not override.</p>
+
+<pre><code># Before: 21 tests like this one, each with a single operation
+def test_own_profile_read_allowed_in_readonly():
+    assert decide(Request(reads=["own_profile"])) == ALLOW
+
+# After: the exception combined with every operation it must not override
+@pytest.mark.parametrize("extra", ["write", "write_in_same_batch",
+                                   "write_under_another_name", "write_nested_in_read"])
+def test_exception_never_overrides_a_deny(extra):
+    req = Request(reads=["own_profile"], extra=extra)
+    assert decide(req) == DENY</code></pre>
+
+<h3>Family 4: The harness hides the failure mode</h3>
+
+<p>The test is aimed at the right code with the right fixture, but the environment the test runs in differs from production in the one way that matters.</p>
+
+<p><strong>Threads.</strong> An executor test compared the worker thread with the pytest main thread to prove a blocking call ran "off the event loop". But the framework's test client runs the application on its own thread, so a blocking call still looked off-loop. The sturdier assertion is inside the callee: <code>asyncio.get_running_loop()</code> should raise there, because there is no running loop in a worker thread.</p>
+
+<pre><code># Before: compares with the wrong thread
+def test_runs_off_loop(client):
+    client.get("/report")
+    assert seen_thread_id != main_thread_id       # true even when it blocks the loop
+
+# After: assert the property directly, inside the callee
+def blocking_work():
+    with pytest.raises(RuntimeError):
+        asyncio.get_running_loop()                 # no loop here means off-loop
+    return compute()</code></pre>
+
+<p><strong>Streams that always complete.</strong> The test client for a streaming endpoint runs the stream to the end and never simulates a real client disconnect. Code that leaks a resource on disconnect looks perfect under it. Likewise, running a scenario through <code>asyncio.run</code> closes leftover generators before the test gets to look at them. For disconnect behaviour, drive the ASGI application directly, send the disconnect message yourself, and assert inside the loop.</p>
+
+
+<p><strong>The early exit that skips the code under test.</strong> A test for "no fallback when the time budget is spent" set the budget in the past. The loop broke before its first call, so the branch under test never ran. A fake clock that advances <em>during</em> the call gets the run into the branch, and the test should assert the branch ran (a refusal was recorded) before asserting that nothing further happened.</p>
+
+<h3>Family 5: Wrong input type or wrong environment</h3>
+
+<p>Mocks and fixtures are made of simpler stuff than production objects, and the gap between them is where the bug lives.</p>
+
+<p><strong>Plain objects standing in for proxies.</strong> Export helpers for charts were tested with plain objects. In the real app the specs were reactive proxies created by the UI framework, and <code>structuredClone</code> throws on a proxy. The helper failed on every real chart and passed every test. The test runner here could not create the framework's proxies, so the fix was to pass a hand-made <code>new Proxy(...)</code> in a vitest file and assert on the real failure.</p>
+
+<pre><code>// Before: plain object, so structuredClone works
+test("export clones the spec", () =&gt; {
+  expect(() =&gt; exportSpec({ data: [1, 2, 3] })).not.toThrow();
+});
+
+// After: the kind of value the app really passes
+test("export clones a proxied spec", () =&gt; {
+  const spec = new Proxy({ data: [1, 2, 3] }, {});
+  expect(() =&gt; exportSpec(spec)).not.toThrow();
+});</code></pre>
+
+<p><strong>A time-zone test that cannot fail on a UTC machine.</strong> A UTC date formatter was tested on a laptop and a CI runner, both in UTC, where local and UTC dates agree. Dropping the explicit <code>timeZone: "UTC"</code> from the implementation changed nothing. The test must pin the zone itself and choose a timestamp whose local date differs from its UTC date.</p>
+
+<pre><code>test("formats the UTC range regardless of local zone", () =&gt; {
+  const prev = process.env.TZ;
+  process.env.TZ = "America/Los_Angeles";
+  try {
+    // 02:00 UTC on the 1st is still the 30th in Los Angeles
+    expect(format_utc_range(Date.UTC(2026, 9, 1, 2), Date.UTC(2026, 9, 2, 2)))
+      .toBe("1 Oct 2026 to 2 Oct 2026");
+  } finally {
+    process.env.TZ = prev;
+  }
+});</code></pre>
+
+
+<p><strong>A mocked model versus the real service.</strong> This is the opening story. When the model is mocked, nothing enforces the API's schema. The fix for that case was one test that drives every return path of the tool and asserts the top-level status is in <code>{"success", "error"}</code>, with richer states carried in the JSON body instead. It is a schema test, and it would have been worth more than the other 279 put together on that path.</p>
+
+<p><strong>Example code the model is told to copy.</strong> A prompt-level skill included a heatmap example. String checks on the skill text passed, but the example had never been run. One of its arguments does not exist in the plotting library, and a positional index broke on a DataFrame. A test that <code>exec</code>s the example found both.</p>
+
+<h3>Family 6: The claim about the test is false</h3>
+
+<p>The last family is not about any single test. It is about the report that arrives with the suite.</p>
+
+<p><strong>A mutation that matched nothing.</strong> Mutations applied with <code>sed</code> that match no line exit successfully and change nothing. A test that stays green under a non-mutation proves nothing, and a transcript that says "mutation applied, test still green, therefore gap" (or the reverse) is equally void. The mutation must assert that its target text matched exactly once.</p>
+
+<p><strong>A mutation that hit the wrong block.</strong> I did this myself. I edited the first <code>except ValueError</code> in a file, which belonged to a different function, and concluded wrongly that a guarantee was unprotected. Print what you changed.</p>
+
+<p><strong>A negative control that breaks the call another way.</strong> To prove a conditional write was tested, an agent removed only the condition expression, leaving an unused placeholder value in the request. The database rejected the malformed request, and the test "went red" for a reason unrelated to the guarantee. Remove the whole construct, and check that the failure is the assertion you wrote, not a validation error or a name error.</p>
+
+<p><strong>A test that asserts the buggy state.</strong> A retry test asserted that a run stayed in its "uploaded" state. It passed because of the bug. The intended end state was "processing". If you can only make a test pass by encoding the current behaviour, ask whether the current behaviour is the one anyone wants.</p>
+
+<p><strong>"Would fail" without running it.</strong> Docstrings that say "mutation (1) caught" and reports that say a test "would fail" if a line were removed are statements about intent. Re-run every claimed mutation yourself. In my experience about the only way to find the false ones is to do exactly that.</p>
+
+<h2>Why Agents Write These</h2>
+
+<p>None of this is specific to one model. The failure has a mechanical explanation. An agent that writes code and then its tests has the implementation in context and a goal of making the test command exit zero. The easiest way to a green run is to write assertions that agree with the implementation it just produced: patching the mock that is nearest, building the fixture out of the values the code happens to expect, copying the production expression into the assertion. Each of these feels like diligence from the inside, since the test looks thorough and the diff reads cleanly.</p>
+
+
+<h2>The Cheap, Real Checks</h2>
+
+<p>These are all small. None needs a framework, and each takes minutes rather than hours. The common thread is that the check is independent of the author of the test: run by someone or something that did not write it, against the actual code, in a place that cannot damage the repository.</p>
+
+<h3>1. Your own mutation, in a temp copy, with a count-asserted replace</h3>
+
+<p>For each new guarantee, copy the project to a temporary directory, apply one targeted edit with an exact-string replace that <em>asserts the target appears exactly once</em>, run only the relevant test, and confirm it goes red. Then delete the copy. The script below is generic; swap in your own paths, pattern and test id.</p>
+
+<pre><code>#!/usr/bin/env python3
+"""mutate_check.py: prove a test fails when one guarantee is broken."""
+import pathlib, shutil, subprocess, sys, tempfile
+
+SRC = pathlib.Path(".").resolve()
+TARGET = "src/service.py"                    # file to mutate (relative)
+OLD = "if remaining &lt;= 0:\n        break"    # exact text to find
+NEW = "if False:\n        break"             # the mutation
+TEST = "tests/test_service.py::test_stops_when_budget_spent"
+
+with tempfile.TemporaryDirectory() as tmp:
+    work = pathlib.Path(tmp) / "copy"
+    shutil.copytree(SRC, work, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+    f = work / TARGET
+    text = f.read_text()
+    assert text.count(OLD) == 1, f"mutation target matched {text.count(OLD)} times"
+    f.write_text(text.replace(OLD, NEW))
+    print("changed:", TARGET)
+    print(subprocess.run(["diff", "-u", str(SRC / TARGET), str(f)],
+                         capture_output=True, text=True).stdout)
+
+    red = subprocess.run([sys.executable, "-m", "pytest", "-x", "-q", TEST],
+                         cwd=work, capture_output=True, text=True)
+    if red.returncode == 0:
+        sys.exit("FAIL: test stayed green under the mutation (hollow test)")
+    print("OK: test went red. Confirm the failure is the assertion, not an import error:")
+    print(red.stdout[-600:])</code></pre>
+
+<p>Three details carry the weight. The <code>count == 1</code> assertion kills the no-op mutation. The printed diff kills the "wrong block" mistake, since you can see what changed. And the last line reminds you to read the failure: an <code>ImportError</code> caused by a bad edit is also a red test, but it says nothing about your guarantee.</p>
+
+<h3>2. Mock at the boundary, assert on the boundary</h3>
+
+<p>For any "nothing happens" guarantee (no download, no send, no write), replace the HTTP, email or object-store client with a recorder and assert its call list is empty. Mocking an internal function only proves that the internal function was not called.</p>
+
+<h3>3. Feed the real write back, and feed real types</h3>
+
+<p>Capture the bytes the code wrote and use them as the input to the reload. Give helpers the kind of object production gives them: a proxy, a timezone-aware datetime, a non-ASCII string, an awkward float. Build those explicitly if the test runner cannot create them.</p>
+
+<h3>4. Run the thing the model will copy</h3>
+
+<p>Any example code in a prompt or skill file will be copied by a model, so execute it. For strings of code you assemble, such as a JavaScript snippet built as a Python string, run a syntax check (<code>node --check</code>). For a UI-automation library, instantiate the real class and run <code>robot --dryrun</code> on a tiny suite containing the exact import line. Mock-heavy suites routinely miss what these catch: an attribute the real class will not let you assign, a wrong private attribute name, a library that cannot be imported under the exact line a suite uses.</p>
+
+<h3>5. Pin the environment inside the test</h3>
+
+<p>Set the time zone, locale and working directory inside the test and restore them in a <code>finally</code>. A test that passes only because the machine running it is in UTC will fail on the first colleague in another zone, or never.</p>
+
+<h3>6. Drive the harness at the layer where the failure lives</h3>
+
+<p>For streaming and disconnect behaviour, drive the ASGI app directly rather than through the convenience client, and assert while the stream is still open. For concurrency, assert the property inside the callee.</p>
+
+
+<h2>A Reviewer Checklist</h2>
+
+<p>This is the table I keep open while reading a diff of agent-written tests. The right-hand column is the question to ask, not the answer.</p>
+
+<table>
+<thead>
+<tr><th>Family</th><th>Symptom in the diff</th><th>Question to ask</th><th>Cheap check</th></tr>
+</thead>
+<tbody>
+<tr><td>1. Wrong target</td><td>Patch applied outside a helper; mocks an internal function; assertion on a mock the code never touches</td><td>Is this the object the code under test actually uses?</td><td>Mock the I/O client; assert on its call list</td></tr>
+<tr><td>2. Cannot go red</td><td><code>if</code> before an <code>assert</code>; empty body; tautology; swallowed-status keywords</td><td>What does this test do when the feature is absent?</td><td>Delete the feature in a temp copy; expect red</td></tr>
+<tr><td>3. Fixture answers for you</td><td>Fixture contains the value the fix removes; tiny inputs; single-operation tests of an exception</td><td>Could this pass with the fix deleted? Which combination is missing?</td><td>Assert fixture lacks the value; parametrise combinations</td></tr>
+<tr><td>4. Harness hides it</td><td>Convenience test client; early exit; comparison with main thread; writes outside <code>tmp_path</code></td><td>Does the harness reproduce the failure mode?</td><td>Drive the lower layer; assert inside the callee</td></tr>
+<tr><td>5. Wrong type or environment</td><td>Plain objects for proxies; mocked model; machine-local time zone; never-run examples</td><td>What does production pass in, and where does it differ?</td><td>Real types; pinned zone; <code>exec</code> the example; schema test</td></tr>
+<tr><td>6. False claim</td><td>"Mutation caught" in a docstring; "would fail" in a report; <code>sed</code> mutation with no count</td><td>Did someone actually apply it and see red?</td><td>Re-run every claimed mutation; assert count == 1</td></tr>
+</tbody>
+</table>
+
+<div class="warn-box">
+<p><strong>Check the reason for red.</strong> Every mutation run ends with a failing test, and that is only half the evidence. Read the failure message. A red test caused by an import error, a name error or a malformed request is not evidence for the guarantee you were probing.</p>
+</div>
+
+<h2>What I'd Build Next</h2>
+
+<p>Two things would raise the floor further, and both reuse data the system already produces.</p>
+
+<p><strong>Trace-replay regression evals.</strong> Agent systems emit traces: every tool call, the real tool result, and the final answer. Those are recordings of production-shaped inputs, which is exactly what mocked tests lack. The idea is to pick a sample of real sessions, and for each one replay the conversation against a changed prompt or a different model, with the tools stubbed from the recorded results rather than called live. Then diff the grounded claims in the new answer against the old. A change that quietly starts dropping a table, inventing a number or skipping a required tool call shows up as a diff against a real session, not as a failure of a test someone remembered to write. It also turns a model migration into something you can measure with your own traffic.</p>
+
+<p><strong>Mutation testing in CI, scoped to the lines a change touches.</strong> Full mutation testing is slow, but a diff is small. For each changed hunk, generate a handful of mutants (flip a comparison, delete a branch, swap a constant), run only the tests that import the file, and report any mutant that survives. That automates the manual script above, keeps its count-asserted discipline, and puts the result in the review next to the diff, where the person deciding whether to trust the suite will see it. The agent that wrote the tests can read the survivors and strengthen them, which is a better use of its loop than reporting that it is done.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>A large green suite from a coding agent is a claim, not evidence. A green suite of 279 tests included tests that asserted the invalid statuses the real API rejects, and a first pass that passed 1,591 tests had 20 real defects.</li>
+        <li>Hollow tests fall into six families: wrong target, cannot go red by construction, fixture supplies the answer or omits the hard input, harness hides the failure mode, wrong input type or environment, and false claims about the test.</li>
+        <li>An allow-exception written as an early return passed all 21 of its tests because none combined it with a write. Probe every exception against each thing it must not override.</li>
+        <li>Run your own mutation in a temp copy, with an exact-string replace that asserts the target matched once, print the diff, and read why the test went red.</li>
+        <li>Mock at the I/O boundary, feed the real write back, use the real types, pin time zone and locale inside the test, and execute any example code a model will copy.</li>
+        <li>A swallowed failure is still a failure: 36 of them hid behind a run that reported 31 of 31 green.</li>
+        <li>Read a sample of test bodies before reading the count. Then re-run any mutation the report says was caught.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">AI-Assisted Development</span>
+    <span class="tag">Testing</span>
+    <span class="tag">Mutation Testing</span>
+    <span class="tag">Code Review</span>
+    <span class="tag">pytest</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

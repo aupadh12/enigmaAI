@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming an Agent Over SSE: The Traps 192 Green Tests Hid</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Streaming an Agent Over SSE: The Traps 192 Green Tests Hid">
+    <meta property="og:description" content="Tool results that never arrive, a line separator the browser cannot parse, and a generator nobody closes: found only when tests drove the real libraries.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/33-strands-sse-streaming-traps.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/33-strands-sse-streaming-traps.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Streaming an Agent Over SSE: The Traps 192 Green Tests Hid">
+    <meta name="twitter:description" content="Tool results that never arrive, a line separator the browser cannot parse, and a generator nobody closes: found only when tests drove the real libraries.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/33-strands-sse-streaming-traps.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/33-strands-sse-streaming-traps.png" alt="Blog cover">
+
+<div class="header-badge">AGENTIC AI</div>
+<h1>Streaming an Agent Over SSE: The Traps 192 Green Tests Hid</h1>
+<p class="subtitle">Tool results that never arrive, a line separator the browser cannot parse, and a generator nobody closes — found only when the tests drove the real libraries.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The chat assistant for a UI-testing tool looked finished. The backend was a FastAPI route streaming a Strands agent to a browser over server-sent events. The unit suite had 192 passing tests. Then I opened the page and typed a question. The answer text streamed in nicely, but the "tool running" chips never turned into "tool done". In another run the browser received nothing at all, and the server log showed a perfectly healthy 200. And when I closed a tab mid-answer, the next message from the same user was told that another turn was still in progress.</p>
+
+<p>None of these were exotic. Each one was a mismatch between what my code assumed about a library and what the library actually did, and each one was invisible to a test suite whose fakes agreed with my assumptions. This post walks through the four traps (where tool results live in a Strands event stream, how sse-starlette frames bytes, and what it does not do when a client leaves), and then the testing approach that finally exposed them. The versions involved were Strands Agents 1.51 and sse-starlette 3.0.3. The general lesson about green tests that cannot fail is in <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a>; this one is the streaming-specific version.</p>
+
+<h2>The Shape of the System</h2>
+
+<p>The flow is simple. A browser POSTs a message. The route takes a per-session turn lock, builds a Strands agent with the stored history, and returns an <code>EventSourceResponse</code> wrapping an async generator. That generator iterates <code>agent.stream_async(...)</code> and translates each Strands event into one of a handful of SSE event types: a session announcement, text deltas, tool status chips, a final "done" with a stop reason, and an error event. In its <code>finally</code> block it saves whatever partial assistant text exists and releases the turn lock.</p>
+
+<p>Every piece of that is ordinary. The bugs lived in three assumptions I never checked against the libraries: that tool completion is visible on the tool-use event, that the framing bytes are what a browser expects, and that the response object cleans up my generator when the client goes away.</p>
+
+<h2>Trap 1: Tool Results Are Not on the Tool-Use Event</h2>
+
+<p>The text deltas in a Strands stream are easy to find. Tool progress is where I went wrong. The stream yields a <code>current_tool_use</code> field while the model is streaming its tool call, and I had written the translation as if that field carried the lifecycle of the call: name, input, and a status that would flip from running to done.</p>
+
+<p>In Strands 1.51 that field holds only the tool name, the input and the tool-use ID. There is no status and no result on it. The result of a tool call arrives later, as a separate <code>message</code> event: a user-role message whose content contains a <code>toolResult</code> block carrying the tool-use ID, a status and the content. My code read a status that did not exist, so the "done" branch never fired. Tool chips stayed in "running" forever, and anything downstream that depended on a completed result (in my case a confirmation card the UI shows after a particular tool succeeds) was never emitted.</p>
+
+<p>The fix is to keep a small map from tool-use ID to tool name when the call starts, and to resolve completion from the <code>message</code> events:</p>
+
+<pre><code>def translate(event, tool_names):
+    """Map one Strands stream event to zero or more SSE events."""
+    out = []
+
+    # 1. A tool call is streaming: name/input/id only. Announce it as running.
+    cur = event.get("current_tool_use")
+    if cur and cur.get("toolUseId") and cur["toolUseId"] not in tool_names:
+        tool_names[cur["toolUseId"]] = cur["name"]
+        out.append(("tool", {"id": cur["toolUseId"], "name": cur["name"],
+                             "status": "running"}))
+
+    # 2. The result arrives later, as a user-role message with toolResult blocks.
+    msg = event.get("message")
+    if msg and msg.get("role") == "user":
+        for block in msg.get("content", []):
+            tr = block.get("toolResult")
+            if not tr:
+                continue
+            ok = tr.get("status") == "success"
+            out.append(("tool", {
+                "id": tr["toolUseId"],
+                "name": tool_names.get(tr["toolUseId"], ""),
+                "status": "done" if ok else "error",
+            }))
+    return out</code></pre>
+
+<p>Two details matter. First, the <code>toolResult</code> status is a strict two-value field, which I come back to below. Second, a tool can succeed at the framework level and still report a failure inside its own JSON body, so I also peek at the parsed body for an error key and downgrade the chip to "error" in that case. The framework status says whether the call ran; the body says whether it worked.</p>
+
+<h3>The other events the loop can end with</h3>
+
+<p>While I was in the event loop I checked how a turn can end, because the "done" event carries a stop reason and I had only modelled the happy path. Hitting the output token limit does not look like a normal stop in Strands 1.51: the stream raises <code>MaxTokensReachedException</code>, so the generator needs an <code>except</code> for it that maps to a "max_tokens" stop reason. A guardrail stop is reported as <code>guardrail_intervened</code>, and a model refusal is a normal stop reason rather than an exception. Three different endings, three different code paths, and the UI needs to distinguish them. (The refusal case on Bedrock has its own quirks, covered in <a href="31-llm-refusal-is-a-200.html">a refusal is an HTTP 200</a>.)</p>
+
+<pre><code>stop = "end_turn"
+try:
+    async for event in agent.stream_async(prompt):
+        for name, payload in translate(event, tool_names):
+            yield {"event": name, "data": json.dumps(payload)}
+        result = event.get("result")
+        if result is not None:
+            sr = getattr(result, "stop_reason", None) or "end_turn"
+            stop = {"guardrail_intervened": "guardrail"}.get(sr, sr)
+except MaxTokensReachedException:
+    stop = "max_tokens"
+yield {"event": "done", "data": json.dumps({"stop_reason": stop})}</code></pre>
+
+<h2>Trap 2: Errors From Tools Are Sent to the Model, Verbatim</h2>
+
+<p>This one is less about streaming and more about what the stream shows the user and the model. When a function decorated with <code>@tool</code> raises, Strands catches it and turns it into a tool result whose text is <code>Error: &lt;ExceptionClass&gt; - &lt;message&gt;</code>. That text goes to the model as the tool result, and the model is happy to repeat it to the user. An access-denied error from a cloud SDK call includes resource identifiers in its message. You do not want those in a chat window, and you do not want to depend on the model's discretion to leave them out.</p>
+
+<p>The rule I adopted: no exception leaves a tool body. Every tool is wrapped, every failure maps to a short fixed code, and the detail goes to the server log instead.</p>
+
+<pre><code>import functools, json, logging
+log = logging.getLogger(__name__)
+
+def safe_tool(fn):
+    """Return a fixed error code instead of letting an exception reach the model."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except NotFoundError:
+            return {"status": "error", "content": [{"text": json.dumps({"error": "NOT_FOUND"})}]}
+        except Exception:
+            log.exception("tool %s failed", fn.__name__)   # detail stays server-side
+            return {"status": "error", "content": [{"text": json.dumps({"error": "TOOL_FAILED"})}]}
+    return wrapper</code></pre>
+
+<p>Notice the returned dictionary: a top-level <code>status</code> and a <code>content</code> list. A tool that returns that shape is passed through by Strands verbatim, and that leads to a related trap I had hit shortly before in another agent.</p>
+
+<div class="warn-box">
+<p><strong>The top-level status has exactly two legal values.</strong> In Strands the tool-result status type is <code>Literal["success", "error"]</code>, and for Claude model IDs the Bedrock model class copies that status into the Converse <code>toolResult</code>, which accepts only those two values. A tool that returns <code>"busy"</code> or <code>"needs_clarification"</code> at the top level makes the <em>next</em> model call fail with a validation error. Carry richer states in the JSON body instead: a top-level <code>"success"</code> with <code>{"status": "busy", ...}</code> in the text. A green suite that mocked the model never caught this; the full story is in <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a>.</p>
+</div>
+
+<h3>Replayed history has to look like a conversation</h3>
+
+<p>One more Strands rule bit the multi-turn case. When you replay stored history into a new agent, the roles must alternate starting with <code>user</code>, and there must be no empty text blocks; Strands appends the new prompt without merging it into the previous message. If a turn produced no assistant text (a tool-only turn, or one that died early), persisting nothing leaves two consecutive user messages the next time around. The fix is to store a stand-in assistant text whenever a turn produced none, and to repair alternation when loading older sessions.</p>
+
+<h2>Trap 3: The Separator Your Browser Will Not Split On</h2>
+
+<p>This is the one that produced a 200 response and a blank page. The SSE wire format is lines of <code>event:</code> and <code>data:</code> fields, with a blank line marking the end of an event. The spec allows <code>\r\n</code>, <code>\r</code> and <code>\n</code> as line endings. In sse-starlette 3.0.3 the default separator is <code>\r\n</code>; I confirmed it in the installed source, where the class attribute is <code>DEFAULT_SEPARATOR = "\r\n"</code> and the constructor only accepts those three values.</p>
+
+<p>A native <code>EventSource</code> handles all three. But a chat that POSTs a JSON body cannot use <code>EventSource</code> (it only does GET), so the UI reads the <code>fetch</code> response body and parses it by hand. My hand-rolled parser split the buffer on <code>\n</code> and dispatched an event when a line was exactly empty. With <code>\r\n</code> framing, the "empty" line is actually <code>"\r"</code>, so the dispatch condition never became true. The parser consumed every byte and dispatched zero events.</p>
+
+<p>The fix has two halves, and I did both on purpose:</p>
+
+<ol>
+<li><strong>Server:</strong> ask for the separator the parser expects.</li>
+<li><strong>Client:</strong> accept all three line endings anyway, because a proxy or a future library default should not be able to blank the page again.</li>
+</ol>
+
+<p>The client half is the more interesting one, because a lone <code>\r</code> at the end of a network chunk is ambiguous: it may be a complete line ending or the first half of <code>\r\n</code>. A correct splitter holds it back until the next byte arrives.</p>
+
+<pre><code>export async function readSse(
+  reader: ReadableStreamDefaultReader&lt;Uint8Array&gt;,
+  onEvent: (event: string, data: string) =&gt; void,
+) {
+  const decoder = new TextDecoder();
+  let buf = "", evt = "", data: string[] = [];
+
+  const dispatch = () =&gt; {
+    if (data.length) onEvent(evt || "message", data.join("\n"));
+    evt = ""; data = [];
+  };
+  const line = (l: string) =&gt; {
+    if (l === "") dispatch();
+    else if (l.startsWith(":")) return;              // comment / keep-alive ping
+    else if (l.startsWith("event:")) evt = l.slice(6).replace(/^ /, "");
+    else if (l.startsWith("data:")) data.push(l.slice(5).replace(/^ /, ""));
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+
+    let start = 0, i = 0;
+    while (i &lt; buf.length) {
+      const ch = buf[i];
+      if (ch === "\r") {
+        if (i + 1 &gt;= buf.length) break;             // lone \r at chunk end: wait
+        line(buf.slice(start, i));
+        i += buf[i + 1] === "\n" ? 2 : 1;
+        start = i;
+      } else if (ch === "\n") {
+        line(buf.slice(start, i)); start = ++i;
+      } else i++;
+    }
+    buf = buf.slice(start);
+  }
+  if (buf) line(buf);
+  dispatch();
+}</code></pre>
+
+<p>Server side it is one argument:</p>
+
+<pre><code>return EventSourceResponse(gen, ping=15, sep="\n", background=BackgroundTask(release))</code></pre>
+
+<p>That same call has the third argument, the one that fixes the next trap.</p>
+
+<h2>Trap 4: Disconnect Does Not Close Your Generator</h2>
+
+<p>Here is the sequence I had assumed. The user closes the tab, the server notices, the response object closes my generator, the generator's <code>finally</code> runs, the partial reply is saved and the turn lock is released. Reading the sse-starlette source showed otherwise. On disconnect, the listener sets the response inactive and the task group is cancelled. The only place the response calls <code>aclose()</code> on the body iterator is after a <em>send timeout</em>. A plain client disconnect does not close it.</p>
+
+<p>If the generator happens to be suspended at one of its own <code>yield</code> statements at that moment, which is the common state for a slow or departing client, nothing resumes it. Its <code>finally</code> block waits for garbage collection, which may be soon or may be much later. In the meantime the turn lock is still held, so the same user's next message gets a "turn in progress" response, and the partial answer has not been saved.</p>
+
+<p>The response object does, however, run its <code>background</code> task after the task group exits, and it does so even when the client disconnected. That is the hook. Keep a handle to the generator and close it explicitly there:</p>
+
+<pre><code>gen = event_generator()          # keep the handle
+
+async def release():
+    try:
+        await gen.aclose()       # fires the generator's finally, deterministically
+    except RuntimeError:
+        pass                     # "already running": its finally will run anyway
+    except Exception:
+        log.exception("aclose failed")
+    # Fallback: if the generator never started, aclose() was a no-op
+    # and its finally never ran, so release the lock directly.
+    if not state["released"]:
+        await release_lock_once()
+
+return EventSourceResponse(gen, ping=15, sep="\n",
+                           background=BackgroundTask(release))</code></pre>
+
+<p>The lock release itself is idempotent and conditional: it removes the lock only if the stored token still matches the one this turn created, so a late release can never free a lock that a newer turn now holds. With that, the <code>finally</code> inside the generator does the saving and the releasing, and the background task guarantees that it runs. The fallback covers the case where the generator was never started, so there is no <code>finally</code> to run.</p>
+
+<h2>Why 192 Green Tests Saw None of This</h2>
+
+<p>Every one of these bugs was invisible for the same reason: the tests replaced the piece that holds the behaviour. The agent was a fake whose <code>stream_async</code> yielded dictionaries shaped the way my translation code expected, so a translator reading a nonexistent status agreed with a fake that supplied one. The route was exercised through Starlette's <code>TestClient</code>, which reads the whole response, and my fake client parser was never the browser one. A mock of a library agrees with whatever the code under test assumes about it. That is what makes it a mock, and it is also why it cannot catch a wrong assumption.</p>
+
+<p>The fix was not more tests of the same kind. It was replacing the fakes with the real thing one layer at a time.</p>
+
+<h2>Testing It For Real</h2>
+
+<h3>A scripted model under the real agent</h3>
+
+<p>Instead of mocking <code>stream_async</code>, I subclass the Strands <code>Model</code> base class and script what the <em>model</em> says. The real <code>Agent</code> then runs its real event loop: it parses the Converse events, invokes the real tool, builds the real <code>toolResult</code> message and emits the real stream events. The abstract methods on the base class in 1.51 are <code>update_config</code>, <code>get_config</code>, <code>structured_output</code> and <code>stream</code>.</p>
+
+<pre><code>from strands import Agent
+from strands.models.model import Model
+
+class ScriptedModel(Model):
+    """Yields pre-recorded Converse events, one list per model call."""
+    def __init__(self, turns):
+        self._turns, self._n = turns, 0
+    async def stream(self, messages, tool_specs=None, system_prompt=None, **kw):
+        events = self._turns[self._n] if self._n &lt; len(self._turns) else [
+            {"messageStop": {"stopReason": "end_turn"}}]
+        self._n += 1
+        for e in events:
+            yield e
+    def update_config(self, **kw): pass
+    def get_config(self): return {}
+    async def structured_output(self, *a, **kw): pass
+
+TOOL_THEN_ANSWER = [
+    [   # model call 1: ask for a tool
+        {"messageStart": {"role": "assistant"}},
+        {"contentBlockStart": {"contentBlockIndex": 0,
+            "start": {"toolUse": {"toolUseId": "t1", "name": "list_items"}}}},
+        {"contentBlockDelta": {"contentBlockIndex": 0,
+            "delta": {"toolUse": {"input": "{}"}}}},
+        {"contentBlockStop": {"contentBlockIndex": 0}},
+        {"messageStop": {"stopReason": "tool_use"}},
+    ],
+    [   # model call 2: answer after the tool result
+        {"messageStart": {"role": "assistant"}},
+        {"contentBlockDelta": {"contentBlockIndex": 0, "delta": {"text": "Done."}}},
+        {"contentBlockStop": {"contentBlockIndex": 0}},
+        {"messageStop": {"stopReason": "end_turn"}},
+    ],
+]
+agent = Agent(model=ScriptedModel(TOOL_THEN_ANSWER), tools=[list_items],
+              callback_handler=None)</code></pre>
+
+<p>Run that through the real route, read the raw SSE bytes, and assert that a "running" chip is followed by a "done" chip. With the original translation that assertion fails immediately, which is the first time any test of mine had failed for this bug. The same scripted model, with a tool that raises, proves the fixed error code appears and the exception text does not. A third script that ends with an oversized stop reason exercises the token-limit path. Each of them is a few lines of data rather than a page of mocking.</p>
+
+<h3>The browser parser, at every chunk boundary</h3>
+
+<p>The client splitter is a pure module, so I bundled it with esbuild and tested it directly under vitest, feeding it bytes produced by the server library itself: <code>ServerSentEvent(...).encode()</code>, not strings I typed by hand. Then I replayed the same byte string through the parser at many chunk sizes, including one byte per chunk, and with a cut placed immediately after every <code>\r</code>. Every split must yield the same events.</p>
+
+<pre><code>test.each([1, 2, 3, 7, 64, 4096])("same events at chunk size %i", async (n) =&gt; {
+  for (const sep of ["\r\n", "\n", "\r"]) {
+    const bytes = encode(events, sep);          // produced by the real server library
+    expect(await parse(chunk(bytes, n))).toEqual(events);
+  }
+});
+
+test("cut after every CR", async () =&gt; {
+  const bytes = encode(events, "\r\n");
+  for (const cut of crPositions(bytes)) {
+    expect(await parse([bytes.slice(0, cut + 1), bytes.slice(cut + 1)])).toEqual(events);
+  }
+});</code></pre>
+
+<p>That second test exists purely for the held-back <code>\r</code> case. A splitter that eagerly treats every <code>\r</code> as a line end will turn one <code>\r\n</code> into a line plus a phantom empty line, and dispatch early.</p>
+
+<h3>A disconnect that is actually a disconnect</h3>
+
+<p>This was the hardest to get right. Starlette's <code>TestClient</code> runs the app to completion even if the test stops reading, so a client that "disconnects" there still has the whole stream delivered and the generator finishes normally. It can never exercise the leak. The test has to talk ASGI directly: call <code>await app(scope, receive, send)</code>, make <code>receive</code> return the request body first and then <code>{"type": "http.disconnect"}</code>, and make <code>send</code> slow so that the generator is parked at its own <code>yield</code> when the disconnect arrives.</p>
+
+<p>There is a second trap inside the test. <code>asyncio.run()</code> calls <code>shutdown_asyncgens()</code> when it exits, which closes any async generator still lying around, and that silently performs the cleanup your fix is supposed to perform. A test that asserts after <code>asyncio.run</code> returns will pass with the fix removed. So the assertions have to happen <em>inside</em> the running loop, at the moment <code>app()</code> returns, and the test should hold an extra reference to the generator to model garbage collection arriving late.</p>
+
+<pre><code>HELD = []
+
+async def scenario():
+    n = 0
+    async def receive():
+        nonlocal n; n += 1
+        if n == 1:
+            return {"type": "http.request", "body": body, "more_body": False}
+        await asyncio.sleep(0.02)
+        return {"type": "http.disconnect"}
+
+    async def send(msg):
+        if msg["type"] == "http.response.body":
+            await asyncio.sleep(0.05)      # slow client: generator parks at its yield
+
+    # Keep the generator alive to model late GC.
+    real = EventSourceResponse
+    def capture(content, *a, **k):
+        HELD.append(content)
+        return real(content, *a, **k)
+
+    with patch("myservice.stream.EventSourceResponse", side_effect=capture):
+        await asyncio.wait_for(app(scope, receive, send), timeout=5)
+
+    # Assert HERE, inside the loop, before shutdown_asyncgens can tidy up.
+    assert lock_is_released(session_id)
+    assert partial_reply_saved(session_id)
+
+asyncio.run(scenario())</code></pre>
+
+<p>With the background <code>aclose()</code> removed, this test fails on the lock assertion. With it present, it passes. That is the property a regression test is supposed to have, and the earlier suite had none like it. I also ran the disconnect scenario in a loop to check that release was reliable rather than lucky, and added a variant where the client disconnects before the stream even starts.</p>
+
+<h3>Two users at once</h3>
+
+<p>Last, the concurrency check: <code>httpx.AsyncClient(transport=ASGITransport(app))</code> with <code>asyncio.gather</code> over two sessions, each with its own scripted model. It confirms that events do not cross between streams and that one user's turn lock does not block another's. It is cheap, and it exercises the real routing and the real response objects at the same time.</p>
+
+<table>
+<tr><th>Trap</th><th>What the fake tests assumed</th><th>What the real library does</th><th>How it was caught</th></tr>
+<tr><td>Tool completion</td><td>Status on the tool-use event</td><td>Result arrives in a <code>message</code> event as <code>toolResult</code></td><td>Scripted <code>Model</code> under the real <code>Agent</code></td></tr>
+<tr><td>Separator</td><td>Any line ending works</td><td>Default is <code>\r\n</code>; the hand-written parser needed <code>\n</code></td><td>Parser tested on bytes from the library's own encoder</td></tr>
+<tr><td>Disconnect</td><td>Response closes the generator</td><td>Only a send timeout closes it</td><td>ASGI-level test asserting inside the loop</td></tr>
+<tr><td>Tool status</td><td>Any string is a status</td><td>Only <code>success</code> or <code>error</code> reach Converse</td><td>One test driving every return path</td></tr>
+</table>
+
+<h2>A Short Checklist Before You Trust a Green Suite</h2>
+
+<ul>
+<li>Does at least one test run the real agent class, with only the model scripted, and read the raw stream bytes at the far end?</li>
+<li>Does the parser test use bytes made by the server library's own encoder, split at every awkward boundary?</li>
+<li>Does a disconnect test talk ASGI directly, with a slow <code>send</code>, and assert before <code>asyncio.run</code> can clean up?</li>
+<li>Does one test enumerate every return path of every tool and assert the top-level status is in the two-value set?</li>
+<li>Does every tool body return a fixed code on failure, with the detail only in the server log?</li>
+</ul>
+
+<p>None of these is expensive. The scripted model is a handful of lines; the splitter test is a loop. What they share is that the thing being tested is the thing that ships.</p>
+
+<h2>What I'd Build Next</h2>
+
+<p>The scripted model still encodes my memory of what the Converse event stream looks like. The natural next step is recorded-stream contract fixtures: capture real event streams once from a live model (a plain answer, a tool call, a tool error, a token-limit stop) and replay them as the scripted model in CI. Then every upgrade of Strands or sse-starlette runs against recordings of reality instead of my recollection of it, and a changed event shape fails a test before it reaches a user.</p>
+
+<p>On the user-facing side, SSE has a built-in answer to dropped connections that I have not used yet: event IDs and the <code>Last-Event-ID</code> header. Numbering the events and letting a reconnecting client resume from where it left off would turn a tab refresh in the middle of a long answer from "start again" into "carry on". It is a UX improvement on top of a stream that now closes cleanly, which is the right order to build them in.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li>In Strands 1.51 the tool-use event carries only the tool name, input and ID. Tool results arrive as user-role <code>message</code> events containing <code>toolResult</code> blocks; read completion from there.</li>
+        <li>Hitting the token limit raises <code>MaxTokensReachedException</code>, guardrail stops report <code>guardrail_intervened</code>, and refusal is a normal stop reason. Handle each explicitly.</li>
+        <li>An uncaught exception inside a tool is sent to the model as text, class name and message included. Wrap every tool body and return fixed error codes. The top-level tool status must be <code>success</code> or <code>error</code>; carry richer states in the JSON body.</li>
+        <li>Replayed history must alternate roles starting with <code>user</code> and contain no empty text blocks. Store a stand-in assistant text when a turn produced none.</li>
+        <li>sse-starlette 3.0.3 frames with <code>\r\n</code> by default. Set <code>sep="\n"</code> on the server and make the client accept <code>\r\n</code>, <code>\r</code> and <code>\n</code>, holding back a trailing <code>\r</code> across chunks.</li>
+        <li>sse-starlette does not <code>aclose()</code> your generator on client disconnect, only on a send timeout. Keep a handle and <code>await gen.aclose()</code> in a <code>background=</code> task, which still runs after a disconnect, with a release fallback.</li>
+        <li>Test with a scripted <code>Model</code> subclass under the real agent, bytes from the library's own encoder, and an ASGI-level disconnect asserted inside the event loop. <code>TestClient</code> and <code>asyncio.run</code>'s generator cleanup both hide the bug.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Strands Agents</span>
+    <span class="tag">Server-Sent Events</span>
+    <span class="tag">FastAPI</span>
+    <span class="tag">sse-starlette</span>
+    <span class="tag">Testing</span>
+    <span class="tag">Amazon Bedrock</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>
