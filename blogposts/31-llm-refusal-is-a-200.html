@@ -169,6 +169,7 @@
         <div class="author-title">Platform Engineering · October 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
 
 <p>A scheduled job assembles a weekly research digest. One section of it is a short list of key results, and each line passes through a verifier before it is allowed into the email. The verifier is deliberately fail-closed: if it cannot confirm that a claim is supported by the text it cites, the claim does not ship. That is the right design for a document people read as fact. It also means that when the verifier goes quiet, the whole section goes quiet with it.</p>
@@ -185,9 +186,9 @@
 
 <p>The AWS model card for Claude Fable 5.1 states the contract plainly in its Content Restrictions section: the model "includes blocking classifiers for dual-use content in cybersecurity and life sciences. When a classifier blocks a request, the API returns a standard HTTP 200 response with <code>stop_reason: "refusal"</code> and a <code>stop_details</code> object containing the restriction category." It adds that refusal rates on that model "are materially higher than on previous Claude models", and gives the instruction that matters most for anyone writing a client: "Customers should handle <code>stop_reason: "refusal"</code> as a primary response path." (<a href="https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-fable-5-1.html" target="_blank" rel="noopener">Claude Fable 5.1 model card, Content Restrictions</a>.)</p>
 
-<p>Billing is spelled out too: prompt-stage refusals, blocked before inference begins, are not billed; mid-stream refusals, blocked after partial output, are billed for the tokens generated before the block. Hold on to that second clause, because it means a late refusal is a cost event as well as a correctness event.</p>
+<p>Billing is spelled out too: prompt-stage refusals, blocked before inference begins, are not billed; mid-stream refusals, blocked after partial output, are billed for the tokens generated before the block. Hold on to that second clause, because it means a late refusal is a cost event as well as a correctness event. <a href="https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback" target="_blank" rel="noopener">Anthropic's own refusals guide</a>, which says its billing rules apply on Bedrock too, is stricter for some categories: as of September 2026, a refusal that arrives before any output is billed when its category is <code>bio</code>, <code>frontier_llm</code> or <code>reasoning_extraction</code>. The InvokeModel refusals in this post were <code>bio</code>, so by that rule an empty answer was not a free one.</p>
 
-<p>I checked the Claude Opus 5.5 model card for the same guidance. It is silent on refusals. What it does document is the surrounding surface: adaptive thinking that "is always on and cannot be disabled", a configurable effort level with a default of medium, and structured outputs listed as not supported on the runtime endpoint. (<a href="https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-opus-5-5.html" target="_blank" rel="noopener">Claude Opus 5.5 model card</a>.) So the refusal contract I describe below for Opus 5.5 is what I observed in live probes, not something that page promises. The safe reading of the Fable card is that any current model on the platform may return this shape, and a client should be ready for it everywhere.</p>
+<p>I checked the Claude Opus 5.5 model card for the same guidance. It is silent on refusals. What it does document is the surrounding surface: adaptive thinking that "is always on and cannot be disabled", a configurable effort level with a default of medium, and structured outputs listed as not supported on the runtime endpoint. (<a href="https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-opus-5-5.html" target="_blank" rel="noopener">Claude Opus 5.5 model card</a>.) So the refusal contract I describe below for Opus 5.5 is not something that page promises. Anthropic's refusals guide does list Opus 5.5 among the models whose classifiers decline this way, and it matches what I observed in live probes. The safe reading of the Fable card is that any current model on the platform may return this shape, and a client should be ready for it everywhere.</p>
 
 <p>What I observed, on the raw InvokeModel path: HTTP 200, <code>stop_reason: "refusal"</code>, a <code>stop_details</code> object whose category was <code>bio</code>, an empty content array, and a handful of output tokens (6 to 8 in the first probe). The prompt that triggered it was a short, benign scientific fact-check. Three runs out of three were refused. The same prompt sent to Sonnet 5.5 and to Opus 5 was answered correctly, every time.</p>
 
@@ -257,7 +258,7 @@ def stream_once(client, model_id, messages):
 
 <p>The design question is what to do after detection. The tempting answers are all wrong. Retrying the same model repeats the same call: on that path the same model refused three times out of three, so the retry should go to a different model. Rewording the prompt until it passes is the opposite of what a safety classifier is for, and I did not want a system that quietly learned to argue with one.</p>
 
-<p>What I built instead is narrower. When a call is refused, the <em>same request, unchanged</em>, goes to a different model. Nothing is rewritten, trimmed, re-worded or disguised. The second model applies its own safeguards and makes its own decision: it may answer, and it may just as well refuse. If it refuses too, that refusal is final and the stage reports it. The fallback model here is Opus 5, which is a current model with its own safety behaviour, and which in my probes answered the fact-check prompt that Opus 5.5 declined.</p>
+<p>What I built instead is narrower. When a call is refused, the <em>same request, unchanged</em>, goes to a different model. Nothing is rewritten, trimmed, re-worded or disguised. The second model applies its own safeguards and makes its own decision: it may answer, and it may just as well refuse. If it refuses too, that refusal is final and the stage reports it. The fallback model here is Opus 5, which is a current model with its own safety behaviour, and which in my probes answered the fact-check prompt that Opus 5.5 declined. One category is the exception: Anthropic's refusals guide says a <code>reasoning_extraction</code> refusal, which comes from a prompt asking the model to write out its reasoning, has no recommended fallback model and should be fixed in the prompt instead, so where the category is visible, leave it out of the retry.</p>
 
 <p>The rules, in the order I settled them with the product owner:</p>
 
@@ -267,7 +268,7 @@ def stream_once(client, model_id, messages):
     <li><strong>Key eligibility on the model ID.</strong> A substring match against a configured list decides which models get a fallback. That covers both the <code>global.</code> and regional inference-profile prefixes with one entry, and it means a model swap next quarter does not need a code change.</li>
     <li><strong>Never retry a guardrail block.</strong> A guardrail blocks content regardless of which model generated it. Sending the same payload to another model would fail the same way, a second time, at a second price.</li>
     <li><strong>Respect the clock.</strong> If less than 120 seconds remain before the stage's deadline, skip the fallback. A rerun that cannot finish is worse than an honest refusal reported on time.</li>
-    <li><strong>Never loop.</strong> If the fallback target equals the primary, or the fallback refuses too, the second answer is final. There is no third attempt, because the same model refused three times out of three on that path, so repeating the call is not the answer; the retry goes to a different model.</li>
+    <li><strong>Never loop.</strong> If the fallback target equals the primary, there is no retry and the refusal stands; if the fallback refuses too, its refusal is final. There is no third attempt: one different model, once, is the whole policy.</li>
     <li><strong>Every setting lives in configuration.</strong> The fallback model, the eligibility list and the deadline floor are all config values read at call time, not import time, and a blank fallback turns the whole thing off.</li>
 </ul>
 
@@ -312,7 +313,7 @@ def stream_once(client, model_id, messages):
         except Exception:
             log.error("refusal hook error (ignored)", exc_info=True)   # a hook must never raise</code></pre>
 
-<p>Three things in that sketch earned their place the hard way. The metric call is dispatched to a background thread, because the callback runs inside the framework's event loop and a synchronous metrics call would block every other request on that worker. The hook swallows its own exceptions, because a bug in telemetry must not turn a recoverable refusal into a crashed run. And the usage is booked before the refusal check, because, as the Fable card says, a mid-stream refusal is billed for what it generated.</p>
+<p>Three things in that sketch earned their place the hard way. The metric call is dispatched to a background thread, because the callback runs inside the framework's event loop and a synchronous metrics call would block every other request on that worker. The hook swallows its own exceptions, because a bug in telemetry must not turn a recoverable refusal into a crashed run. And the usage is booked before the refusal check, because a refusal can be billed: always when it arrives mid-stream, and in some categories even when the content is empty.</p>
 
 <p>There is a UI consequence worth a sentence. The chat front end replaces its streamed text when the final completion event arrives. If a refusal came late, after some text had already streamed, the fallback's answer simply replaces it on screen. No front-end change was needed.</p>
 
@@ -333,14 +334,14 @@ def stream_once(client, model_id, messages):
         <tr><th>Behaviour</th><th>What I observed</th><th>Where it is documented</th></tr>
     </thead>
     <tbody>
-        <tr><td>Forced tool choice</td><td>Rejected with a validation error on Sonnet 5.5 and Opus 5.5; only the automatic setting is accepted</td><td>My live probes; not on the Opus 5.5 card</td></tr>
+        <tr><td>Forced tool choice</td><td>Rejected with a validation error on Sonnet 5.5 and Opus 5.5; only the automatic setting is accepted</td><td>Anthropic's <a href="https://platform.claude.com/docs/en/models/opus-5-5/migration-guide" target="_blank" rel="noopener">Opus 5.5</a> and <a href="https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide" target="_blank" rel="noopener">Sonnet 5.5</a> migration guides; my live probes</td></tr>
         <tr><td>Structured output</td><td>The Converse text-format option is rejected on Sonnet 5, Sonnet 5.5, Opus 5 and Opus 5.5; accepted on Sonnet 4.6 and Haiku 4.5</td><td>Opus 5.5 card lists structured outputs as not supported; the per-model breakdown is from my probes</td></tr>
-        <tr><td>Thinking</td><td>Cannot be disabled on 5.5</td><td>Opus 5.5 card: adaptive thinking is always on</td></tr>
-        <tr><td>Default effort</td><td>Medium on Opus 5.5; high on Opus 5</td><td>Opus 5.5 card for the medium default; Opus 5 figure is from my notes</td></tr>
+        <tr><td>Thinking</td><td>The <code>disabled</code> setting is rejected on both 5.5 models. Opus 5.5 has no way to turn thinking off; Sonnet 5.5 turns up-front thinking off with a separate <code>between_tools</code> setting</td><td>Opus 5.5 card: adaptive thinking is always on; Anthropic's Sonnet 5.5 migration guide for <code>between_tools</code></td></tr>
+        <tr><td>Default effort</td><td>Medium on Opus 5.5; high on Opus 5</td><td>Opus 5.5 card for the medium default; Anthropic's <a href="https://platform.claude.com/docs/en/build-with-claude/effort" target="_blank" rel="noopener">effort documentation</a> for Opus 5's high default</td></tr>
     </tbody>
 </table>
 
-<p>Two of those interact with the fallback. First, structured output. The framework's structured-output feature quietly falls back to forced tool choice, and forced tool choice is itself rejected on the 5.5 models, so there is no supported schema-enforcement path on this tier. The replacement is unglamorous: ask for the shape in prose, parse it, validate it, and treat a parse failure as a first-class outcome. Which brings this story full circle, because a parser that fails on an empty refusal and a parser that fails on malformed JSON are logging the same message unless you teach them to look at the stop reason first.</p>
+<p>Two of those interact with the fallback. First, structured output. The framework's structured-output feature quietly falls back to forced tool choice, and forced tool choice is itself rejected on the 5.5 models, so on Bedrock, where these models' cards also list structured outputs as unsupported, there is no supported schema-enforcement path on this tier. The replacement is unglamorous: ask for the shape in prose, parse it, validate it, and treat a parse failure as a first-class outcome. Which brings this story full circle, because a parser that fails on an empty refusal and a parser that fails on malformed JSON are logging the same message unless you teach them to look at the stop reason first.</p>
 
 <p>Second, effort. Because the default differs between the two models in the fallback pair, a retry that inherits "the default" silently changes how hard the second model thinks. The hook factory therefore recomputes effort for the model it builds, and the direct-call helper rebuilds the whole request body per model. The rule is to set effort explicitly on every call and never rely on a per-model default.</p>
 
@@ -368,9 +369,9 @@ def stream_once(client, model_id, messages):
         <li>On current Claude models a refusal is a successful HTTP 200. AWS's own guidance for Claude Fable 5.1 is to handle <code>stop_reason: "refusal"</code> as a primary response path, with the category in <code>stop_details</code>.</li>
         <li>The signal has different names per API: <code>stop_reason: "refusal"</code> on InvokeModel, <code>stopReason: "content_filtered"</code> on Converse streaming, where there may be no content events at all. Check the stop reason explicitly on every path.</li>
         <li>Exception-based fallbacks never see a refusal. Refusals can also be intermittent and late, so a single passing replay proves little and a response is not safe until its stop reason is read.</li>
-        <li>Retry only the refused call, with the request unchanged, on a second model that applies its own safeguards. Keep tool results, stay on the fallback for the rest of the run, skip it when the deadline is near, and never retry a guardrail block.</li>
-        <li>Book usage per model and report the real model that answered. Mid-stream refusals are billed, so count them too.</li>
-        <li>On the 5.5 tier, set effort explicitly, expect no forced tool choice and no structured-output path, and validate prose output instead.</li>
+        <li>Retry only the refused call, with the request unchanged, on a second model that applies its own safeguards. Keep tool results, stay on the fallback for the rest of the run, skip it when the deadline is near, never retry a guardrail block, and fix the prompt rather than retry a <code>reasoning_extraction</code> refusal.</li>
+        <li>Book usage per model and report the real model that answered. A refusal can be billed even with empty content, depending on its category, and a mid-stream refusal always is, so count every one.</li>
+        <li>On the 5.5 tier on Bedrock, set effort explicitly, expect no forced tool choice and no structured-output path, and validate prose output instead.</li>
         <li>Verify the artifact the reader sees. A job that reports success while rendering em dashes is still broken.</li>
     </ul>
 </div>
@@ -402,6 +403,8 @@ def stream_once(client, model_id, messages):
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

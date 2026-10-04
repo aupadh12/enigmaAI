@@ -11,7 +11,10 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:height" content="627">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/13-agent-feedback-loop.html">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Closing the Feedback Loop: How User Corrections Become Domain Knowledge">
+    <meta name="twitter:description" content="The agent was wrong. The user corrected it. The next user got the same wrong answer. Here's how to close the loop — without fine-tuning.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/13-agent-feedback-loop.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -80,6 +83,8 @@
     </div>
 </div>
 
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <h2>The Same Mistake, Three Times</h2>
 
 <p>A researcher on our proteomics team corrected the same agent behavior three times in one week. Every time they asked the agent to compare cell line sensitivity across compounds, it would join DepMap data to an internal screening dataset directly — which runs without error, but silently drops most of the cell lines because the names don't match exactly across those two datasets. The agent then reports a low match rate as a caveat instead of fixing it. The right workflow is to call Cellosaurus first, build a name-to-ID mapping table, then join.</p>
@@ -113,31 +118,31 @@
 
 <p>This one is free. When a user says "no, use X instead of Y" mid-conversation, the correction lives in the conversation history. The LLM sees it when it processes the next turn and adapts immediately. No infrastructure required, no latency.</p>
 
-<p>The limitation is obvious: it ends with the session. But it's still worth thinking about explicitly, because some corrections don't need to be durable. A one-time clarification about a specific dataset shouldn't necessarily persist to every future user. Layer 4 handles transient corrections naturally.</p>
+<p>The limitation is obvious: it ends with the session. But it's still worth thinking about explicitly, because some corrections don't need to be durable. A one-time clarification about a specific dataset shouldn't necessarily persist to every future user. Layer 1 handles transient corrections naturally.</p>
 
 <h3>Layer 2: Per-User Memory (minutes, one user, all sessions)</h3>
 
-<p>This is where AWS AgentCore Memory fits. When a user gives a thumbs-down with a substantive written comment (more than 20 characters), the correction is written to a user-scoped namespace in the memory store. The next time that user starts a session, the correction surfaces as part of the session initialization context. The agent sees it before the user says anything and adjusts its behavior accordingly.</p>
+<p>This is where Amazon Bedrock AgentCore Memory fits. When a user gives a thumbs-down with a substantive written comment (more than 20 characters), the correction is written to a user-scoped namespace in the memory store. The next time that user starts a session, the correction surfaces as part of the session initialization context. The agent sees it alongside the user's first message and adjusts its behaviour accordingly.</p>
 
 <p>The key constraint is that this is per-user. If researcher A corrects the Cellosaurus workflow, researcher B still gets the wrong behavior until they correct it themselves. Per-user memory is powerful for persistent individual preferences — but it doesn't benefit the team.</p>
 
-<p>It also introduces a data architecture challenge. User corrections are stored under a namespaced actorId derived from their email. The namespace scoping is critical — one of the first bugs we hit in production was a namespace path that returned all users' corrections, not just the current user's. More on this in the companion post on cross-session memory.</p>
+<p>It also introduces a data architecture challenge. User corrections are stored under a namespaced actorId derived from their email. The namespace scoping is critical — one of the first bugs we caught before shipping was a namespace path that would have returned all users' corrections, not just the current user's. More on this in the <a href="12-cross-session-agent-memory.html">companion post on cross-session memory</a>.</p>
 
 <h3>Layer 3: Skill Updates (5 minutes, all users, no release)</h3>
 
 <p>This is the highest-leverage layer. Skills are domain knowledge documents stored in S3 that the agent fetches at query time via a <code>get_skills</code> tool call. They describe data sources, identifier resolution rules, workflow recommendations, common mistakes, and score interpretation guidance. When the agent is about to query a dataset it's uncertain about, it fetches the relevant skill and uses it to guide its approach.</p>
 
-<p>The critical property of skills is that S3 is the canonical source. The code dictionary in the application is a seed — it writes to S3 only when the S3 object doesn't exist. Once a skill exists in S3, code changes are ignored at runtime. Editing the Python file and deploying a new image has zero effect on the running skill.</p>
+<p>The critical property of skills is that S3 is the canonical source. In our first version, the code dictionary was a seed — it wrote to S3 only when the S3 object didn't exist, so once a skill existed in S3, code changes were ignored at runtime. Editing the Python file and deploying a new image had zero effect on the running skill.</p>
 
 <p>This means an admin can update a skill via a web UI — no code change, no image build, no deployment — and every pod picks it up within 5 minutes (the cache TTL). One correction, all users, near-instant.</p>
 
 <p>The Cellosaurus workflow correction is exactly the kind of thing that belongs in a skill. A one-sentence rule in the <code>cellosaurus</code> or <code>depmap</code> skill: "Always resolve cell line names through Cellosaurus before joining screening or DepMap data." That rule affects every user who queries those datasets, for every session, forever.</p>
 
-<h3>Layer 4: Prompt Optimization (hours, all users, eval-gated)</h3>
+<h3>Layer 4: Prompt Optimization (hours to days, all users, eval-gated)</h3>
 
 <p>The most powerful and most expensive layer. When you have enough feedback signal to identify systematic patterns — the agent consistently misuses certain tools, systematically over-claims on incomplete data, routinely fails a specific class of query — those patterns may indicate gaps in the system prompt rather than the skill layer.</p>
 
-<p>Prompt optimization requires an eval harness as a prerequisite. You can't safely change a system prompt without measuring whether the change improved the problematic behavior and didn't regress anything else. This is the layer we haven't shipped yet — not because the approach is wrong, but because it requires an evaluation harness as a prerequisite. We're building toward it: Tier 1 deterministic trajectory evaluations running nightly, with prompt changes gated on all three tiers passing. Until the harness exists, this layer is designed but not deployed.</p>
+<p>Prompt optimization requires an eval harness as a prerequisite. You can't safely change a system prompt without measuring whether the change improved the problematic behaviour and didn't regress anything else, so gate every prompt change on the harness.</p>
 
 <p>This layer operates on a longer cadence than the others — hours to days rather than minutes — and should be reserved for patterns that recur across many users and many sessions. A correction that appears twice is noise. A correction that appears seventeen times across different users on the same data source pattern is a signal worth spending an eval cycle on.</p>
 
@@ -146,9 +151,9 @@
 <p>Reading DynamoDB manually every week doesn't scale. The clustering job automates the signal extraction:</p>
 
 <pre><code># Weekly feedback review job
-# Scans the agent-prompts project for user comments (any sentiment)
+# Scans the feedback table for user comments (any sentiment)
 # FilterExpression: begins_with(pk, "user#") AND attribute_exists(comment)
-# No timestamp filter — drop it; feedback timestamps aren't set at write time
+# No timestamp filter — the table is small enough to scan whole
 
 def scan_feedback_comments(table) -> list[dict]:
     items = []
@@ -182,7 +187,7 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
   "sample_corrections": [...]}}]}}
 """</code></pre>
 
-<p>The threshold of ≥3 is a noise filter. One correction might be personal preference or a misunderstanding. Three corrections on the same topic from different users, in different sessions, is a pattern worth acting on.</p>
+<p>The threshold of ≥3 is a noise filter. One correction might be personal preference or a misunderstanding. Three corrections on the same topic is a pattern worth acting on — once the admin has confirmed they come from different users.</p>
 
 <p>The output surfaces in an admin UI as candidate skill updates. An admin reads the cluster, edits the relevant skill via the web UI (or writes a new one), and the change propagates within 5 minutes to all pods. No code change, no deployment, no review cycle beyond the admin's judgment.</p>
 
@@ -192,9 +197,9 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
 
 <h2>The UI Bug That Made the Whole System Inert</h2>
 
-<p>We had this architecture designed and partially built for months before we realized the input signal was zero. The DynamoDB table had 413 items. Two had a thumbs-down rating. Three had a comment. Zero had both — not a single row where a user had rated the response negatively AND left a comment explaining why.</p>
+<p>We had this architecture designed and partially built for months before we realized the input signal was zero. The feedback table had a few hundred items. A couple had a thumbs-down rating. A few had a comment. Zero had both — not a single row where a user had rated the response negatively AND left a comment explaining why.</p>
 
-<p>The clustering job had nothing to cluster. The skills were never updated from user corrections. And the same bug silenced Layer 2 as well — per-user corrections are only written when a user gives a thumbs-down <em>with</em> a comment, which also had zero co-occurring pairs. The entire durable learning path — Layer 1 skill updates and Layer 2 per-user memory — was simultaneously disabled by one frontend state flag. The feedback infrastructure was complete and the learning loop was completely dead.</p>
+<p>The clustering job had nothing to cluster. The skills were never updated from user corrections. And the same bug silenced Layer 2 as well — per-user corrections are only written when a user gives a thumbs-down <em>with</em> a comment, which also had zero co-occurring pairs. The entire durable learning path — Layer 3 skill updates and Layer 2 per-user memory — was simultaneously disabled by one frontend state flag. The feedback infrastructure was complete and the learning loop was completely dead.</p>
 
 <div class="warn-box">
     <p><strong>Root cause:</strong> When a user clicked 👎, the feedback bar immediately collapsed to a "Thanks for your feedback!" message, and the comment button disappeared. The comment input was inside an <code>{#if !feedbackSubmitted}</code> block. Clicking thumbs-down set <code>feedbackSubmitted = true</code>, which rendered the comment box unreachable forever. You could only leave a comment if you clicked 💬 first — before rating — which nobody did, because it wasn't the natural interaction flow.</p>
@@ -270,29 +275,25 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
 
 <p>The admin review step isn't bureaucracy. It's the filter that keeps corrections from being self-referentially wrong. The clustering job surfaces candidates; a human with domain expertise decides what's systematic enough to encode.</p>
 
-<div class="stale-box">
-    <p><strong>The loop isn't fully closed yet.</strong> The clustering job surfaces candidates to the admin UI, and an admin can approve them into a skill update. But the skill update doesn't flow back into the eval harness to verify it fixed the original correction pattern. That feedback — "did updating this skill actually reduce corrections on this topic?" — is the next iteration. We're building toward it, but it requires the Tier 2 evaluation pipeline first.</p>
-</div>
-
 <h2>What a Complete Feedback Architecture Looks Like</h2>
 
 <p>Putting it together: a correction that a user makes today should flow through the system in order of urgency and durability.</p>
 
 <p>If it's a one-time contextual correction, Layer 1 handles it. The session history carries it forward for the rest of that session. Nothing persists, nothing needs to.</p>
 
-<p>If it's a repeated correction for that specific user — the same workflow mistake they've pointed out before — Layer 2 catches it. The per-user corrections namespace surfaces it at the start of their next session. The agent knows, before the user says anything, that this user has a specific preference about cell line resolution order.</p>
+<p>If it's a repeated correction for that specific user — the same workflow mistake they've pointed out before — Layer 2 catches it. The per-user corrections namespace surfaces it at the start of their next session. The agent knows, from the first message, that this user has a specific preference about cell line resolution order.</p>
 
 <p>If it's a pattern that appears across multiple users on the same topic — ≥3 corrections with the same underlying error — Layer 3 handles it. The admin sees the cluster, edits the relevant skill, and all users benefit within 5 minutes.</p>
 
 <p>If the pattern is systemic enough that it can't be captured in a skill — it's about how the agent reasons about a class of problems, not just how it handles a specific data source — it becomes a prompt optimization candidate, gates on the eval harness, and deploys as a system prompt change.</p>
 
-<p>None of this requires fine-tuning. All of it is reversible. The fastest path (skill update) takes 5 minutes from identifying the pattern to every user benefiting. The slowest path (prompt optimization) runs on a weekly cycle with eval gates. Both are dramatically faster and safer than fine-tuning for the corrections that matter most in practice.</p>
+<p>None of this requires fine-tuning. All of it is reversible. The fastest path (skill update) takes 5 minutes from identifying the pattern to every user benefiting. The slowest path (prompt optimization) belongs on a weekly cycle behind eval gates. Both are dramatically faster and safer than fine-tuning for the corrections that matter most in practice.</p>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
         <li>Feedback infrastructure without signal is invisible failure — verify that your UX actually produces the data your processing pipeline needs</li>
-        <li>The UI bug was one line: 👎 setting <code>feedbackSubmitted = true</code> before the user had a chance to explain. One behavioral change restored the entire feedback loop</li>
+        <li>The UI bug was one line: 👎 setting <code>feedbackSubmitted = true</code> before the user had a chance to explain. One behavioural change unblocked the entire feedback loop</li>
         <li>Skills (S3-served domain knowledge) beat fine-tuning for domain corrections on every dimension except coverage — use them for data source-specific workflow rules</li>
         <li>The ≥3 threshold on clustering is a noise filter, not a rule — tune it based on your user volume and the base rate of valid corrections</li>
         <li>Keep a human in the loop between clustering candidates and skill updates — not every pattern is worth encoding, and some corrections conflict with each other</li>
@@ -308,7 +309,7 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
     <span class="tag">Production AI</span>
     <span class="tag">UX Patterns</span>
     <span class="tag">Domain Knowledge</span>
-    <span class="tag">AWS AgentCore</span>
+    <span class="tag">Amazon Bedrock AgentCore</span>
 </div>
 
 
@@ -328,6 +329,8 @@ Return JSON: {{"clusters": [{{"topic": "...", "count": N,
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

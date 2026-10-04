@@ -402,7 +402,7 @@
         </div>
     </div>
 
-    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated October 2026 with lessons from a conference talk on why one agent isn't enough.</em></p>
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated October 2026 with lessons from a conference talk on why one agent isn't enough, and on 4 October 2026 with technical corrections.</em></p>
 
     <h2>Retrieval Was Never the Hard Part</h2>
 
@@ -446,7 +446,7 @@
     <div class="role-grid">
         <div class="role-card scout">
             <div class="role-name">Data Scout &mdash; <em>Breadth</em></div>
-            <div class="role-desc">Retrieves without filtering. Rewarded for coverage, not precision — returns everything it found, including the inconvenient results. A fresh instance per task to avoid shared-state corruption across concurrent queries.</div>
+            <div class="role-desc">Retrieves without filtering. Rewarded for coverage, not precision — returns everything it found, including the inconvenient results. A fresh instance per query, as for every role, so no state carries over between queries.</div>
             <div class="role-model">Model: Sonnet (fast, cost-effective)</div>
         </div>
         <div class="role-card analyst">
@@ -616,7 +616,7 @@
                 <td><strong>Synthesizer</strong></td>
                 <td>Opus (frontier)</td>
                 <td>Resolving contradictions requires highest reasoning capability</td>
-                <td>High (but only one call)</td>
+                <td>High (one pass; two when the Critic asks for a revision)</td>
             </tr>
             <tr>
                 <td><strong>Critic</strong></td>
@@ -677,48 +677,63 @@
 
     <pre><code># Simplified multi-agent orchestration
 from langfuse import observe
+from pydantic import BaseModel
+from strands import Agent
+
+class CritiqueVerdict(BaseModel):
+    needs_revision: bool
+    issues: list[str]
+
+class ResearchReport(BaseModel):
+    text: str
+    caveats: list[str]
 
 class ResearchOrchestrator:
-    def __init__(self):
-        self.analyst = Agent(model="sonnet", tools=ANALYSIS_TOOLS, system_prompt=ANALYST_PROMPT)
+    def _new_agents(self):
+        """Fresh instances per query - agents carry conversational state"""
+        scout = Agent(model="sonnet", tools=SCOUT_TOOLS, system_prompt=SCOUT_PROMPT)
+        analyst = Agent(model="sonnet", tools=ANALYSIS_TOOLS, system_prompt=ANALYST_PROMPT)
         # Synthesizer: a small set of read tools; writes are blocked until review is done
-        self.synthesizer = Agent(model="opus", tools=READ_TOOLS, system_prompt=SYNTH_PROMPT)
+        synthesizer = Agent(model="opus", tools=READ_TOOLS, system_prompt=SYNTH_PROMPT)
         # Critic: independent lookups only (knowledge graph, literature, skills)
-        self.critic = Agent(model="opus", tools=[KG_LOOKUP, LITERATURE_SEARCH, SKILL_LOOKUP],
-                            system_prompt=CRITIC_PROMPT)
-
-    def _new_scout(self):
-        """Fresh Scout per task - agents carry state"""
-        return Agent(model="sonnet", tools=SCOUT_TOOLS, system_prompt=SCOUT_PROMPT)
+        critic = Agent(model="opus", tools=[KG_LOOKUP, LITERATURE_SEARCH, SKILL_LOOKUP],
+                       system_prompt=CRITIC_PROMPT)
+        return scout, analyst, synthesizer, critic
 
     @observe(name="multi-agent-research")
     async def research(self, query: str) -> ResearchReport:
+        scout, analyst, synthesizer, critic = self._new_agents()
+
         # Phase 1: Data gathering — one Scout call that receives the user's question
         # (Strands Agent.__call__ is synchronous; use invoke_async() for await)
-        scout_results = await self._new_scout().invoke_async(query)
+        scout_results = await scout.invoke_async(query)
 
         # Phase 2: Analysis (sequential — needs scout output)
-        analysis = await self.analyst.invoke_async(
+        analysis = await analyst.invoke_async(
             f"Analyze these findings:\n{scout_results}"
         )
 
         # Phase 3: Synthesis
-        report = await self.synthesizer.invoke_async(
+        report = await synthesizer.invoke_async(
             f"Synthesize into a coherent report:\n{analysis}"
         )
 
-        # Phase 4: Adversarial critique
-        critique = await self.critic.invoke_async(
-            f"Find flaws in this report:\n{report}"
+        # Phase 4: Adversarial critique — on the raw retrieved data, not just the report
+        # On tiers that reject forced tool choice (the 5.5 models on Bedrock), ask for a
+        # prose verdict and parse it instead — see post 31
+        critique = await critic.invoke_async(
+            f"Find flaws in this report:\n{report}\n\nRaw retrieved data:\n{scout_results}",
+            structured_output_model=CritiqueVerdict,
         )
 
         # Phase 5: Revision (if critique found issues); any writes run only after review
-        if critique.has_issues:
-            report = await self.synthesizer.invoke_async(
+        if critique.structured_output.needs_revision:
+            report = await synthesizer.invoke_async(
                 f"Revise based on critique:\n{report}\n\nCritique:\n{critique}"
             )
 
-        return report
+        # Researchers get the Critic's caveats with the report, not just the text
+        return ResearchReport(text=str(report), caveats=critique.structured_output.issues)
 </code></pre>
 
     <h2>Observability with Langfuse: You Can't Optimize What You Can't Measure</h2>
@@ -782,38 +797,38 @@ class ResearchOrchestrator:
             <path d="M498 180 L502 198" stroke="#64748b" stroke-width="1" stroke-dasharray="3"
                 marker-end="url(#arrow)" />
 
-            <!-- Typical answer: ~290s (stage medians) -->
+            <!-- Sum of stage medians: ~290s -->
             <rect x="420" y="255" width="240" height="20" rx="4" fill="#1e293b" />
-            <text x="540" y="269" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Typical answer: ~290s (stage medians)</text>
+            <text x="540" y="269" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Sum of stage medians: ~290s</text>
         </svg>
         <div class="diagram-caption">Figure 2: Langfuse trace showing the single Scout stage, sequential dependencies,
             and per-role latency (stage medians)</div>
     </div>
 
-    <pre><code># Langfuse integration pattern (SDK v3)
-from langfuse import observe, get_client
+    <pre><code># Langfuse integration pattern (SDK v4)
+from langfuse import observe, get_client, propagate_attributes
 
 @observe(name="multi-agent-research")
 async def research(query: str):
-    # Trace metadata attaches to the current span automatically
     langfuse = get_client()
-    langfuse.update_current_trace(
+
+    # Trace attributes propagate to every span created inside this block
+    with propagate_attributes(
         metadata={"query_type": classify_query(query)},
-        tags=["multi-agent", "research"]
-    )
+        tags=["multi-agent", "research"],
+    ):
+        @observe(name="scout-phase")
+        async def scout_phase():
+            return await run_scout(query)
 
-    @observe(name="scout-phase")
-    async def scout_phase():
-        return await run_scout(query)
+        @observe(name="analyst-phase")
+        async def analyst_phase(data):
+            return await analyst(data)
 
-    @observe(name="analyst-phase")
-    async def analyst_phase(data):
-        return await analyst(data)
-
-    # Each phase gets its own Langfuse span
-    scout_data = await scout_phase()
-    analysis = await analyst_phase(scout_data)
-    # ... synthesis and critique traced similarly
+        # Each phase gets its own Langfuse span
+        scout_data = await scout_phase()
+        analysis = await analyst_phase(scout_data)
+        # ... synthesis and critique traced similarly
 
     # Score the output for quality monitoring
     langfuse.score_current_trace(
@@ -830,7 +845,7 @@ async def research(query: str):
             retries = less total spend.
         </li>
         <li><strong>Per-role token tracking revealed waste.</strong> The Analyst was receiving the Scout's full output
-            but using only a fraction of it — a clear optimization target that the waterfall view alone exposed. Without per-role attribution, this inefficiency is invisible.</li>
+            but using only a fraction of it — something only per-role token attribution shows; in aggregate numbers, this inefficiency is invisible.</li>
     </ol>
 
     <div class="metric-grid">
@@ -839,12 +854,12 @@ async def research(query: str):
             <div class="metric-label">Agent Roles</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value">~6s</div>
-            <div class="metric-label">Avg Latency</div>
+            <div class="metric-value">~290s</div>
+            <div class="metric-label">Sum of Stage Medians</div>
         </div>
         <div class="metric-card">
-            <div class="metric-value">$0.08</div>
-            <div class="metric-label">Per Query</div>
+            <div class="metric-value">6–15</div>
+            <div class="metric-label">LLM Calls per Query</div>
         </div>
         <div class="metric-card">
             <div class="metric-value">23%</div>
@@ -869,9 +884,9 @@ Be critical. A report that passes your review should be publishable."""
 
     <p>There is a non-obvious design decision here: <strong>the Critic receives the raw retrieved data, not only the Synthesizer's report.</strong> A critic that reads just the report can check internal consistency — it cannot check whether the report is actually grounded in the evidence the Scout retrieved. Building that ground-truth link explicitly is what makes this a review rather than a consistency check.</p>
 
-    <p>In practice, the Critic triggers a revision loop in approximately 23% of research-tier queries (11 of 47 recorded). A representative case: a Synthesizer once proposed a target ranked first on dependency evidence, reported with high confidence. The Critic objected that the supporting effect was carried by a small number of lines from a single cell-line panel, and that a second source in the Scout's own retrieval showed the effect failing to replicate. The revised report demoted the candidate, surfaced the replication conflict explicitly, and named the experiment that would settle it.</p>
+    <p>In practice, the Critic triggers a revision loop in roughly one research-tier query in four (about 23%). A representative case: a Synthesizer once proposed a target ranked first on dependency evidence, reported with high confidence. The Critic objected that the supporting effect was carried by a small number of lines from a single cell-line panel, and that a second source in the Scout's own retrieval showed the effect failing to replicate. The revised report demoted the candidate, surfaced the replication conflict explicitly, and named the experiment that would settle it.</p>
 
-    <p>The 77% of queries where the Critic does not trigger a revision also have value: they add confidence that the report is solid — which researchers notice and appreciate.</p>
+    <p>The 77% of queries where the Critic does not trigger a revision still get its verdict — usually caveats pinned to specific claims rather than a clean pass — and researchers notice and value those caveats.</p>
 
     <div class="highlight-box">
         <p><strong>Counter-intuitive economics:</strong> adding an expensive frontier-tier Critic reduces total cost to the researcher. A wrong answer requires a re-run plus the researcher's time to detect it. Catching the error once in the pipeline is cheaper than discovering it in the analysis — even if the argument is harder to quantify precisely than it sounds.</p>
@@ -911,29 +926,33 @@ Be critical. A report that passes your review should be publishable."""
     <pre><code># deployment-data-scout.yaml (excerpt)
 spec:
   replicas: 2              # High throughput, parallel queries
-  containers:
-    - resources:
-        requests:
-          memory: "512Mi"  # Lightweight — just tool calls
-          cpu: "250m"
+  template:
+    spec:
+      containers:
+        - resources:
+            requests:
+              memory: "1Gi"    # Heaviest role — holds the raw tool results
+              cpu: "250m"
 
 # deployment-synthesizer.yaml (excerpt)
 spec:
-  replicas: 1              # One at a time, deep reasoning
-  containers:
-    - resources:
-        requests:
-          memory: "1Gi"    # Larger context window handling
-          cpu: "500m"
+  replicas: 2              # Sequential within a query; replicas serve concurrent users
+  template:
+    spec:
+      containers:
+        - resources:
+            requests:
+              memory: "512Mi"  # Inference runs on Bedrock, not in the pod
+              cpu: "500m"
 </code></pre>
 
-    <p>This lets you scale each role independently. Data Scouts scale out for throughput. Synthesizer stays at 1 replica
-        to bound concurrent synthesis — a single pod serializes cross-user requests; size the concurrency semaphore to
-        match your throughput target and expect 429s beyond it. The Critic can be temporarily scaled to 0 in
+    <p>This lets you scale each role independently. Data Scouts scale out for throughput. The Synthesizer is sequential
+        within a query but runs two replicas for concurrent users; size its concurrency limit to your throughput target
+        and expect 429s beyond it. The Critic can be temporarily scaled to 0 in
         low-priority environments to save cost, but requires a feature flag in the orchestrator to skip the stage —
         scaling to 0 without one causes connection failures.</p>
 
-    <p>One operational trap: a fresh Scout instance must be created per task. Agents carry conversational state, and sharing one instance across concurrent queries corrupts it. This is not obvious until you hit it in production.</p>
+    <p>One operational trap: create a fresh instance of every role per query. Agents carry conversational state: reuse one and the previous query's conversation leaks into the next, and current Strands releases refuse a second concurrent call on the same instance outright. This is not obvious until you hit it in production.</p>
 
     <h2>Lessons Learned</h2>
 
@@ -1019,6 +1038,8 @@ spec:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

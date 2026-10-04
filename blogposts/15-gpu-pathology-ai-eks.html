@@ -6,14 +6,14 @@
     <title>GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load">
-    <meta property="og:description" content="Burst GPU workloads, silent Karpenter version traps, and why a draining SQS consumer will break your ScaledJob scaling.">
+    <meta property="og:description" content="Burst GPU workloads, silent Karpenter and KEDA version traps, and when a ScaledJob is the wrong primitive.">
     <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/15-gpu-pathology-ai-eks.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:height" content="627">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load">
-    <meta name="twitter:description" content="Burst GPU workloads, silent Karpenter version traps, and why a draining SQS consumer will break your ScaledJob scaling.">
+    <meta name="twitter:description" content="Burst GPU workloads, silent Karpenter and KEDA version traps, and when a ScaledJob is the wrong primitive.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/15-gpu-pathology-ai-eks.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -117,7 +117,7 @@
 
 <div class="header-badge">MLOps</div>
 <h1>GPU Digital Pathology AI on Kubernetes: What KEDA ScaledJobs Actually Do Under Load</h1>
-<p class="subtitle">Burst GPU workloads, silent Karpenter version traps, and why a draining SQS consumer will break your ScaledJob scaling.</p>
+<p class="subtitle">Burst GPU workloads, silent Karpenter and KEDA version traps, and when a ScaledJob is the wrong primitive.</p>
 
 <div class="author-block">
     <div class="author-avatar">A</div>
@@ -126,24 +126,25 @@
         <div class="author-title">Platform Engineering · Johnson & Johnson Innovative Medicine · August 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
-<h2>The Upgrade That Broke Everything Silently</h2>
+<h2>The Controller Version That Broke Everything Silently</h2>
 
-<p>Our digital pathology AI pipeline was running smoothly. Whole-slide images arrived in batches of eight, a KEDA ScaledJob spawned inference pods on demand, Karpenter provisioned GPU nodes within two minutes, and results streamed back to researchers. Then we upgraded Karpenter to 1.0.1.</p>
+<p>Our digital pathology AI pipeline was running smoothly. Whole-slide images arrived in batches of eight, a KEDA ScaledJob spawned inference pods on demand, Karpenter provisioned GPU nodes for them, and results streamed back to researchers. Then we checked another of our clusters before putting GPU work on it — one still running Karpenter 1.0.1.</p>
 
-<p>No job completed. GPU pods sat <code>Pending</code> indefinitely. No error, no failed pod, no alarm. A researcher noticed after 45 minutes that their analysis hadn't come back.</p>
+<p>On that version nothing completes. GPU pods sit <code>Pending</code> indefinitely — no error, no failed pod, no alarm — and the first signal is whoever is waiting for a result.</p>
 
-<p>We checked the NodePool status: <code>READY=True</code>. We checked the EC2NodeClass: <code>READY=True</code>. Everything looked healthy. Then we looked at the operator logs — the controller had been logging a reconcile failure every 60 seconds, invisible to <code>kubectl get</code>. Karpenter 1.0.1 had inverted the AMI selection logic for AL2023: GPU instances were being provisioned with the Neuron AMI variant instead of the NVIDIA one. The NVIDIA driver never installed. The NVIDIA device plugin never started. <code>nvidia.com/gpu</code> was never advertised as an allocatable resource. The scheduler had nothing to schedule onto, so GPU pods waited forever.</p>
+<p>The NodePool reports <code>READY=True</code>. So does the EC2NodeClass. Everything looks healthy; the problem is only visible on the GPU node itself. Karpenter 1.0.1 inverts the AMI selection logic for AL2023: GPU instances are provisioned with the Neuron AMI variant instead of the NVIDIA one. The NVIDIA driver never installs. The NVIDIA device plugin never starts. <code>nvidia.com/gpu</code> is never advertised as an allocatable resource. The scheduler has nothing to schedule onto, so GPU pods wait forever.</p>
 
-<p>The real lesson wasn't "CUDA calls fail on wrong hardware." It was: <strong>READY=True on the NodePool does not mean the GPU resource is allocatable.</strong> Status fields reflect the controller's last cached observation, not live device state.</p>
+<p>The real lesson wasn't "CUDA calls fail on wrong hardware." It was: <strong>READY=True on the NodePool does not mean the GPU resource is allocatable.</strong> Here the status was accurate — the AMIs resolved fine; they were just the wrong ones. A separate problem on the same cluster showed how stale status can get: an old <code>al2@latest</code> alias that no longer resolves (EKS stopped publishing AL2 images after Kubernetes 1.32) had the controller logging a reconcile failure every 60 seconds, invisible to <code>kubectl get</code>, while the EC2NodeClass still reported <code>READY=True</code>. Status fields reflect the controller's last observation, not live device state.</p>
 
-<p>That was the first of three version traps we hit over six months of running GPU workloads for AI image analysis at scale. This is what we learned.</p>
+<p>That was the first of two version traps we hit over six months of running GPU workloads for AI image analysis at scale. This is what we learned.</p>
 
 <h2>Why Digital Pathology AI Has a Unique Infrastructure Problem</h2>
 
 <p>Whole-slide image analysis is one of the most demanding workloads in biomedical AI. A single slide can be 50,000 × 50,000 pixels or more. Tissue segmentation, cell classification, and spatial phenotyping require GPU-accelerated inference with multi-gigabyte models loaded into VRAM. And the workload is inherently bursty: a pathologist submits ten slides at 09:00, needs results before lunch, then the queue is empty for hours.</p>
 
-<p>Standard Kubernetes Deployments are the wrong tool here. Keeping a GPU node running 24/7 for a workload that's active three hours per day is expensive — a g5.xlarge (1× A10G) runs around $1/hr on-demand — and you're paying that around the clock for a workload that only uses it a few hours a day. On the other hand, the cold start time for spinning up a new node, pulling a 5GB image, and loading the model into GPU memory is 45–90 seconds. That's acceptable once per batch; it's not acceptable if it happens per message.</p>
+<p>Standard Kubernetes Deployments are the wrong tool here. Keeping a GPU node running 24/7 for a workload that's active three hours per day is expensive — a g5.xlarge (1× A10G) runs around $1/hr on-demand — and you're paying that around the clock for a workload that only uses it a few hours a day. On the other hand, the cold start time for spinning up a new node, pulling a 5GB image, and loading the model into GPU memory runs to several minutes. That's acceptable once per batch; it's not acceptable if it happens per message.</p>
 
 <p>KEDA ScaledJobs solve the first problem elegantly: create one Kubernetes Job per N queue messages, let it run, let Karpenter deprovision the node when it's done. But ScaledJobs come with constraints that aren't obvious until you hit them in production.</p>
 
@@ -203,25 +204,32 @@
 
 <h2>Karpenter 1.0.1: The NVIDIA/Neuron AMI Inversion</h2>
 
-<p>This was the incident that opened this post. Let's be precise about what happened.</p>
+<p>This is the trap that opened this post. Let's be precise about it.</p>
 
 <p>Karpenter determines which AMI variant to use based on the <code>amiFamily</code> and instance type. For AL2023, GPU instances should get the <code>NVIDIA</code> variant; AWS Inferentia instances should get <code>Neuron</code>. In Karpenter 1.0.1, this variant selection was inverted for AL2023. GPU nodes booted with the Neuron AMI — which ships with the AWS Neuron runtime, not the NVIDIA driver. The device plugin never started, so the resource was never advertised.</p>
 
 <div class="stale-box">
-    <p><strong>Karpenter 1.0.1 trap (verified):</strong> GPU instances were provisioned with the Neuron AL2023 AMI variant. NVIDIA driver not installed → NVIDIA device plugin not started → <code>nvidia.com/gpu</code> never allocatable → GPU pods pending forever. NodePool and EC2NodeClass both showed <code>READY=True</code> (stale cached status). Operator logs showed reconcile failures every 60 seconds — invisible to <code>kubectl get</code>. The failure only surfaced when checking operator pod logs directly.</p>
+    <p><strong>Karpenter 1.0.1 trap (verified):</strong> GPU instances were provisioned with the Neuron AL2023 AMI variant. NVIDIA driver not installed → NVIDIA device plugin not started → <code>nvidia.com/gpu</code> never allocatable → GPU pods pending forever. NodePool and EC2NodeClass both showed <code>READY=True</code> — accurately, because the AMIs resolved; they were simply the wrong ones. The failure only surfaced on the node itself. (The reconcile failures every 60 seconds behind a stale <code>READY=True</code> came from the separate <code>al2@latest</code> alias that no longer resolves.)</p>
 </div>
 
-<p>The fix is straightforward: <strong>upgrade Karpenter to v1.0.3 or later (the AMI variant fix landed in PR #6976)</strong>, where the AMI variant selection is corrected. Keep <code>alias: al2023@latest</code> — do not revert to AL2, which AWS stopped releasing for EKS after November 2025. Add a post-upgrade verification step to confirm the GPU resource is actually allocatable.</p>
+<p>The fix is straightforward: <strong>upgrade Karpenter to v1.0.3 or later (the AMI variant fix landed in PR #6976)</strong>, where the AMI variant selection is corrected. Pin the AL2023 alias to a dated release in production and bump it through staging like any other GPU dependency — <code>al2023@latest</code> is fine for dev, but a new AMI release drifts every node onto it. Do not revert to AL2, which AWS stopped releasing for EKS after November 2025. Add a post-upgrade verification step to confirm the GPU resource is actually allocatable.</p>
 
 <pre><code>apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: gpu-nodeclass
 spec:
-  # Keep al2023@latest — AL2 is end-of-life for EKS (Nov 2025)
+  role: "KarpenterNodeRole-my-cluster"
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: my-cluster
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: my-cluster
+  # Pin a dated AL2023 release in production (al2023@latest only in dev) — AL2 is end-of-life for EKS (Nov 2025)
   # The variant selection bug was fixed in Karpenter v1.0.3 (PR #6976) — a patch on the same minor line
   amiSelectorTerms:
-    - alias: al2023@latest
+    - alias: al2023@vYYYYMMDD   # the AL2023 release you validated in staging
 
 ---
 apiVersion: karpenter.sh/v1
@@ -250,22 +258,22 @@ spec:
 
 <p>After the upgrade, we added a post-upgrade verification step: submit one test job and immediately check <code>kubectl describe node -l karpenter.sh/nodepool=gpu-nodepool | grep -E "instance-type|nvidia|neuron"</code>. This is now part of our Karpenter upgrade runbook.</p>
 
-<h2>TriggerAuthentication Drift: The ScaledJob That Silently Never Scaled</h2>
+<h2>TriggerAuthentication Drift: The ScaledJob That Quietly Never Scaled</h2>
 
-<p>The second trap looked like a scaling configuration issue but was actually a <code>TriggerAuthentication</code> field mismatch introduced by a KEDA upgrade.</p>
+<p>The second trap looked like a scaling configuration issue but was actually a <code>TriggerAuthentication</code> field mismatch between our config and the KEDA version running on the cluster.</p>
 
-<p>After a KEDA version bump, ScaledJobs that used AWS-based queue triggers stopped spawning Jobs entirely. The queue was filling up. The ScaledJob showed no error — <code>kubectl describe scaledjob</code> reported the trigger as configured, KEDA operator logs showed no failures, and <code>kubectl apply</code> succeeded without warnings. But zero Jobs were being created.</p>
+<p>Our <code>TriggerAuthentication</code> had been written for a newer KEDA than the cluster was running. On that KEDA the apply succeeds and the <code>TriggerAuthentication</code> looks healthy — <code>identityOwner</code> has simply vanished. The scaler then can't authenticate, and ScaledJobs that use AWS-based queue triggers create no Jobs at all: the only signals are a <code>KEDAScalerFailed</code> warning in the ScaledJob's events and an authentication error in the operator log.</p>
 
-<p>The root cause: after a KEDA upgrade, a <code>TriggerAuthentication</code> field mismatch between the version you're running and the config you inherited can cause the KEDA operator's SQS queue-depth read to fail authentication silently. With no queue depth returned, KEDA spawns no Jobs — no error, just silence. The <code>provider</code> field on <code>TriggerAuthentication.spec.podIdentity</code> evolved across KEDA releases: <code>aws-eks</code> is the older value (still accepted but deprecated in recent releases), <code>aws</code> was added in v2.13.0. After upgrading past a minor version boundary, an inherited config carrying the old value may stop working depending on which version you land on. Validate every <code>TriggerAuthentication</code> against the CRD schema of the version you actually deployed.</p>
+<p>The root cause: a <code>TriggerAuthentication</code> field mismatch between the KEDA version you're running and the config you're applying can make the operator's SQS queue-depth read fail authentication. With no queue depth returned, KEDA spawns no Jobs. The <code>podIdentity</code> block evolved across KEDA releases: <code>aws-eks</code> is the older provider value (deprecated, still accepted), while <code>provider: aws</code> and <code>podIdentity.identityOwner</code> both arrived in v2.13.0. On an older KEDA, a config written for the newer shape loses <code>identityOwner</code> silently — the CRD doesn't know the field, so it is pruned at admission — and the <code>aws</code> provider isn't recognised. Validate every <code>TriggerAuthentication</code> against the CRD schema of the version you actually deployed.</p>
 
 <div class="stale-box">
-    <p><strong>TriggerAuthentication drift trap:</strong> A provider string mismatch after a KEDA upgrade caused the operator to fail its SQS queue-depth check silently. ScaledJob reported no error, spawned no Jobs, queue continued growing. Symptom: ScaledJob exists, trigger is configured, queue is non-empty — but <code>kubectl get jobs</code> shows nothing being created. Fix: validate your <code>TriggerAuthentication</code> against the current CRD schema immediately after every KEDA upgrade; upgrade to ≥2.19 for consistent provider string handling.</p>
+    <p><strong>TriggerAuthentication drift trap:</strong> A config written for the newer <code>provider: aws</code> ran on a KEDA release that predated it, so <code>identityOwner</code> was pruned at admission and the operator's SQS queue-depth check failed. The apply reported no error; only the ScaledJob's events showed the failure. No Jobs were spawned, and the queue kept growing. Symptom: ScaledJob exists, trigger is configured, queue is non-empty — but <code>kubectl get jobs</code> shows nothing being created, and the ScaledJob's events carry a <code>KEDAScalerFailed</code> warning. Fix: upgrade KEDA (<code>provider: aws</code> needs 2.13 or later) and validate your <code>TriggerAuthentication</code> against the CRD schema of the version you run, immediately after every upgrade.</p>
 </div>
 
 <p>Two fields to know — they are distinct and both matter:</p>
 <ul>
-    <li><code>TriggerAuthentication.spec.podIdentity.provider</code> — selects the identity mechanism. Valid values in current KEDA: <code>aws</code>, <code>aws-eks</code> (deprecated), <code>gcp</code>, <code>azure-workload</code>, <code>none</code>. This is the field that drifts across upgrades.</li>
-    <li><code>spec.triggers[].metadata.identityOwner</code> — a separate AWS SQS scaler parameter (values: <code>pod</code> or <code>operator</code>) that controls <em>which IAM principal</em> polls the queue: the Job pod's identity, or the KEDA operator's. This is a real, documented field. Do not delete it from inherited configs without understanding which IAM principal you intend to use — removing it changes which credentials poll SQS and can silently break queue-depth reads in its own way.</li>
+    <li><code>TriggerAuthentication.spec.podIdentity.provider</code> — selects the identity mechanism. Valid values in current KEDA: <code>aws</code>, <code>aws-eks</code> (deprecated), <code>gcp</code>, <code>azure-workload</code>, <code>none</code>. This is the field that drifts between KEDA versions.</li>
+    <li><code>TriggerAuthentication.spec.podIdentity.identityOwner</code> (<code>keda</code> or <code>workload</code>) and <code>roleArn</code> — with <code>provider: aws</code>, these decide <em>which IAM principal</em> polls the queue: by default the KEDA operator's own role; <code>roleArn</code> or <code>identityOwner: workload</code> switch it to another role, which must then trust the KEDA operator. The older trigger-level <code>identityOwner</code> (<code>pod</code> or <code>operator</code>) only applies to the deprecated <code>aws-eks</code> provider and is silently ignored under <code>aws</code> — which is exactly how an inherited config changes credentials without anyone noticing.</li>
 </ul>
 
 <pre><code># TriggerAuthentication — correct location for identity config (not ScaledJob spec)
@@ -277,9 +285,11 @@ metadata:
 spec:
   podIdentity:
     provider: aws      # Valid values: aws | aws-eks (deprecated) | gcp | azure-workload | none
+    # No roleArn/identityOwner: KEDA polls SQS with its own operator role, so grant that role
+    # sqs:GetQueueAttributes. roleArn (or identityOwner: workload) switches to another role,
+    # which must then trust the KEDA operator.
 ---
 # ScaledJob references the TriggerAuthentication
-# identityOwner in trigger metadata (pod|operator) controls which IAM principal polls SQS
 spec:
   triggers:
   - type: aws-sqs-queue
@@ -288,9 +298,9 @@ spec:
     metadata:
       queueURL: https://sqs.us-east-1.amazonaws.com/123456789012/pathology-jobs
       awsRegion: us-east-1
-      identityOwner: pod   # pod = Job pod's IRSA; operator = KEDA operator's IAM role</code></pre>
+      # no identityOwner here: under provider: aws a trigger-level identityOwner is ignored</code></pre>
 
-<p>After any KEDA upgrade, immediately submit one test message and confirm a Job is spawned within 60 seconds. Silent non-scaling is the failure mode, not an error — the only signal is the absence of Jobs.</p>
+<p>After any KEDA upgrade, immediately submit one test message and confirm a Job is spawned within 60 seconds. Quiet non-scaling is the failure mode: a <code>KEDAScalerFailed</code> event and no Jobs. Alert on the event as well as the queue.</p>
 
 <h2>The Persistent Consumer Pattern for Ordered Pipelines</h2>
 
@@ -304,7 +314,13 @@ metadata:
   name: analysis-consumer
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: analysis-consumer
   template:
+    metadata:
+      labels:
+        app: analysis-consumer
     spec:
       containers:
       - name: consumer
@@ -313,7 +329,7 @@ spec:
         - name: SQS_QUEUE_URL
           value: "https://sqs.us-east-1.amazonaws.com/123456789012/analysis-queue"
         - name: VISIBILITY_TIMEOUT
-          value: "600"  # 2× expected processing time (300s per slide)
+          value: "600"  # 2× worst-case processing time per message
         - name: VISIBILITY_EXTENSION_INTERVAL
           value: "120"  # Extend visibility every 2 minutes during processing</code></pre>
 
@@ -347,36 +363,36 @@ tiff.write(description=xml_string.encode("utf-8"))</code></pre>
 <p>After six months of GPU workload production, here's the pattern we'd build from scratch today:</p>
 
 <ul>
-    <li><strong>Karpenter NodePool:</strong> Explicit instance family (never a single size), Karpenter v1.0.3+ (PR #6976 fixed the NVIDIA/Neuron AMI inversion) with <code>alias: al2023@latest</code>, post-upgrade GPU verification step in runbook</li>
+    <li><strong>Karpenter NodePool:</strong> Explicit instance family (never a single size), Karpenter v1.0.3+ (PR #6976 fixed the NVIDIA/Neuron AMI inversion) with a pinned AL2023 alias (<code>al2023@latest</code> only in dev), post-upgrade GPU verification step in runbook</li>
     <li><strong>ScaledJob:</strong> For stateless, parallelizable GPU work. Min replicas: 0. One Job per N messages. <code>successfulJobsHistoryLimit: 3</code> for debugging.</li>
     <li><strong>Persistent Deployment:</strong> For ordered or stateful processing. Long SQS visibility timeout (2× max processing time). Explicit timeout extension during processing.</li>
-    <li><strong>IAM identity:</strong> TriggerAuthentication with <code>provider: aws</code>. Validate against the current KEDA CRD schema after every upgrade. Submit one test message immediately after upgrade.</li>
+    <li><strong>IAM identity:</strong> TriggerAuthentication with <code>provider: aws</code>, and queue-read access for the identity KEDA actually polls with (the operator role unless you set <code>roleArn</code> or <code>identityOwner: workload</code>). Validate against the current KEDA CRD schema after every upgrade. Submit one test message immediately after upgrade.</li>
     <li><strong>Version pinning:</strong> Pin Karpenter and KEDA versions in Helm values. Upgrade in staging with a GPU test workload before production.</li>
     <li><strong>GPU verification step:</strong> Post-upgrade job that runs a minimal CUDA operation and confirms the result before declaring the upgrade complete.</li>
 </ul>
 
 <div class="highlight-box">
-    <p><strong>The upgrade checklist that would have caught everything:</strong> After any Karpenter or KEDA version change, (1) spawn a test ScaledJob that runs <code>nvidia-smi</code> and logs the GPU model, (2) check the spawned node's instance type matches the NodePool's instance family, (3) verify ScaledJob pods still have IAM access by running a test S3 operation. Ten minutes of validation prevents 45-minute silent failures.</p>
+    <p><strong>The upgrade checklist that would have caught everything:</strong> After any Karpenter or KEDA version change, (1) spawn a test ScaledJob that runs <code>nvidia-smi</code> and logs the GPU model, (2) check the spawned node's instance type matches the NodePool's instance family, (3) confirm the identity KEDA polls with can still read the queue's attributes, and that the Job pod's own role can still do its work (for example, a test S3 operation). Ten minutes of validation prevents silent failures that surface only when a result is late.</p>
 </div>
 
 <h2>What GPU Infrastructure Teams Get Wrong</h2>
 
 <p>The most common mistake is treating GPU scheduling as solved once the first workload runs. Karpenter and KEDA are both under active development with frequent releases. Each release can change behavior that worked correctly before — sometimes with a warning in the changelog, sometimes not.</p>
 
-<p>The second mistake is treating status fields as ground truth. <code>READY=True</code> on a NodePool means the controller's last cached reconcile succeeded — it does not mean the GPU resource is allocatable right now. <code>Running</code> on a pod means the container started — it does not mean the GPU operation completed. Your upgrade runbook needs an active verification step that checks the actual resource, not the status field.</p>
+<p>The second mistake is treating status fields as ground truth. <code>READY=True</code> on a NodePool is the controller's last recorded view — it can stay True while every reconcile since has failed, and it does not mean the GPU resource is allocatable right now. <code>Running</code> on a pod means the container started — it does not mean the GPU operation completed. Your upgrade runbook needs an active verification step that checks the actual resource, not the status field.</p>
 
-<p>The third mistake is the ScaledJob-for-everything trap. ScaledJob's scale-to-zero is genuinely powerful for burst workloads. But the 45-second GPU model cold start means it's only appropriate when the work unit is large enough to justify the initialization cost. For small, frequent units of work with shared model state, you're paying the cold start tax on every message.</p>
+<p>The third mistake is the ScaledJob-for-everything trap. ScaledJob's scale-to-zero is genuinely powerful for burst workloads. But the 45-second model load (plus node start-up when a new node is needed) means it's only appropriate when the work unit is large enough to justify the initialization cost. For small, frequent units of work with shared model state, you're paying the cold start tax on every message.</p>
 
-<p>Digital pathology AI is demanding infrastructure — GPU bursts, large model payloads, strict ordering requirements for downstream analysis, and results that researchers depend on for clinical decisions. Getting the scaling pattern right matters. Getting the version traps documented matters more.</p>
+<p>Digital pathology AI is demanding infrastructure — GPU bursts, large model payloads, strict ordering requirements for downstream analysis, and results that researchers depend on. Getting the scaling pattern right matters. Getting the version traps documented matters more.</p>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
         <li><strong>Pin Karpenter and KEDA versions.</strong> Both have introduced silent behavior changes in minor releases. Verify GPU AMI assignment after every Karpenter upgrade with a test job that runs <code>nvidia-smi</code>.</li>
-        <li><strong>ScaledJob for stateless burst; persistent Deployment for stateful or ordered.</strong> The 45-second GPU cold start makes ScaledJob expensive for small, frequent work units with shared model state.</li>
-        <li><strong>After any KEDA upgrade, verify scaling immediately.</strong> Submit one test message and confirm a Job is created within 60 seconds (KEDA's default <code>pollingInterval</code> is 30s, so allow time for a full reconcile cycle). Silent non-scaling is the failure mode — the queue fills with no error.</li>
+        <li><strong>ScaledJob for stateless burst; persistent Deployment for stateful or ordered.</strong> The 45-second model load — plus node start-up when a new node is needed — makes ScaledJob expensive for small, frequent work units with shared model state.</li>
+        <li><strong>After any KEDA upgrade, verify scaling immediately.</strong> Submit one test message and confirm a Job is created within 60 seconds (KEDA's default <code>pollingInterval</code> is 30s, so allow time for a full reconcile cycle). Quiet non-scaling is the failure mode — the queue fills while the only error sits in the ScaledJob's events.</li>
         <li><strong>Encode OME-XML as UTF-8 bytes.</strong> Passing a plain string raises <code>ValueError</code> at write time. Never substitute <code>"um"</code> for <code>"µm"</code> — it breaks the OME unit namespace.</li>
-        <li><strong>Your upgrade runbook needs a GPU verification step.</strong> A 10-minute test job that confirms GPU device access and AMI assignment prevents 45-minute silent failures.</li>
+        <li><strong>Your upgrade runbook needs a GPU verification step.</strong> A 10-minute test job that confirms GPU device access and AMI assignment prevents silent failures that surface only when a result is late.</li>
     </ul>
 </div>
 
@@ -409,6 +425,8 @@ tiff.write(description=xml_string.encode("utf-8"))</code></pre>
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

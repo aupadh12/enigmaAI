@@ -79,9 +79,10 @@
     <div class="author-avatar">A</div>
     <div class="author-info">
         <div class="author-name">Ashutosh Upadhyay</div>
-        <div class="author-title">Platform Engineering · August 2026</div>
+        <div class="author-title">Platform Engineering · July 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
 <h2>The Morning It Happened Again</h2>
 
@@ -91,13 +92,13 @@
 
 <p>This is not an edge case. This is what stateless agents do. Every session begins with a blank slate. Users who interact with an agent daily don't experience it as helpful — they experience it as a tool with amnesia that they have to re-train each morning at the cost of their own time and patience.</p>
 
-<p>We fixed it by implementing cross-session memory using AWS AgentCore. This post covers how we built it, what traps we hit, and — just as importantly — what we deliberately chose <em>not</em> to store.</p>
+<p>We fixed it by implementing cross-session memory using Amazon Bedrock AgentCore Memory. This post covers how we built it, what traps we hit, and — just as importantly — what we deliberately chose <em>not</em> to store.</p>
 
 <h2>The Problem with Stateless Agents</h2>
 
 <p>Most production AI agents are stateless by design. The LLM itself has no memory between calls. Session history is injected into each request as a messages array, and that history lives in a database that expires after N days. When the TTL fires, the context is gone.</p>
 
-<p>This architecture has real advantages: it's simple, it's cheap, and there are no cross-request data dependencies to manage. But it creates a specific kind of user experience that erodes trust over time. Users who use the agent regularly don't get better results over time. The agent never learns that this particular scientist prefers a specific scoring method, always pre-resolves cell lines before joining DepMap data, or has already confirmed that PLK1 is essential in the triple-negative breast cancer cell lines they work with.</p>
+<p>This architecture has real advantages: it's simple, it's cheap, and there are no cross-request data dependencies to manage. But it creates a specific kind of user experience that erodes trust over time. Users who use the agent regularly don't get better results over time. The agent never learns that this particular scientist prefers a specific scoring method, always pre-resolves cell lines before joining DepMap data, or has already confirmed that GENE-A is essential in the cell lines they work with.</p>
 
 <div class="stale-box">
     <p><strong>The real cost of amnesia:</strong> It's not just friction. When a researcher has to correct the same methodological preference for the third time, they start to distrust the agent's answers more broadly. "If it gets this wrong every morning, what else is it quietly getting wrong?" Statelessness doesn't just waste time — it undermines the credibility of every response.</p>
@@ -109,7 +110,7 @@
 
 <h2>How AgentCore Memory Works</h2>
 
-<p>AWS AgentCore Memory is a managed service that runs extraction strategies asynchronously in the background. The architecture has two components: raw events and extracted records.</p>
+<p>Amazon Bedrock AgentCore Memory is a managed service that runs extraction strategies asynchronously in the background. The architecture has two components: raw events and extracted records.</p>
 
 <p>You write <strong>events</strong> to the memory store after each query. An event is a conversational exchange: the user's query and the agent's response. The service runs your configured strategies against these events asynchronously — AWS documents this as "a minute or more," though in practice USER_PREFERENCE records often appear in around 25 seconds. EPISODIC reflections may take longer since the service waits to detect a completed episode before generating them. The strategies extract structured records from the raw text: preferences, findings, factual corrections. Those extracted records are what you retrieve at the start of each new session.</p>
 
@@ -141,7 +142,7 @@ client.create_event(
     payload=payload
 )</code></pre>
 
-<p>The <code>--event-timestamp</code> parameter is required — omitting it causes an error. And the template variables for namespace configuration are <code>{actorId}</code>, <code>{sessionId}</code>, and <code>{memoryStrategyId}</code>. Not <code>{userId}</code>. Using <code>{userId}</code> causes a silent failure where the template is treated as a literal string.</p>
+<p>The <code>eventTimestamp</code> parameter (<code>--event-timestamp</code> in the CLI) is required — omitting it causes an error. And the template variables for namespace configuration are <code>{actorId}</code>, <code>{sessionId}</code>, and <code>{memoryStrategyId}</code>. Not <code>{userId}</code>.</p>
 
 <h2>Three Strategy Types and When to Use Each</h2>
 
@@ -160,15 +161,15 @@ client.create_event(
         </tr>
         <tr>
             <td><strong>EPISODIC</strong></td>
-            <td>Reflection records derived from completed episodes — each reflection distills recurring patterns across sessions into a reusable insight</td>
+            <td>Episodes from completed interactions, plus reflection records that distil recurring patterns across episodes into reusable insights</td>
             <td><code>{"title": "...", "hints": "...", "use_cases": [...], "confidence": ...}</code></td>
-            <td>Research findings a user has confirmed: "we established PLK1 as a dependency target in TNBC". Note: extraction waits until AWS detects a completed episode; extraction latency is longer than USER_PREFERENCE.</td>
+            <td>Lessons about how this user's analyses tend to go — which approaches worked and which failed. Note: extraction waits until AWS detects a completed episode; extraction latency is longer than USER_PREFERENCE.</td>
         </tr>
         <tr>
             <td><strong>SEMANTIC</strong></td>
             <td>Factual domain knowledge and correction rules</td>
             <td><code>{"fact": "...", "summary": "..."}</code></td>
-            <td>Factual corrections: data model rules, identifier format requirements</td>
+            <td>Factual corrections and confirmed findings: data model rules, identifier format requirements</td>
         </tr>
     </tbody>
 </table>
@@ -186,14 +187,17 @@ namespaceTemplates: ["/app/preferences/{actorId}/"]
 # SEMANTIC strategy (corrections):
 namespaceTemplates: ["/app/corrections/{actorId}/"]
 
-# EPISODIC strategy (findings/reflections):
+# EPISODIC strategy (episodes, per session):
 namespaceTemplates: ["/app/findings/{actorId}/{sessionId}/"]
+# ...its reflections get their own namespace — keep it actor-scoped;
+# a strategy-level reflection namespace mixes users
+reflectionConfiguration: {namespaceTemplates: ["/app/findings/{actorId}/"]}
 
 # Bad: multiple templates in one strategy — API only accepts 1 template per strategy
 # Also bad: global namespace — returns ALL users' data on retrieve
 namespaceTemplates: ["/app/"]</code></pre>
 
-<p>The extracted content comes back as a <strong>JSON string inside <code>content.text</code></strong>, not plain text. Your retrieval code needs to <code>json.loads()</code> the content to access the structured fields. If you try to surface it directly as text, you'll inject raw JSON into the agent's context which it will attempt to parse itself, with unpredictable results.</p>
+<p>The extracted content comes back as a <strong>JSON string inside <code>content.text</code></strong>, not plain text. Your retrieval code needs to <code>json.loads()</code> the content (falling back to the raw text when it isn't JSON) to access the structured fields. If you try to surface it directly as text, you'll inject raw JSON into the agent's context which it will attempt to parse itself, with unpredictable results.</p>
 
 <h2>The Cross-User Namespace Trap</h2>
 
@@ -207,11 +211,11 @@ namespaceTemplates: ["/app/"]</code></pre>
 
 <h3>Identity and the actorId</h3>
 
-<p>Never store the raw user email as the <code>actorId</code>. Instead, hash it:</p>
+<p>Never store the raw user email as the <code>actorId</code>. Instead, derive it with a keyed hash (HMAC):</p>
 
 <pre><code>import hashlib, hmac
 
-ACTOR_ID_KEY = load_secret("actor-id-key")  # server-side secret, never shipped to clients
+ACTOR_ID_KEY = load_secret("actor-id-key").encode()  # server-side secret, never shipped to clients
 
 def _hash_actor(email: str) -> str:
     # Fail close on empty/fallback identity
@@ -229,7 +233,7 @@ def _hash_actor(email: str) -> str:
 
 <p>Writing events after every query is one half of the memory system. The other half is capturing explicit corrections from user feedback.</p>
 
-<p>In our system, users can give thumbs-up or thumbs-down ratings on agent responses, and optionally leave a comment. We route negative feedback with substantive comments to the SEMANTIC corrections namespace:</p>
+<p>In our system, users can give thumbs-up or thumbs-down ratings on agent responses, and optionally leave a comment. We write negative feedback with substantive comments as a correction event. Every strategy sees every event — a <code>[CORRECTION]</code> prefix on the text nudges the SEMANTIC strategy, but it doesn't route the event — so when a correction must land in one namespace only, write the record directly with <code>BatchCreateMemoryRecords</code> instead. The gating looks like this:</p>
 
 <pre><code># Only write corrections on explicit thumbs-down with a real comment
 if rating == -1 and comment and len(comment.strip()) > 20:
@@ -253,7 +257,7 @@ elif rating == 1 and comment:
 
 <h3>The UI Bug That Broke Everything</h3>
 
-<p>The AND condition in our write path — <code>rating = -1 AND comment IS NOT NULL</code> — had never been true once. 413 rows in the feedback table. 2 rows with <code>rating = -1</code>. 3 rows with a <code>comment</code>. Zero rows with both. The write path was unreachable, not broken.</p>
+<p>The AND condition in our write path — <code>rating = -1 AND comment IS NOT NULL</code> — had never been true once. Hundreds of rows in the feedback table. A couple with <code>rating = -1</code>. A few with a <code>comment</code>. Zero with both. The write path was unreachable, not broken.</p>
 
 <p>The problem was in the feedback UI. When a user clicked 👎, the feedback bar immediately collapsed to a "Thanks for your feedback!" message. The comment box — which was inside the now-collapsed bar — was gone. Users couldn't add a comment after clicking thumbs-down. They had to click the comment button <em>first</em>, then click thumbs-down, in a non-obvious sequence that nobody discovered.</p>
 
@@ -276,12 +280,12 @@ elif rating == 1 and comment:
 </ul>
 
 <div class="highlight-box">
-    <p><strong>What belongs in memory:</strong> workflow corrections ("always use Chronos, not RNAi"), confirmed scientific findings ("PLK1 is a dependency in TNBC for this lab's work"), identifier format preferences ("use ProteinIds not GeneNames for bare identifiers"). What does not: specific numbers, intermediate results, exploratory queries that went nowhere.</p>
+    <p><strong>What belongs in memory:</strong> workflow corrections ("always use Chronos, not RNAi"), confirmed scientific findings ("GENE-A is a dependency in this lab's cell-line panel"), identifier format preferences ("use ProteinIds not GeneNames for bare identifiers"). What does not: specific numbers, intermediate results, exploratory queries that went nowhere.</p>
 </div>
 
 <h2>Session-Init Context Injection</h2>
 
-<p>The retrieval happens at session start, before the first user message. You inject the retrieved memories as synthetic conversational turns early in the messages array:</p>
+<p>The retrieval runs on every request, before the agent sees the user's message, using that message as the search query. You inject the retrieved memories as synthetic conversational turns early in the messages array:</p>
 
 <pre><code># Retrieve BEFORE extending the messages array with session history
 # Returns a formatted string (not a list) — use directly in the text field
@@ -292,11 +296,11 @@ if _memory_context:
     prepend = [
         {
             "role": "user",
-            "content": [{"text": f"Prior context from past sessions:\n{_memory_context}"}]
+            "content": [{"text": f"Historical notes from past sessions (unverified — re-check anything factual with a tool call):\n{_memory_context}"}]
         },
         {
             "role": "assistant",
-            "content": [{"text": "Prior context loaded."}]
+            "content": [{"text": "Historical notes loaded."}]
         }
     ]
     messages = prepend + _load_messages_from_history(history)
@@ -306,26 +310,26 @@ else:
 # IMPORTANT: capture prior_message_count AFTER the prepend
 prior_message_count = len(messages)</code></pre>
 
-<p>The ordering matters. If you insert the prepend <em>after</em> computing <code>prior_message_count</code>, those synthetic turns get counted in the delta slice and persisted to your session store. On the next request, they're loaded as history and injected again. Each session doubles the injected context. After ten sessions, the messages array contains twenty copies of the same prior context block.</p>
+<p>The ordering matters. If you capture <code>prior_message_count</code> <em>before</em> the prepend, the delta slice starts two messages early. The first request writes the synthetic turns into your session store, and every later request writes two stored turns back again — the history grows with duplicates on every request, and each one is reloaded and resent.</p>
 
 <h2>Verification and What's Next</h2>
 
-<p>We verified the round-trip end-to-end using a synthetic event: write an event, wait, retrieve — the extracted USER_PREFERENCE record appeared correctly structured in the actor-scoped namespace in about 25 seconds. The infrastructure is in place; we're watching for the first real user-generated records to accumulate once the UI fix ships.</p>
+<p>We verified the round-trip end-to-end using a synthetic event: write an event, wait, retrieve — the extracted USER_PREFERENCE record appeared correctly structured in the actor-scoped namespace in about 25 seconds.</p>
 
-<p>Even before extraction data accumulates, the session-init context injection changes how the agent handles mid-session corrections. Simply having the agent instructions say "if you see prior context at the start of this session, treat it as established fact about this user's preferences" makes the agent acknowledge and apply corrections more consistently within the current session.</p>
+<p>The session-init context injection also changes how the agent handles mid-session corrections. Simply having the agent instructions say "if you see historical notes at the start of this session, treat them as this user's stated preferences, not as evidence about the data" makes the agent acknowledge and apply corrections more consistently within the current session.</p>
 
-<p>The longer-term loop — corrections accumulating, being surfaced at the next session start, changing the agent's behavior permanently for that user — is enabled and we're watching for the first real records to flow through. The next layer is the cluster-level pattern: when three or more users make the same correction, that's a signal the agent's default behavior needs to change for everyone, not just those individuals. That's a skill update, not a memory write. The two mechanisms serve different scopes.</p>
+<p>The longer-term loop — corrections accumulating, being surfaced at the next session start, changing the agent's behaviour for that user — runs on the same path. The next layer is the cluster-level pattern: when three or more users make the same correction, that's a signal the agent's default behavior needs to change for everyone, not just those individuals. That's a skill update, not a memory write. The two mechanisms serve different scopes.</p>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
         <li>Cross-session memory requires explicit event writes and retrieval — the LLM itself has no persistent state between sessions.</li>
         <li>The <code>namespacePath</code> prefix must be scoped to <code>{actorId}</code>; a global prefix returns all users' data and constitutes a privacy violation.</li>
-        <li>The <code>actorId</code> should be a hash of the user's email, never the raw email. Fail close on empty identity — never hash an empty string.</li>
+        <li>The <code>actorId</code> should be a keyed hash (HMAC) of the user's email, never the raw email. Fail close on empty identity — never hash an empty string.</li>
         <li>Extracted records have no automatic TTL. Whatever you write to extraction strategies persists indefinitely. Design the write path accordingly.</li>
         <li>One strategy of each type maximum per memory resource. Use SEMANTIC for factual corrections, USER_PREFERENCE for workflow preferences.</li>
         <li>Verify your feedback pipeline against real data — check for co-occurring rating and comment rows. Zero results usually means a UI reachability bug, not a write-path bug.</li>
-        <li>Prepend the memory context <em>before</em> computing <code>prior_message_count</code>, or the synthetic turns accumulate across sessions.</li>
+        <li>Prepend the memory context <em>before</em> computing <code>prior_message_count</code>, or every request writes duplicate turns into your session history.</li>
     </ul>
 </div>
 
@@ -335,7 +339,7 @@ prior_message_count = len(messages)</code></pre>
 </div>
 
 <div class="tag-list">
-    <span class="tag">AWS AgentCore</span>
+    <span class="tag">Amazon Bedrock AgentCore</span>
     <span class="tag">Memory</span>
     <span class="tag">Production AI</span>
     <span class="tag">Privacy</span>
@@ -361,6 +365,8 @@ prior_message_count = len(messages)</code></pre>
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

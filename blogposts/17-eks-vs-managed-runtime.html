@@ -140,10 +140,11 @@
         <div class="author-title">Platform Engineering · Johnson &amp; Johnson Innovative Medicine · August 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
-<p>We run a production multi-agent AI research system on self-managed EKS. It handles a 4-stage pipeline — Data Scout, Analyst, Synthesizer, Critic — each running in its own Kubernetes pod, communicating over HTTP with circuit breakers, instrumented with OpenTelemetry traces flowing through an ADOT sidecar into both CloudWatch and a Langfuse instance we control.</p>
+<p>We run a live multi-agent AI research system on self-managed EKS. It handles a 4-stage pipeline — Data Scout, Analyst, Synthesizer, Critic — each running in its own Kubernetes pod, communicating over HTTP with circuit breakers, instrumented with OpenTelemetry traces flowing through an ADOT sidecar into both CloudWatch and a Langfuse instance we control.</p>
 
-<p>When a managed agent runtime became available, the pitch was compelling: no Kubernetes manifests, no Karpenter NodePools, no HPA tuning, built-in session state, managed identity, automatic scaling. We spent two weeks building a structured comparison. We found five categories of blockers that weren't in any AWS documentation. This is the framework.</p>
+<p>When a managed agent runtime became available, the pitch was compelling: no Kubernetes manifests, no Karpenter NodePools, no HPA tuning, built-in session state, managed identity, automatic scaling. We spent two weeks building a structured comparison. We found five categories of blockers that no single page of the documentation spells out. This is the framework.</p>
 
 <h2>What "Managed Runtime" Actually Means</h2>
 
@@ -158,7 +159,7 @@
 
 <p>What you gain:</p>
 <ul>
-    <li>Managed session lifecycle — the runtime handles turn state, session expiry, concurrent request management</li>
+    <li>Managed session lifecycle — the runtime keeps in-memory state across turns while a session's compute is alive, and handles session expiry and concurrent request management</li>
     <li>Built-in tool execution sandbox — isolated compute for code execution tools</li>
     <li>Vendor-managed scaling — no HPA policy to tune, no warm pool to size</li>
     <li>Simplified deployment — push code, runtime handles rollout</li>
@@ -213,7 +214,7 @@
             <td>④ Identity federation</td>
             <td>IAM trust policy change</td>
             <td class="decision-cell-yellow">Medium</td>
-            <td>Add service principal to existing role; update only resource-policy-gated services (S3, KMS)</td>
+            <td>Add service principal to existing role; review policies conditioned on network origin or session name</td>
         </tr>
         <tr>
             <td>⑤ Cold start</td>
@@ -228,15 +229,15 @@
 
 <p>If your agent uses an orchestration framework — Strands, LangGraph, CrewAI, or a custom multi-agent pattern — the managed runtime does support multi-agent architectures, but the migration is not a simple port. Our system runs a four-stage pipeline where each stage is a separate pod: Data Scout gathers evidence from 20+ data sources, Analyst runs statistical analysis, Synthesizer integrates evidence, Critic adversarially verifies the synthesis before it reaches the user.</p>
 
-<p>In a managed runtime, four pipeline stages map to four runtimes — each needing its own ECR image, its own execution role, and its own deploy artifact. The first-class A2A (Agent-to-Agent) protocol is supported natively (port 9000, agent cards at <code>/.well-known/agent-card.json</code>), and sessions can be co-located for collaboration. But the in-cluster HTTP mesh with custom circuit breakers becomes <code>InvokeAgentRuntime</code> API calls whose retry semantics you don't own. That's real migration cost — multiplied by N stages — even though the architecture isn't fundamentally flattened.</p>
+<p>In a managed runtime, four pipeline stages map to four runtimes — each needing its own artifact (container image or code bundle), its own execution role, and its own deployment. The first-class A2A (Agent-to-Agent) protocol is supported natively (port 9000, agent cards at <code>/.well-known/agent-card.json</code>), and on the instance-based compute type, agents can share a session to collaborate. But the in-cluster HTTP mesh with custom circuit breakers becomes <code>InvokeAgentRuntime</code> API calls whose retry semantics you don't own. That's real migration cost — multiplied by N stages — even though the architecture isn't fundamentally flattened.</p>
 
 <div class="stale-box">
-    <p><strong>Check before you start:</strong> Map your multi-agent topology to the managed runtime's execution model before writing a single line of migration code. If your stages have different tool registries, different LLM models, or different concurrency policies, count the number of runtimes × images × roles you'll need to maintain. The architecture survives; the operational surface multiplies.</p>
+    <p><strong>Check before you start:</strong> Map your multi-agent topology to the managed runtime's execution model before writing a single line of migration code. If your stages have different tool registries, different LLM models, or different concurrency policies, count the number of runtimes × artifacts × roles you'll need to maintain. The architecture survives; the operational surface multiplies.</p>
 </div>
 
 <h3>Blocker 2: Observability Routing Choice</h3>
 
-<p>ADOT (AWS Distro for OpenTelemetry) <em>is</em> supported inside the managed runtime — you add <code>aws-opentelemetry-distro&gt;=0.10.0</code> to your requirements and instrument with <code>opentelemetry-instrument python main.py</code>. What is <em>not</em> supported is the ADOT Collector sidecar, because there's no pod to attach it to.</p>
+<p>ADOT (AWS Distro for OpenTelemetry) <em>is</em> supported inside the managed runtime — you add <code>aws-opentelemetry-distro&gt;=0.18.0</code> to your requirements and run under <code>opentelemetry-instrument python main.py</code> (the platform's CLI does this for you). What is <em>not</em> supported is the ADOT Collector sidecar, because there's no pod to attach it to.</p>
 
 <p>The constraint this creates is routing: the collector sidecar pattern lets you fan-out to multiple backends simultaneously — CloudWatch for infra metrics, Langfuse for LLM traces, X-Ray for distributed tracing — from a single collector config. Without the sidecar, you must choose. The runtime's default ADOT configuration exports to CloudWatch. If you want a different backend (Langfuse, Honeycomb, Grafana Cloud), set <code>DISABLE_ADOT_OBSERVABILITY=true</code> and export directly from your application using an instrumentation library. AWS explicitly supports OpenInference, Openllmetry, OpenLit, and Traceloop — all of which are Langfuse-ingestible.</p>
 
@@ -280,13 +281,13 @@
     }
 }</code></pre>
 
-<p>The key difference: EKS uses <code>sts:AssumeRoleWithWebIdentity</code> via OIDC; managed runtime uses <code>sts:AssumeRole</code> directly from the service principal. You can keep the same role ARN — just add <code>bedrock-agentcore.amazonaws.com</code> as a second trusted principal. Most downstream identity-based policies (DynamoDB, Bedrock) need no changes at all since the role ARN stays the same. The only services that typically require updates are those with resource-based policies that name the role explicitly — S3 bucket policies, KMS key policies. Athena workgroups have no resource policy. Count the actual resource-policy-gated services before estimating migration cost; it's usually far fewer than the full list of AWS services your agent touches.</p>
+<p>The key difference: EKS uses <code>sts:AssumeRoleWithWebIdentity</code> via OIDC; managed runtime uses <code>sts:AssumeRole</code> directly from the service principal. You can keep the same role ARN — just add <code>bedrock-agentcore.amazonaws.com</code> as a second trusted principal. Most downstream identity-based policies (DynamoDB, Bedrock) need no changes at all since the role ARN stays the same. Resource-based policies that name the role ARN keep working too — the role hasn't changed. What needs checking is anything keyed to how the call arrives: bucket and key policies with VPC-endpoint, VPC or source-IP conditions (a runtime outside your VPC won't satisfy them), policies that name an assumed-role session, and organisation-level data-perimeter policies. Count those conditions before estimating migration cost; it's usually far fewer than the full list of AWS services your agent touches.</p>
 
 <h3>Blocker 5: Cold Start</h3>
 
 <p>EKS pods are always warm as long as they're running — no first-request penalty per turn. The first invocation to a new managed runtime session loads the execution environment, which adds latency. For research-oriented workloads where queries take 30–120 seconds, a cold start is negligible. For conversational agents with a &lt;2 second response SLA, it matters.</p>
 
-<p>AgentCore's mitigation is <strong>session reuse</strong>: a dedicated microVM is kept alive for invocations that share the same <code>runtimeSessionId</code>. While a session is active, subsequent turns skip the cold start entirely. The practical implication: design your session lifecycle carefully — a session that idles out forces the next turn to cold-start. Benchmark your actual p50/p95 latency across session boundaries before committing to a latency SLA. Published AWS numbers are upper bounds, not guarantees for your specific tool payload and container size.</p>
+<p>AgentCore's main mitigation is <strong>session reuse</strong>: a dedicated microVM is kept alive for invocations that share the same <code>runtimeSessionId</code>. While a session is active, subsequent turns skip the cold start entirely. The practical implication: design your session lifecycle carefully — a session that idles out forces the next turn to cold-start. Benchmark your actual p50/p95 latency across session boundaries before committing to a latency SLA. I found no published cold-start figure, so your own numbers are the only ones that count — and test the snapshot-based platform version, which exists to keep cold starts consistent for large images.</p>
 
 <h2>What Changes and What Doesn't</h2>
 
@@ -296,7 +297,7 @@
     <li><strong>Node patching and K8s upgrades</strong> — you stop being on the hook for EKS version management</li>
     <li><strong>Scaling policy tuning</strong> — no more HPA target utilization debates or warm pool sizing spreadsheets</li>
     <li><strong>Pod disruption during maintenance</strong> — vendor handles rollout, you focus on the agent</li>
-    <li><strong>Session state</strong> — built-in turn management rather than DynamoDB-backed session handling</li>
+    <li><strong>Session state</strong> — in-memory state carries across turns while the session's compute is alive; durable history still needs a store (the platform's memory service, session storage, or your existing table)</li>
 </ul>
 
 <p>What doesn't change:</p>
@@ -317,13 +318,13 @@
 
 <p>For most production teams with existing EKS investments, the right answer isn't "migrate" or "don't migrate" — it's hybrid.</p>
 
-<p>Use the managed runtime for its Gateway component: expose a subset of your agent's tools as an MCP (Model Context Protocol) server. Other agents — internal tools, partner integrations, automated pipelines — can call your agent's capabilities without needing direct API access. The Gateway layer handles authentication, rate limiting, and tool schema publication. Your core agent keeps running on EKS where you have full observability and control.</p>
+<p>Use the managed platform's Gateway: expose a subset of your agent's tools as an MCP (Model Context Protocol) server. Other agents — internal tools, partner integrations, automated pipelines — can call your agent's capabilities without needing direct API access. The Gateway layer handles authentication, rate limiting, and tool schema publication. Your core agent keeps running on EKS where you have full observability and control.</p>
 
 <div class="green-box">
     <p><strong>The hybrid pattern in practice:</strong> managed Gateway exposes 3–5 high-value tools (your primary query interface, a key data source, a synthesis capability) as MCP endpoints. Policy and guardrails attach to the Gateway layer. Your main agent on EKS calls the Gateway when acting as an <em>agent consumer</em>, and the Gateway calls back into EKS when external agents need your capabilities. You get the ecosystem integration benefits without the migration risk.</p>
 </div>
 
-<p>This is the pattern we're building toward: AgentCore Gateway as the MCP exposure layer, the core research agent staying on EKS until the remaining blockers either resolve or become irrelevant for our workload.</p>
+<p>That is the split I'd recommend for a system like ours: AgentCore Gateway as the MCP exposure layer, with the core research agent on EKS — revisit it when the trade-offs above change for your workload.</p>
 
 <h2>The Decision Matrix</h2>
 
@@ -400,15 +401,13 @@
 
 <h2>The Blockers We Didn't Expect</h2>
 
-<p>The five categories above come from documentation gaps. But we also found issues that weren't documentation problems — they were architectural assumptions we'd made that the managed runtime invalidates.</p>
-
-<p><strong>Atomic data location flips.</strong> Our S3-backed data tables use an <code>active_version.json</code> pointer pattern: new data lands in a versioned prefix, and the Glue table location is atomically updated by flipping the pointer. This gives us zero-downtime data updates with instant rollback. A managed runtime with a fixed execution environment doesn't have an equivalent pattern — you'd need to re-think the atomic update mechanism entirely.</p>
+<p>The five categories above come from mapping the documentation onto our architecture. But we also found issues that weren't documentation problems — they were architectural assumptions we'd made that the managed runtime invalidates.</p>
 
 <p><strong>Port-forwarded admin access.</strong> We use <code>kubectl port-forward</code> to access internal admin endpoints from local machines during debugging. In a managed runtime, port-forwarding doesn't exist. You need a proper bastion or VPN path to every management endpoint before you migrate — not after.</p>
 
-<p><strong>PrivateLink setup timeline.</strong> Managed runtimes use PrivateLink + VPC Lattice for private connectivity. In practice, provisioning the necessary VPC endpoints, service policies, and DNS records requires networking team involvement and takes 3–5 working days at most enterprise organizations. Budget for this in your migration timeline, not as a same-day task.</p>
+<p><strong>PrivateLink setup timeline.</strong> Private connectivity is three separate pieces: PrivateLink endpoints for inbound calls, network interfaces in your subnets for runtime egress, and VPC Lattice resource gateways for the tool gateway and identity egress. In practice, provisioning the necessary VPC endpoints, service policies, and DNS records requires networking team involvement and takes 3–5 working days at most enterprise organizations. Budget for this in your migration timeline, not as a same-day task.</p>
 
-<p><strong>Governance sign-off.</strong> In a managed runtime, conversation data flows through a vendor-managed execution environment. For healthcare and pharmaceutical organizations, this requires explicit governance review of where data lands, who can access it, and how it's retained. The correct technical answer depends on the compute type: with the <strong>Instances</strong> compute type, workloads run on EC2 in your account and your VPC. With the default <strong>serverless microVM</strong> type, compute is AWS-managed — your data and model calls stay within your account boundary, but the execution environment itself is vendor-run. Start the governance review early and be precise about which compute type you're evaluating.</p>
+<p><strong>Governance sign-off.</strong> In a managed runtime, conversation data flows through a vendor-managed execution environment. For healthcare and pharmaceutical organizations, this requires explicit governance review of where data lands, who can access it, and how it's retained. The correct technical answer depends on the compute type: with the <strong>Instances</strong> compute type, workloads run on EC2 in your account and your VPC. With the default <strong>serverless microVM</strong> type, your agent runs under your account's execution role — calls are authorised and logged in your account — but the payload is processed in AWS-operated compute, and anything the service stores uses AWS-owned keys by default. If keeping the data in your own account is a requirement, that points to the Instances compute type. Start the governance review early and be precise about which compute type you're evaluating.</p>
 
 <h2>Looking Back</h2>
 
@@ -421,10 +420,10 @@
     <ul>
         <li>The managed runtime solves infrastructure operations — not agent quality. The hard parts of your system stay hard.</li>
         <li>Five blocker categories to evaluate before committing: multi-agent operational multiplication, observability gap, admin API surface, identity federation model, cold start latency.</li>
-        <li>Multi-agent operational multiplication is the highest-severity blocker — N pipeline stages become N runtimes × images × roles. The architecture survives; the operational surface multiplies. Validate against your specific orchestration pattern before writing migration code.</li>
-        <li>The hybrid answer captures most of the managed runtime benefits without the migration risk: Gateway/MCP on managed, core agent on EKS.</li>
+        <li>Multi-agent operational multiplication is the highest-severity blocker — N pipeline stages become N runtimes × artifacts × roles. The architecture survives; the operational surface multiplies. Validate against your specific orchestration pattern before writing migration code.</li>
+        <li>The hybrid answer captures the integration benefits — governed tool exposure, policy and guardrails at the gateway — without the migration risk: Gateway/MCP on managed, core agent on EKS. It doesn't capture the runtime's isolation or scaling; those arrive only if the agent moves.</li>
         <li>Budget 3–5 working days for PrivateLink/VPC Lattice provisioning and governance review before your timeline — not as same-day tasks.</li>
-        <li>The IAM trust policy change is mechanical: add the service principal to your existing role. Most downstream services need no changes — only those with resource-based policies (S3 buckets, KMS keys) naming the role explicitly. Count those, not your total AWS service footprint.</li>
+        <li>The IAM trust policy change is mechanical: add the service principal to your existing role. Most downstream policies need no changes because the role ARN stays the same — what needs checking is policies conditioned on network origin or session name. Count those, not your total AWS service footprint.</li>
     </ul>
 </div>
 
@@ -456,6 +455,8 @@
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

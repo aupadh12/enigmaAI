@@ -140,6 +140,8 @@
     </div>
 </div>
 
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <p>The most instructive data bug we hit in the past year did not throw an exception. It did not log an error. It returned a dictionary, fully populated, carrying 297,497 synonyms and 473,381 cross-references. The response time was normal. The downstream join ran to completion. We only noticed because a researcher asked why a query about a human cancer cell line was returning results that matched a mouse hybridoma.</p>
 
 <p>A single line of XML parsing code was reading an element as an attribute. The field that served as the join key was blank for all 50,000 rows in the dataset. When the filter ran, it matched everything, and the first row in the table happened to be a mouse hybridoma. The data looked healthily populated. Every call succeeded. The answers were consistently, silently wrong.</p>
@@ -150,12 +152,12 @@
 
 <h2>Failure 1: Case Normalisation Erased the Only Discriminator</h2>
 
-<p>Our ingestion pipeline resolves biological specimen identifiers by name — a common step when joining data from sources that use slightly different spellings or capitalisations. After an initial pass produced 79 unresolved entries, we added a normalisation step: <code>name.strip().upper()</code> before every lookup. The 79 failures persisted.</p>
+<p>Our ingestion pipeline resolves biological specimen identifiers by name — a common step when joining data from sources that use slightly different spellings or capitalisations. We resolved names with <code>name.strip().upper()</code> before every lookup. Afterwards, 79 names still refused to resolve.</p>
 
-<p>Characterising them revealed the problem: <strong>all 79 were pure case-variant collisions</strong>. <code>INS-1</code> and <code>Ins-1</code> are different organisms — rat insulinoma versus a human line. <code>Li-7</code> and <code>LI-7</code> are different species — human hepatocellular carcinoma versus a mouse hybridoma. <code>rMC-1</code> and <code>RMC-1</code>, <code>K562-R</code> and <code>K562-r</code> — same pattern. Every one of the 79 entries resolves uniquely on an exact-case match. Case <em>was</em> the discriminator, and the normalisation discarded it before the lookup ran.</p>
+<p>Characterising them revealed the problem: <strong>all 79 were pure case-variant collisions</strong>. <code>INS-1</code> and <code>Ins-1</code> are different organisms — rat insulinoma versus a human line. <code>Li-7</code> and <code>LI-7</code> are different species — human hepatocellular carcinoma versus a mouse hybridoma. <code>rMC-1</code> and <code>RMC-1</code> are two different rat lines; <code>K562-R</code> and <code>K562-r</code> are two different K562 derivatives — distinct cell lines that differ only in case. Every one of the 79 entries resolves uniquely on an exact-case match. Case <em>was</em> the discriminator, and the normalisation discarded it before the lookup ran.</p>
 
 <div class="stale-box">
-    <p><strong>Why nothing errored:</strong> <code>name.strip().upper()</code> does not throw. The normalised value found a match — just the wrong one. Nothing in the pipeline checked whether the match was unambiguous.</p>
+    <p><strong>Why nothing errored:</strong> <code>name.strip().upper()</code> does not throw, and a refusal reads as a missing record rather than a bug — each of the 79 came back unresolvable although an exact-case match existed. A plain dictionary lookup on the folded name, as in the <em>before</em> code below, is worse: it silently returns whichever variant sits under the upper-case spelling.</p>
 </div>
 
 <pre><code># Before — normalise up front, silently collapse case variants
@@ -180,13 +182,13 @@ if not match:
     <p><strong>Fix:</strong> exact-case primary lookup first; only falls through to a separately-built case-folded index when no exact match exists. The case-folded index maps each folded key to <em>all</em> entries that fold to it — so <code>hela</code> finds HeLa (one candidate) while <code>INS-1</code> and <code>Ins-1</code> each resolve by exact match before reaching the folded index. On collision (multiple candidates), all are surfaced rather than one being silently chosen. <strong>Verification that would have caught it:</strong> a test fixture with at least one known case-variant pair (INS-1 / Ins-1) asserting they resolve to different entries, run before the normalisation change shipped.</p>
 </div>
 
-<p>The broader lesson: before applying any normalisation, ask what information the transform discards. In biological identifiers, case, hyphens, whitespace, and Greek letters all carry meaning. <code>IFN-γ</code> vs <code>IFNG</code>, <code>Ins-1</code> vs <code>INS-1</code>, <code>CDK1</code> vs <code>CDK2</code> — the thing you stripped was the only thing that distinguished them.</p>
+<p>The broader lesson: before applying any normalisation, ask what information the transform discards. In biological identifiers, case, hyphens, whitespace, and Greek letters all carry meaning. <code>IFN-α</code> vs <code>IFN-γ</code>, <code>TNF-α</code> vs <code>TNF-β</code>, <code>Ins-1</code> vs <code>INS-1</code> — the thing you stripped was the only thing that distinguished them.</p>
 
 <h2>Failure 2: Guessing Enum Values Sent 44% of Rows to the Wrong Bucket</h2>
 
 <p>When integrating clinical development stage data from a public drug-target database, the pipeline needed to map stage labels to confidence weights. We wrote the mapping from intuition:</p>
 
-<pre><code># Guessed values — three of six keys do not exist in the live API
+<pre><code># Guessed values — three of six keys absent from a 305-row live sample
 STAGE_WEIGHTS = {
     "PHASE_4":    0.95,
     "APPROVED":   0.95,   # actual key is APPROVAL
@@ -196,9 +198,9 @@ STAGE_WEIGHTS = {
     "PRECLINICAL": 0.50,
 }</code></pre>
 
-<p>The live API, sampled across 305 rows, uses <code>APPROVAL</code> (not <code>APPROVED</code>), <code>PREAPPROVAL</code>, <code>PHASE_1_2</code>, <code>PHASE_2_3</code>, and <code>UNKNOWN</code>. Three of our six keys did not exist. The key <code>APPROVAL</code> covers 44% of all rows. Every drug in that bucket fell through to the default — which we set to 0.5, below even <code>PHASE_1</code>'s 0.6.</p>
+<p>The live API, sampled across 305 rows in September 2026, used <code>APPROVAL</code> (not <code>APPROVED</code>), <code>PREAPPROVAL</code>, <code>PHASE_1_2</code>, <code>PHASE_2_3</code>, and <code>UNKNOWN</code>. Three of our six keys did not appear in that sample. (Re-sampled in October 2026, the API also returned <code>PHASE_4</code> and <code>WITHDRAWAL</code> — enum sets drift, which is exactly what the unrecognised-value log below is for.) The key <code>APPROVAL</code> covered 44% of the sampled rows. Every drug in that bucket fell through to the default — which we set to 0.5, below even <code>PHASE_1</code>'s 0.6.</p>
 
-<p>The result: querying the ranking of drugs targeting HER2 by confidence returned pertuzumab (an approved therapy) at 0.5, below an obscure phase-1 compound at 0.6. Because the confidence score carried a source annotation, the inversion was authoritatively attributed to the data source. The data source was right. The mapping was wrong.</p>
+<p>The result: at the time, querying the ranking of drugs targeting HER2 by confidence returned pertuzumab (an approved therapy) at 0.5, below an obscure phase-1 compound at 0.6. Because the confidence score carried a source annotation, the inversion was authoritatively attributed to the data source. The data source was right. The mapping was wrong.</p>
 
 <div class="stale-box">
     <p><strong>Why nothing errored:</strong> a missing dictionary key in Python returns the default. The code path completed normally. There was no log line, no sentinel value, no warning that 44% of rows hit the fallback.</p>
@@ -212,7 +214,7 @@ STAGE_WEIGHTS = {
 
 <p>We built four data extractors for a knowledge graph. One was written against a captured payload — a real API response logged to disk and used as the ground truth for the consumer. The other three were written by reading the producer's source code and inferring the return shape. Two of those three had defects that code inspection had already "confirmed."</p>
 
-<p>The first defective extractor read columns named <code>fdr</code> and <code>pvalue</code>. The real dataset uses <code>adj_p_val</code> and <code>p_value</code>. The column names were not wrong — they were simply never there. Every edge in that extractor landed on the fallback confidence of 0.6 regardless of statistical significance. A gene with adjusted p-value of 1×10⁻¹² and one at 0.49 were recorded as equally confident. Because the knowledge graph's edge merge keeps the maximum confidence seen, 0.6 became a permanent floor — unreachable by any downstream update.</p>
+<p>The first defective extractor read columns named <code>fdr</code> and <code>pvalue</code>. The real dataset uses <code>adj_p_val</code> and <code>p_value</code>. The column names were not wrong — they were simply never there. Every edge in that extractor landed on the fallback confidence of 0.6 regardless of statistical significance. A gene with adjusted p-value of 1×10⁻¹² and one at 0.49 were recorded as equally confident. Because the knowledge graph's edge merge keeps the maximum confidence seen, 0.6 would have become a permanent floor — unreachable by any downstream update.</p>
 
 <p>The second defective extractor had the right column names but wrong semantics. The source is multi-species, and the extractor keyed nodes on bare gene symbol. A record from a non-human species would silently overwrite a human node's Ensembl ID, because the property merge was an unconditional set rather than a conditional update.</p>
 
@@ -228,9 +230,9 @@ STAGE_WEIGHTS = {
 
 <h2>Failure 4: The Hand-Curated Lookup Table Was Data, Not Code</h2>
 
-<p>A 14-row alias table mapping informal gene names to canonical HGNC symbols was written from memory. It felt too small to audit carefully — 14 rows, straightforward mappings. The table contained one entry: <code>BCL2L → BCL2</code>. This is wrong. <code>BCL2L</code> is an HGNC alias for <strong>BCL2L1</strong> (Bcl-xL), a different gene from BCL2. Bcl-xL and Bcl-2 are related anti-apoptotic proteins but they have different tissue expression, different inhibitor profiles (navitoclax vs venetoclax), and different toxicological implications.</p>
+<p>A 14-row alias table mapping informal gene names to canonical HGNC symbols was written from memory. It felt too small to audit carefully — 14 rows, straightforward mappings. The table contained one entry: <code>BCL2L → BCL2</code>. This is wrong. <code>BCL2L</code> is an HGNC alias for <strong>BCL2L1</strong> (Bcl-xL), a different gene from BCL2. Bcl-xL and Bcl-2 are related anti-apoptotic proteins but they have different tissue expression, different inhibitor profiles (venetoclax is Bcl-2-selective and spares Bcl-xL; navitoclax hits both), and different toxicological implications.</p>
 
-<p>A query about Bcl-xL activity would have been answered with Bcl-2 evidence, and the response would have annotated the canonical symbol as <code>BCL2</code> to justify it. Two other rows in the same table were ambiguous rather than wrong: the alias <code>NEU</code> also matches NEU1, and <code>PD1</code> is a legacy symbol for <code>SNCA</code>. These were not caught because nobody queried the registry.</p>
+<p>A query about Bcl-xL activity would have been answered with Bcl-2 evidence, and the response would have annotated the canonical symbol as <code>BCL2</code> to justify it. Two other rows in the same table were ambiguous rather than wrong: <code>NEU</code> is also a previous symbol of NEU1, and <code>PD1</code> is also an HGNC alias for <code>SNCA</code> (and SPATA2). These were not caught because nobody queried the registry.</p>
 
 <div class="stale-box">
     <p><strong>Why nothing errored:</strong> the mapping was a valid Python dictionary with a valid string value. The lookup succeeded. The canonical symbol <code>BCL2</code> exists in every downstream database. Every query completed. The answers were about the wrong gene.</p>
@@ -240,7 +242,7 @@ STAGE_WEIGHTS = {
 GENE_ALIASES = {
     "BCL2L":    "BCL2",    # WRONG — BCL2L is an alias for BCL2L1, not BCL2
     "NEU":      "ERBB2",   # AMBIGUOUS — NEU also resolves to NEU1
-    "PD1":      "PDCD1",   # AMBIGUOUS — PD1 is also a legacy symbol for SNCA
+    "PD1":      "PDCD1",   # AMBIGUOUS — PD1 is also an HGNC alias for SNCA (and SPATA2)
 }
 
 # After — each row validated against the HGNC registry
@@ -257,7 +259,7 @@ GENE_ALIASES = {
 
 <h2>Failure 5: A Blank Join Key Returns Everything, Not Nothing</h2>
 
-<p>This is the one from the opening paragraphs. A public biological specimen database provides an XML export containing roughly 50,000 entries. Each entry has an accession identifier that serves as the primary key for all downstream joins. Our parser read that identifier with:</p>
+<p>This is the one from the opening paragraphs. Our ingest of a public biological specimen database's XML export produced a 50,000-row table. Each entry has an accession identifier that serves as the primary key for all downstream joins. Our parser read that identifier with:</p>
 
 <pre><code># Wrong — reads an XML attribute that does not exist at this element
 accession = elem.get("accession", "")   # "" for every row</code></pre>
@@ -278,7 +280,7 @@ accession = acc.text.strip() if acc is not None and acc.text else ""</code></pre
 <p>Because <code>elem.get("accession", "")</code> on an element with no such attribute returns an empty string rather than raising an error, every one of 50,000 rows got a blank accession. The assembly function that filters rows by accession value then matched everything — because every row matched the empty-string key. The first row in the table was a mouse hybridoma entry. Every query returned that row, with the whole-table counts of 297,497 synonyms and 473,381 cross-references attached as though they belonged to it.</p>
 
 <div class="stale-box">
-    <p><strong>Why nothing errored:</strong> <code>elem.get()</code> is the correct function to read XML attributes; it silently returns the default when the attribute is absent. The sibling fields that <em>are</em> attributes — category, sex, species — populated normally, so the response appeared healthy.</p>
+    <p><strong>Why nothing errored:</strong> <code>elem.get()</code> is the correct function to read XML attributes; it silently returns the default when the attribute is absent. The sibling fields that <em>are</em> attributes — category, sex, age — populated normally, so the response appeared healthy.</p>
 </div>
 
 <div class="green-box">
@@ -291,11 +293,11 @@ accession = acc.text.strip() if acc is not None and acc.text else ""</code></pre
 
 <h2>Failure 6: The Counter Was Measuring Write Events, Not Entities</h2>
 
-<p>A knowledge graph service exposed a statistics endpoint that reported node and edge counts by entity type. The gene count on a live table showed 2,015. The actual number of distinct gene nodes on that table was 435. The total node count showed 3,137; the actual was 784 — a 4× inflation.</p>
+<p>A knowledge graph service exposed a statistics endpoint that reported node and edge counts by entity type. The gene counter stored on a live table read 2,015. The actual number of distinct gene nodes on that table was 435. The total node counter read 3,137; the actual was 784 — a 4× inflation.</p>
 
 <p>The counter incremented on every upsert, not on every creation. A single research query re-upserts the same gene node from multiple sources as it processes results. That gene gets counted each time. The more the system was used, the more wrong the number got — the exact opposite of how people intuitively expect a metric to behave.</p>
 
-<p>There was a second problem layered underneath. The code that read the counter had a subtle serialisation bug: it was passing typed DynamoDB values to the wrong client method, which double-serialised them on a boto3 resource Table and caused a <code>ValidationException</code>. That exception was caught by a broad <code>except</code> block that logged at DEBUG level and returned a fallback value computed as <code>int(table.item_count * 0.6)</code>. The write-event counter had accumulated 3,137 against 784 actual nodes (2,015 against 435 gene nodes), but the read path never reached it — the serialisation failure caused every <code>get_stats()</code> call to fall back to <code>int(table.item_count * 0.6)</code>. The number reaching users and the agent's tool calls was a fabricated 60/40 split of raw item count; the already-inflated write-event counter was not even being read.</p>
+<p>There was a second problem layered underneath. The code that read the counter had a subtle serialisation bug: it was passing typed DynamoDB values (<code>{"S": …}</code>) to <code>table.meta.client</code>, which on a boto3 resource Table still applies the resource's serialiser — so they were serialised twice and caused a <code>ValidationException</code>. That exception was caught by a broad <code>except</code> block that logged at DEBUG level and returned a fallback value computed as <code>int(table.item_count * 0.6)</code>. The write-event counter had accumulated 3,137 against 784 actual nodes (2,015 against 435 gene nodes), but the read path never reached it — the serialisation failure caused every <code>get_stats()</code> call to fall back to <code>int(table.item_count * 0.6)</code>. The number reaching users and the agent's tool calls was a fabricated 60/40 split of raw item count; the already-inflated write-event counter was not even being read.</p>
 
 <div class="stale-box">
     <p><strong>Why nothing errored:</strong> the upsert function did not distinguish new items from updates. The except block hid the serialisation error. The fallback returned a plausible integer. The statistics endpoint returned 200 with a well-formed JSON response.</p>
@@ -310,23 +312,24 @@ def upsert_node(entity_type, entity_id, props):
 def upsert_node(entity_type, entity_id, props):
     response = table.update_item(
         Key={"pk": entity_id},
-        UpdateExpression="SET #d = :d",
+        # keep the GSI key attributes top-level so search still finds the node (Failure 7)
+        UpdateExpression="SET entity_type = :t, entity_id_lc = :lc, #d = :d",
         ExpressionAttributeNames={"#d": "data"},
-        ExpressionAttributeValues={":d": props},
-        ReturnValues="UPDATED_OLD"
+        ExpressionAttributeValues={":t": entity_type, ":lc": entity_id.lower(), ":d": props},
+        ReturnValues="ALL_OLD"
     )
-    if not response.get("Attributes"):  # no previous item → new creation
+    if not response.get("Attributes"):  # no item existed before this write → new creation
         counters.increment(entity_type)</code></pre>
 
 <div class="green-box">
-    <p><strong>Fix:</strong> gate the increment on <code>ReturnValues="UPDATED_OLD"</code> returning empty Attributes — that is DynamoDB's signal that the item was newly created, not updated. Separately: a fallback that invents a number must never ship. Log the error at ERROR level and return an explicit unavailable signal. A zero that means UNKNOWN is indistinguishable from a zero that means empty. <strong>Verification:</strong> reconcile the counter against a scan of actual items before trusting it; a ratio far from 1.0 tells you what the counter actually measures.</p>
+    <p><strong>Fix:</strong> gate the increment on <code>ReturnValues="ALL_OLD"</code> returning no Attributes — DynamoDB's signal that no item existed before this write (<code>UPDATED_OLD</code> is also empty when an existing item simply lacked the attribute you set). Separately: a fallback that invents a number must never ship. Log the error at ERROR level and return an explicit unavailable signal. A zero that means UNKNOWN is indistinguishable from a zero that means empty. <strong>Verification:</strong> reconcile the counter against a scan of actual items before trusting it; a ratio far from 1.0 tells you what the counter actually measures.</p>
 </div>
 
 <h2>Failure 7: An Entity ID Without the Type Prefix Is Permanently Invisible</h2>
 
 <p>A knowledge graph uses a DynamoDB composite GSI where the sort key index is constructed as <code>{entity_type}:{search_term}</code>. This means every search query is structured as a <code>begins_with</code> filter over that composite pattern. A node whose entity ID does not start with its entity type is written successfully, passes the provenance gate, appears in scans — and can never be returned by any search.</p>
 
-<p>While writing new extractors, we used what felt like natural sub-kind prefixes as the entity ID prefix. For entities of type <code>evidence_item</code>, we wrote IDs like <code>study:record_001</code> and <code>result:record_002</code>, because "study" and "result" felt like more descriptive identifiers. The node was stored. No error was raised. But every subsequent search for evidence items ran:</p>
+<p>While writing new extractors, we used what felt like natural sub-kind prefixes as the entity ID prefix. For entities of type <code>evidence_item</code>, we wrote IDs like <code>study:record_001</code> and <code>result:record_002</code>, because "study" and "result" felt like more descriptive identifiers. We caught it before the extractor shipped. Had it shipped, the node would have been stored with no error raised — and every subsequent search for evidence items would have run:</p>
 
 <pre><code># Search function — always prefixes the query with entity_type
 Key("entity_type").eq("evidence_item") &amp;
@@ -344,14 +347,14 @@ entity_id = f"evidence_item:study_{record_id}"
 entity_id = f"evidence_item:result_{record_id}"</code></pre>
 
 <div class="stale-box">
-    <p><strong>Why nothing errored:</strong> <code>put_item</code> does not validate the content of a string field against any convention. The node was written. Reads via direct key lookup (where the full partition key is known) would have succeeded. Only searches — the primary access pattern — would have silently returned empty results.</p>
+    <p><strong>Why nothing errored:</strong> <code>put_item</code> does not validate the content of a string field against any convention. The write would have succeeded. Reads via direct key lookup (where the full partition key is known) would have succeeded. Only searches — the primary access pattern — would have silently returned empty results.</p>
 </div>
 
 <div class="green-box">
     <p><strong>Fix:</strong> assert the type-prefix invariant in every extractor before it writes a node: <code>assert entity_id.lower().startswith(entity_type.lower() + ":")</code>. This fires at write time, not at search time — the earliest possible moment. <strong>Verification:</strong> a unit test that writes a node with a valid ID, searches for it, and asserts the returned count is non-zero. Run it for each new extractor before the extractor is integrated.</p>
 </div>
 
-<p>The permanence matters here. The graph had no delete route and TTL was disabled. A node written with the wrong ID prefix was not just temporarily invisible — it was unreachable for the lifetime of the data store. Fixing the extractor code would not repair the stored nodes.</p>
+<p>The permanence matters here. The graph had no delete route and TTL was disabled. A node written with the wrong ID prefix would not have been just temporarily invisible — it would have been unreachable for the lifetime of the data store, and fixing the extractor code afterwards would not have repaired the stored nodes.</p>
 
 <h2>Failure 8: Null Values Silently Excluded Records From Results</h2>
 
@@ -496,6 +499,8 @@ return all_records</code></pre>
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

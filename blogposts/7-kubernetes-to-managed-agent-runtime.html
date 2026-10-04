@@ -320,6 +320,7 @@
             <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
         </div>
     </div>
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
     <h2>Why Look at This At All</h2>
 
@@ -374,7 +375,9 @@
         next invocation provisions fresh compute under the same session, remaining valid until you delete the runtime.
         So a research session can span days; what resets at the compute boundary is in-memory and non-persistent on-disk
         state, unless you attach session storage that survives stop and resume. Both the lifetime and the idle timeout
-        are configurable rather than fixed platform ceilings. The number that actually constrains long work is the
+        are configurable, from one minute up to eight hours on the serverless compute (fourteen days on the newer
+        instance-based type); the defaults are fifteen minutes idle and the full eight-hour lifetime. The number that
+        actually constrains long work is the
         synchronous request timeout — about fifteen minutes — with asynchronous jobs able to run far longer.</p>
 
     <p>One more: session identifiers carry a substantial minimum length. I read that as an anti-enumeration measure —
@@ -393,20 +396,23 @@
 
     <p><strong>Outbound:</strong> genuine standards-based token exchange, where the exchanged token carries
         <em>both</em> the agent's identity and the original caller's. That's per-hop zero trust, and it's the pattern
-        I'd otherwise be building by hand. Credentials live in a managed, customer-key-encrypted vault; agent code never
-        handles a secret.
+        I'd otherwise be building by hand. Client secrets and refresh tokens live in a managed vault (a customer-managed
+        encryption key is optional). For OAuth providers agent code sees only short-lived access tokens, and for API-key
+        providers it sees the key itself — bearer credentials either way, so the sandbox-egress rules still apply.
     </p>
 
     <div class="warn-box">
-        <p><strong>Now the part that took me an embarrassingly long time to notice.</strong> Edge claim gating and the
-            supported token shape for one major enterprise identity provider are mutually exclusive today. The
-            provider's tokens are supported <em>only when they carry no custom claims</em> — and a directory-group claim
-            is a custom claim. So for that IdP you choose: a supported token, or the edge gating I just called the
-            biggest surprise. Not both.</p>
+        <p><strong>Now the part that took me an embarrassingly long time to notice.</strong> The documentation
+            supports one major enterprise identity provider's tokens <em>only when they carry no custom claims</em> —
+            and it doesn't define the term. In that provider's own vocabulary, group and role claims are built-in
+            claims; "custom" means claims mapping, which the provider only allows once the application has its own
+            signing key or explicitly accepts mapped claims. So gating on a role or group claim is probably fine and
+            gating on mapped claims probably isn't — test it with a real token before relying on either reading.</p>
         <p>I had these two facts in adjacent paragraphs of my own notes for weeks and filed the second one as a minor
-            configuration gotcha. It isn't. It negates the first. If you're on an identity provider that emits the
-            claims you need in a supported shape, edge gating is genuinely the win I've described; if you're not, that
-            check comes back into your application and the security argument for migrating gets measurably weaker.
+            configuration gotcha. It isn't — it decides whether the first one applies to you. If you're on an identity
+            provider that emits the claims you need in a supported shape, edge gating is genuinely the win I've
+            described; if you're not, that check comes back into your application and the security argument for
+            migrating gets measurably weaker.
             Establish which case you're in before the capability goes in your business case — this is a question you can
             answer in an afternoon and it moves the decision.</p>
     </div>
@@ -438,13 +444,14 @@
             So "the agent reaches our internal system directly" <em>is</em> supported — just not via the mechanism the
             gateway documentation describes. Check which one your path actually uses before you route everything through
             a gateway target unnecessarily.</li>
-        <li><strong>Gateway egress requires a publicly-trusted TLS certificate on the target.</strong> For that path an
-            internal certificate authority won't work, which means fronting internal services with a load balancer
-            holding a public certificate and overriding the hostname — a real piece of extra infrastructure. Note the
-            scope carefully, though: the built-in code-interpreter and browser tools <em>do</em> accept custom root CA
-            certificates from the managed secret store, installed into the session trust store. I found no equivalent
-            documented path for runtime egress, so treat that as an undocumented gap rather than a confirmed
-            impossibility.</li>
+        <li><strong>Gateway egress trusts public certificate authorities by default.</strong> On targets reached through
+            a private endpoint you can now register your internal CA certificate (held in object storage or the secret
+            store), so the old workaround — fronting internal services with a load balancer holding a public certificate
+            and overriding the hostname — is no longer needed. It is still a per-target trust anchor with an expiry to
+            monitor. The built-in code-interpreter and browser tools also accept custom root CA certificates from the
+            managed secret store, installed into the session trust store. Runtime egress in VPC mode is different again:
+            it is your own code connecting from your own subnets, so it trusts whatever CA bundle your container image or
+            code bundle ships.</li>
         <li><strong>Availability-zone restrictions</strong> apply in some regions, and network interfaces can persist
             for hours after resource deletion. Both matter for capacity planning and for teardown expectations in tests.
         </li>
@@ -484,11 +491,11 @@
             counting the removal of that service as part of the win, recount.</p>
     </div>
 
-    <h3>2. Observability funnels into one vendor's stack</h3>
+    <h3>2. Observability defaults to one vendor's stack</h3>
 
     <p>This one killed a design I'd already sketched.</p>
 
-    <p>All the platform's metrics, spans and logs flow to the cloud provider's own monitoring service. The telemetry is
+    <p>By default, all the platform's metrics, spans and logs flow to the cloud provider's own monitoring service. The telemetry is
         in an open format, and the supported instrumentation libraries are the same ones third-party LLM-observability
         tools consume — so on paper you'd expect to fan telemetry out to your existing tracing tool.</p>
 
@@ -498,9 +505,10 @@
     <p>What <em>is</em> documented is more encouraging than I first credited: several third-party LLM-instrumentation
         libraries are explicitly supported inside your agent framework, and the span export headers are configurable. So
         instrumenting with a library your existing tool already understands is a supported path — it's the
-        collector-based fan-out to a non-vendor backend that isn't. Running a second exporter inside your own container
-        sits somewhere between the two: closer to documented than I originally described, still not a documented route
-        to a self-hosted backend. Treat it as a risk to test early rather than either a plan or an impossibility. Some
+        collector-based fan-out to a non-vendor backend that isn't. There is also a documented switch that turns the
+        platform's default telemetry configuration off so you can export to another observability platform instead.
+        Exporting to both at once is the part that isn't documented — treat that as a risk to test early rather than
+        either a plan or an impossibility. Some
         auxiliary primitives can route logs to object storage or a streaming service, so partial paths exist.</p>
 
     <p>Why this matters more than it sounds: LLM-specific tracing is not a nice-to-have. Being able to see which tool
@@ -531,8 +539,8 @@
 
     <p>Two further limits worth knowing. There are expressiveness constraints: no regular-expression matching, and
         restrictions on combining condition types within a single policy. And guardrails-in-policy is available in only
-        a handful of regions — roughly five of the sixteen the service otherwise runs in, and notably not in several of
-        the most heavily used ones. For a capability you may be planning to cite in a risk assessment, that regional gap
+        some regions — seven of the twenty-two the policy feature runs in when I last checked, and still not Frankfurt
+        or Ireland. For a capability you may be planning to cite in a risk assessment, that regional gap
         deserves checking before the assessment is written, not after.</p>
 
     <div class="warn-box">
@@ -576,7 +584,7 @@
 
     <h2>The Answer Was Hybrid, and That's Not a Compromise</h2>
 
-    <p>The design I landed on splits along a clean line: <strong>the managed runtime hosts the agents; everything
+    <p>The split I'd recommend runs along a clean line: <strong>the managed runtime hosts the agents; everything
             user-facing and stateful stays on my cluster.</strong></p>
 
     <div class="diagram-container">
@@ -739,10 +747,13 @@
         you solved this once by explicitly re-establishing identity on every internal call, you get to do it again at
         each new hop. Worth planning for rather than rediscovering.</p>
 
-    <p><strong>The compute shape is no longer yours.</strong> No instance-type selection, no memory sizing, no
-        accelerators, no autoscaler tuning. For most agent work that's a relief. If any part of your workload wanted a
-        specific machine — a large in-memory join, a GPU step — that part isn't moving, which pushes you toward the
-        hybrid split anyway.</p>
+    <p><strong>On the default serverless compute, the compute shape is no longer yours.</strong> No instance-type
+        selection, no memory sizing, no accelerators, no autoscaler tuning. For most agent work that's a relief. The
+        newer instance-based compute type gives you instance types and GPUs back, but those are AWS-operated EC2
+        instances billed to your own account, VPC-only, with a different session model — a different trade, not a free
+        upgrade. If part of your workload
+        wants a specific machine — a large in-memory join, a GPU step — that part either stays where it is or moves to
+        the instance-based type, which pushes you toward a split either way.</p>
 
     <p>The case that <em>does</em> hold up is a security-and-isolation one: per-session micro-VMs and standards-based
         token exchange are hard to build well and easy to build subtly wrong. That's worth paying for. It's just a
@@ -777,15 +788,15 @@
                 infrastructure is confidently wrong, and that includes what a model tells you.</li>
             <li><strong>Per-session micro-VM isolation is the real win</strong> — especially if your agent executes
                 generated code.</li>
-            <li><strong>Edge claim gating may not be available to you.</strong> With an identity provider whose
-                supported tokens carry no custom claims, group gating comes back into your application. Check before you
-                bank it.</li>
+            <li><strong>Test edge claim gating with a real token before you bank it.</strong> If your identity
+                provider's supported token shape can't carry the claim you gate on, that check comes back into your
+                application.</li>
             <li><strong>Session-to-user binding stays yours.</strong> Documented explicitly. Ignore it and you rebuild a
                 cross-tenant read on top of excellent isolation.</li>
             <li><strong>"Serverless agents" doesn't mean no backend.</strong> You still own a backend-for-frontend, and
                 it holds the authorization decisions.</li>
-            <li><strong>Observability funnels into one vendor's stack.</strong> Collector fan-out is unsupported; budget
-                for a downgrade or a second stack.</li>
+            <li><strong>Observability defaults to one vendor's stack.</strong> You can switch it to your own backend, but
+                collector fan-out is unsupported and dual export is undocumented — test it early.</li>
             <li><strong>No guardrail runs until you author a policy.</strong> Default thresholds are not default
                 enforcement, only three categories are expressible at the gateway, and the feature is regionally
                 limited. Front the runtime with a gateway if you need them on runtime traffic.</li>
@@ -833,6 +844,8 @@
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

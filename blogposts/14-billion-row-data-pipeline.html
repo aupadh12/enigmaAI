@@ -6,7 +6,7 @@
     <title>Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build">
-    <meta property="og:description" content="We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.">
+    <meta property="og:description" content="We had a design. The advisor caught five blockers before the first build. Here's what changed and why it mattered.">
     <meta property="og:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/14-billion-row-data-pipeline.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="627">
@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/14-billion-row-data-pipeline.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build">
-    <meta name="twitter:description" content="We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.">
+    <meta name="twitter:description" content="We had a design. The advisor caught five blockers before the first build. Here's what changed and why it mattered.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/14-billion-row-data-pipeline.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -123,7 +123,7 @@
 
 <div class="header-badge">Data Engineering</div>
 <h1>Ingesting 129 GB for an AI Agent: Five Design Mistakes Caught Before Build</h1>
-<p class="subtitle">We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.</p>
+<p class="subtitle">We had a design. The advisor caught five blockers before the first build. Here's what changed and why it mattered.</p>
 
 <div class="author-block">
     <div class="author-avatar">A</div>
@@ -133,11 +133,13 @@
     </div>
 </div>
 
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <h2>We Were Ready to Build</h2>
 
 <p>The source data was clear. Thirty-four compound-screening studies. Three hundred twenty-two run folders. A clean long-format CSV schema: <code>gene_id, SampleName, raw, logcpm, nnZScore, ZScore, dateCreated</code>. We had estimated the total volume at 387 GB — 322 files, 1.2 GB average. We had a storage design using Hive-partitioned Parquet on S3, a weekly CronJob with 16 Gi memory, an Athena table with partition discovery, and a two-action API for the AI agent to query expression values and find regulated genes.</p>
 
-<p>Before writing a single line of code, we submitted the design to a review agent — an architectural advisor that reads the codebase, checks live AWS state, and looks for blockers. It came back with five of them.</p>
+<p>Before the first build, we submitted the design and draft code to a review agent — an architectural advisor that reads the codebase, checks live AWS state, and looks for blockers. It came back with five of them.</p>
 
 <p>None of the five were subtle. Each would have caused silent data corruption, nightly OOM kills, or an Athena table that looked healthy but returned no rows. This post walks through what the advisor found, why each mistake was non-obvious at design time, and what the fixes looked like.</p>
 
@@ -156,7 +158,7 @@ STUDY-A / sample-05: data.csv      204,460,190 bytes  ( ~70 samples)</code></pre
 <p>File sizes varied dramatically — proportional to sample count, not study. The 1.2 GB file we had used as the baseline had 260 samples. Most runs had 60–120 samples, making the average closer to 400 MB. The real total: approximately 129 GB CSV, not 387 GB.</p>
 
 <div class="highlight-box">
-<p><strong>The probe-first principle:</strong> Before sizing memory, deadlines, or cost models for a new data source, spend 10 minutes running ranged <code>GetObject</code> requests against a representative sample. One S3 API call prevented three weeks of over-engineered infrastructure. Our 16 Gi pod limit stayed, but the 18-hour deadline estimate dropped to a realistic 3–4 Saturday runs via incremental checkpointing.</p>
+<p><strong>The probe-first principle:</strong> Before sizing memory, deadlines, or cost models for a new data source, spend 10 minutes listing a representative sample — <code>ListObjectsV2</code> returns every object's size. One S3 API call prevented three weeks of over-engineered infrastructure. Our 16 Gi pod limit stayed, but the 18-hour deadline estimate dropped to a realistic 3–4 Saturday runs via incremental checkpointing.</p>
 </div>
 
 <p>The probe also confirmed something critical about the data structure: each CSV contained only the samples for that specific run folder — it was not a full-study eset replicated per folder. This changed the deduplication design entirely, as we'll see in Blocker 4.</p>
@@ -176,7 +178,7 @@ STUDY-A / sample-05: data.csv      204,460,190 bytes  ( ~70 samples)</code></pre
 
 <p>Missing: <code>glue:BatchCreatePartition</code> and <code>glue:CreatePartition</code>.</p>
 
-<p>AWS documentation confirms what makes this particularly nasty: <code>MSCK REPAIR TABLE</code> can return <code>SUCCEEDED</code> while registering zero new partitions. There's an entire AWS troubleshooting page titled "MSCK REPAIR TABLE detects partitions but doesn't add them to AWS Glue." The query runs, reports success, and your new data is completely invisible to Athena. No error. No warning.</p>
+<p>AWS documentation confirms what makes this particularly nasty: <code>MSCK REPAIR TABLE</code> can return <code>SUCCEEDED</code> while registering zero new partitions. Athena's troubleshooting guide has an entry titled "MSCK REPAIR TABLE detects partitions but doesn't add them to AWS Glue." The query runs, reports success, and your new data is completely invisible to Athena. No error. No warning.</p>
 
 <div class="stale-box">
 <p><strong>The silent failure mode:</strong> Adding <code>glue:BatchCreatePartition</code> to the policy would fix the permission gap — but Athena's own performance documentation recommends avoiding MSCK REPAIR for partition maintenance entirely. It scans S3 for new prefixes, which becomes expensive as data grows.</p>
@@ -195,7 +197,7 @@ aws glue create-table \
       "projection.enabled": "true",
       "projection.study_id.type": "injected",
       "storage.location.template":
-        "s3://bucket/research-agent/data/transcriptomics_bulk/expression/study_id=${study_id}"
+        "s3://bucket/research-agent/data/bulk_dataset/expression/study_id=${study_id}"
     },
     "PartitionKeys": [{"Name": "study_id", "Type": "string"}],
     ...
@@ -203,19 +205,19 @@ aws glue create-table \
 
 <h2>Blocker 2: The Daily CronJob Would OOM Every Night</h2>
 
-<p>The new expression ingestion code was added inside <code>_ingest_transcriptomics_bulk()</code>. The function was already called by two CronJobs:</p>
+<p>The new expression ingestion code was added inside <code>ingest_bulk_dataset()</code>. The function was already called by two CronJobs:</p>
 
 <ul>
     <li>Daily 04:00 UTC — metadata ingestion (pdata/fdata), 4 Gi memory limit, 4-hour deadline</li>
     <li>Weekly Saturday 06:00 UTC — expression ingestion, 16 Gi memory limit, 8-hour deadline</li>
 </ul>
 
-<p>Both CronJobs called the same function. The new expression loop had no gating condition. The moment the v22.01 image deployed, the daily 4 Gi job would attempt to load 1.2 GB CSV files into memory, OOM-kill on the first large file, and retry until it hit the backoff limit. This would happen every night, noisily, while appearing to be an expression ingestion failure when it was actually a design error.</p>
+<p>Both CronJobs called the same function. The new expression loop had no gating condition. The moment the new image deployed, the daily 4 Gi job would attempt to load 1.2 GB CSV files into memory, OOM-kill on the first large file, and retry until it hit the backoff limit. This would happen every night, noisily, while appearing to be an expression ingestion failure when it was actually a design error.</p>
 
 <p>The fix was a function parameter with a safe default:</p>
 
-<pre><code>def _ingest_transcriptomics_bulk(
-    s3: S3DataLakeClient,
+<pre><code>def ingest_bulk_dataset(
+    s3: DataLakeClient,
     include_expression: bool = False,   # B2 fix: daily 4Gi job uses default False
 ) -> tuple[int, list[str]]:
     ...
@@ -245,8 +247,8 @@ if len(expr_files_written) % expr_checkpoint_every == 0:
         k: v for k, v in new_run_records.items()
         if k.startswith("expr/")   # ← this filter is the fix
     }
-    s3.upsert_manifest(
-        "transcriptomics_bulk",
+    s3.write_manifest(
+        "bulk_dataset",
         expr_files_written,
         0,
         time.time() - ingest_start,
@@ -269,8 +271,7 @@ expr_s3_key = f"{prefix}/study_id={study_id}/{sample_id}__{run_folder}.parquet"
 # B4 fix: key on sample_id only — PUT is idempotent, re-analysis overwrites
 expr_s3_key = f"{prefix}/study_id={study_id}/{sample_id}.parquet"</code></pre>
 
-<p>S3's <code>put_object</code> overwrites unconditionally. Keying on sample_id makes every re-analysis overwrite the S3 object. The <code>run_folder</code> value is still preserved as a column inside the Parquet file for provenance, but it no longer participates in the S3 key.</p>
-<div class="warn-box"><p><strong>Note on incremental runs:</strong> The manifest key (<code>expr/{study_id}/{sample_id}</code>) has no <code>run_folder</code> component, so the incremental skip fires before the S3 write on subsequent runs. Re-ingesting a newer annotation version currently requires clearing the manifest entry for that sample. We've logged this as a backlog item to key the manifest on <code>expr/{study}/{sample}/{run_folder}</code>.</p></div>
+<p>S3's <code>put_object</code> overwrites unconditionally. Keying on sample_id means a re-ingested sample overwrites its object instead of adding a second one. The <code>run_folder</code> value is still preserved as a column inside the Parquet file for provenance, but it no longer participates in the S3 key.</p>
 
 <h2>Blocker 5: Schema Drift Produces Silent NULLs</h2>
 
@@ -292,9 +293,10 @@ expr_tbl = pcsv.read_csv(
             "dateCreated": pa.string(),
         },
         # WARNING: null_values REPLACES pyarrow defaults, not extends them.
-        # Add any default null strings you need (n/a, #N/A N/A, 1.#IND, etc.)
-        # or use strings_can_be_null=True to cover lowercase variants.
+        # List every null spelling you need (n/a, #N/A N/A, 1.#IND, etc.) —
+        # matching is exact, so case variants need their own entries.
         null_values=["", "NA", "NaN", "null", "NULL", "N/A", "n/a", "#N/A", "#N/A N/A", "-", "nan"],
+        # Also apply null_values to string columns (by default they stay literal text)
         strings_can_be_null=True,
     ),
 )</code></pre>
@@ -322,11 +324,11 @@ spec:
         - python
         - -c
         - |
-          from research_agent.ingestion import _ingest_transcriptomics_bulk
-          _ingest_transcriptomics_bulk(s3, include_expression=True)</code></pre>
+          from research_agent.ingestion import DataLakeClient, ingest_bulk_dataset
+          ingest_bulk_dataset(DataLakeClient(), include_expression=True)</code></pre>
 
 <div class="highlight-box">
-<p><strong>Checkpoint every N files, not at the end:</strong> A function that writes 322 files and flushes its manifest once at the end loses all progress on any failure. Checkpointing every 30 files means a pod killed at hour 7 restarts from file 210, not from file 1. The cost is minimal — an S3 JSON read-modify-write every 30 iterations — and the recovery benefit is compounding.</p>
+<p><strong>Checkpoint every N files, not at the end:</strong> A function that writes 322 files and flushes its manifest once at the end loses all progress on any failure. Checkpointing every 30 files means a pod killed at hour 7 (about 126 files in) restarts from file 121, not from file 1. The cost is minimal — an S3 JSON read-modify-write every 30 iterations — and the recovery benefit is compounding.</p>
 </div>
 
 <h2>What We Learned</h2>
@@ -357,8 +359,8 @@ spec:
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
-        <li><strong>Probe before estimating.</strong> One ranged S3 GetObject request changed our storage estimate by 3×. Size your infrastructure from measurements, not arithmetic.</li>
-        <li><strong>MSCK REPAIR TABLE can silently succeed and do nothing.</strong> If you're missing <code>glue:BatchCreatePartition</code>, consider injected or enum partition projection instead — zero catalog writes, no IAM gap.</li>
+        <li><strong>Probe before estimating.</strong> One listing of a representative sample changed our storage estimate by 3×. Size your infrastructure from measurements, not arithmetic.</li>
+        <li><strong>MSCK REPAIR TABLE can silently succeed and do nothing.</strong> If you're missing <code>glue:BatchCreatePartition</code>, consider partition projection instead — injected needs no catalog writes at all, and enum needs only a table-property update (<code>glue:UpdateTable</code>) when a new value appears.</li>
         <li><strong>Separate jobs must not share implicit state.</strong> When two CronJobs call the same function, gate the heavy path behind a parameter with a safe default. The wrong default will always surface at the worst time.</li>
         <li><strong>Checkpoint only what is durably written.</strong> Flushing a manifest key before the corresponding file is written to S3 is data loss waiting to happen. Separate your key namespaces by artifact type.</li>
         <li><strong>Never rely on type inference for multi-file ingestion.</strong> pyarrow infers <code>null</code> for empty columns. One file with an empty Z-score column and no explicit type declaration will silently corrupt that partition's analytics forever.</li>
@@ -394,6 +396,8 @@ spec:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

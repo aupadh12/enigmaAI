@@ -157,7 +157,7 @@
       <link>https://aupadh12.github.io/enigmaAI/blogposts/18-aws-datasync-cross-account-s3.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/18-aws-datasync-cross-account-s3.html</guid>
       <pubDate>Sun, 30 Aug 2026 00:00:00 +0000</pubDate>
-      <description>The console can&apos;t see the bucket. The role needs to be in the destination account. KMS is almost always the first thing that breaks. Here&apos;s the complete playbook.</description>
+      <description>The console can&apos;t see the bucket. The role lives in the account that runs the task. KMS is almost always the first thing that breaks. Here&apos;s the complete playbook.</description>
       <category>Data Engineering</category>
     </item>
 
@@ -184,7 +184,7 @@
       <link>https://aupadh12.github.io/enigmaAI/blogposts/15-gpu-pathology-ai-eks.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/15-gpu-pathology-ai-eks.html</guid>
       <pubDate>Wed, 26 Aug 2026 00:00:00 +0000</pubDate>
-      <description>Burst GPU workloads, silent Karpenter version traps, and why your SQS consumer should never be a ScaledJob.</description>
+      <description>Burst GPU workloads, silent Karpenter and KEDA version traps, and when a ScaledJob is the wrong primitive.</description>
       <category>MLOps</category>
     </item>
 
@@ -193,7 +193,7 @@
       <link>https://aupadh12.github.io/enigmaAI/blogposts/14-billion-row-data-pipeline.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/14-billion-row-data-pipeline.html</guid>
       <pubDate>Tue, 18 Aug 2026 00:00:00 +0000</pubDate>
-      <description>We had a design. The advisor caught five blockers before a single line was written. Here's what changed and why it mattered.</description>
+      <description>We had a design. The advisor caught five blockers before the first build. Here's what changed and why it mattered.</description>
       <category>Data Engineering</category>
     </item>
 
@@ -220,7 +220,7 @@
       <link>https://aupadh12.github.io/enigmaAI/blogposts/11-observability-for-agents.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/11-observability-for-agents.html</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 +0000</pubDate>
-      <description>Langfuse catches bad tool data. Prometheus catches the stuck pod. CloudWatch catches the $12 session. Here's how three layers work together — and where each one falls short alone.</description>
+      <description>Langfuse catches bad tool data. Prometheus catches the stuck pod. CloudWatch catches the throttling. Here's how three layers work together — and where each one falls short alone.</description>
       <category>Observability</category>
     </item>
 
@@ -238,7 +238,7 @@
       <link>https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html</guid>
       <pubDate>Fri, 05 Jun 2026 00:00:00 +0000</pubDate>
-      <description>A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like.</description>
+      <description>A tag-only image bump left the UI, presentation, and diagrams stale — the diagram five versions behind. None of it errored. Here's what a real AI system release checklist looks like.</description>
       <category>Release Engineering</category>
     </item>
 
@@ -265,7 +265,7 @@
       <link>https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html</guid>
       <pubDate>Tue, 14 Apr 2026 00:00:00 +0000</pubDate>
-      <description>Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data — including a cross-tenant vulnerability I shipped, found, and closed.</description>
+      <description>Security lessons from building an autonomous, tool-calling agent for regulated enterprise data — including a cross-tenant vulnerability found and closed before any such data was connected.</description>
       <category>AI Security</category>
     </item>
 
@@ -273,7 +273,7 @@
       <title>Every Public Benchmark Is Useless to You</title>
       <link>https://aupadh12.github.io/enigmaAI/blogposts/5-benchmarking-llms-in-the-enterprise.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/5-benchmarking-llms-in-the-enterprise.html</guid>
-      <pubDate>Thu, 26 Mar 2026 00:00:00 +0000</pubDate>
+      <pubDate>Fri, 31 Jul 2026 00:00:00 +0000</pubDate>
       <description>Building a standing internal evaluation suite — and the four ways my harness broke before it produced a single trustworthy number.</description>
       <category>LLM Evaluation</category>
     </item>
@@ -301,7 +301,7 @@
       <link>https://aupadh12.github.io/enigmaAI/blogposts/2-agentic-ai-systems.html</link>
       <guid>https://aupadh12.github.io/enigmaAI/blogposts/2-agentic-ai-systems.html</guid>
       <pubDate>Tue, 03 Feb 2026 00:00:00 +0000</pubDate>
-      <description>How I built a 33-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.</description>
+      <description>How I built a 35-tool AI agent that autonomously queries databases, builds knowledge graphs, and generates research reports — running on Kubernetes.</description>
       <category>Agentic AI</category>
     </item>
 

@@ -6,7 +6,7 @@
     <title>AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises">
-    <meta property="og:description" content="The console can't see the bucket. The role needs to be in the right account. The KMS key policy is usually the first thing that breaks. Here's the complete setup.">
+    <meta property="og:description" content="The console can't see the bucket. The role lives in the account that runs the task. KMS is almost always the first thing that breaks. Here's the complete playbook.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/18-aws-datasync-cross-account-s3.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="627">
@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/18-aws-datasync-cross-account-s3.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises">
-    <meta name="twitter:description" content="The console can't see the bucket. The role needs to be in the right account. The KMS key policy is usually the first thing that breaks. Here's the complete setup.">
+    <meta name="twitter:description" content="The console can't see the bucket. The role lives in the account that runs the task. KMS is almost always the first thing that breaks. Here's the complete playbook.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/18-aws-datasync-cross-account-s3.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -130,7 +130,7 @@
 
 <div class="header-badge">Data Engineering</div>
 <h1>AWS DataSync for S3: Same-Account and Cross-Account Transfer Without the Surprises</h1>
-<p class="subtitle">The console can't see the bucket. The role needs to be in the destination account. KMS is almost always the first thing that breaks. Here's the complete playbook.</p>
+<p class="subtitle">The console can't see the bucket. The role lives in the account that runs the task. KMS is almost always the first thing that breaks. Here's the complete playbook.</p>
 
 <div class="author-block">
     <div class="author-avatar">A</div>
@@ -140,20 +140,22 @@
     </div>
 </div>
 
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <p>AWS DataSync handles large-scale S3 data movement with scheduling, incremental sync, and data verification built in. For a one-off copy, <code>aws s3 sync</code> is fine. DataSync earns its place when you need reliable, repeatable transfers — especially across account boundaries — without homegrown retry logic and CloudWatch dashboards you had to build yourself.</p>
 
-<p>The same-account setup is simple. The cross-account setup has three non-obvious requirements that nobody mentions together: the role must live in the destination account, the source bucket needs its own bucket policy, and the console can't be used to create cross-account locations. This post walks both setups end-to-end.</p>
+<p>The same-account setup is simple. The cross-account setup has three non-obvious requirements that nobody mentions together: the role must live in the account that runs the task (here, the destination), the source bucket needs its own bucket policy, and the console can't be used to create cross-account locations. This post walks both setups end-to-end.</p>
 
 <h2>Why DataSync Instead of <code>aws s3 sync</code></h2>
 
 <p>For ongoing transfers between two S3 locations, DataSync provides capabilities that a script wrapping the CLI cannot easily replicate:</p>
 
 <ul>
-    <li><strong>Incremental transfer</strong> — skips objects that haven't changed based on checksums, not just timestamps</li>
+    <li><strong>Incremental transfer</strong> — compares source and destination and copies only new or changed objects; checksums then verify what was copied</li>
     <li><strong>Built-in scheduling</strong> — run tasks on a cron without managing cron infrastructure</li>
     <li><strong>Data verification</strong> — optionally verify object integrity post-transfer</li>
     <li><strong>Bandwidth throttling</strong> — limit transfer rate to avoid saturating shared network paths</li>
-    <li><strong>Native CloudWatch metrics</strong> — bytes transferred, files skipped, error counts, task duration — without instrumentation work</li>
+    <li><strong>Native CloudWatch metrics</strong> — bytes and files transferred, verified and skipped — with errors and duration in the task execution details and logs, without instrumentation work</li>
     <li><strong>Automatic retry</strong> — transient failures are retried without manual intervention</li>
 </ul>
 
@@ -205,6 +207,7 @@
       "Action": [
         "s3:GetObject",
         "s3:GetObjectVersion",
+        "s3:GetObjectVersionTagging",
         "s3:GetObjectTagging",
         "s3:ListMultipartUploadParts"
       ],
@@ -226,6 +229,7 @@
       "Action": [
         "s3:GetObject",
         "s3:GetObjectVersion",
+        "s3:GetObjectVersionTagging",
         "s3:GetObjectTagging",
         "s3:PutObject",
         "s3:PutObjectTagging",
@@ -257,7 +261,7 @@
 
 <h2>Cross-Account Setup: Why It's Different</h2>
 
-<p>AWS documents two topologies for cross-account DataSync. We use and document the <strong>destination-account-driven approach</strong> here — task and IAM role in Account A (the receiving account) — because it avoids a mandatory extra step that the source-account-driven approach requires (disabling ACLs on the destination bucket). Both topologies work; the tradeoff is covered in the gotcha table below.</p>
+<p>AWS documents two topologies for cross-account DataSync. We use and document the <strong>destination-account-driven approach</strong> here — task and IAM role in Account A (the receiving account) — because the role and the objects it writes then sit in the same account. AWS's own tutorial runs the task in the source account and includes a "disable ACLs on the destination bucket" step; on the S3 default (Bucket owner enforced) that step is a check rather than a change. Both topologies work; the ownership notes below cover the trade-off.</p>
 
 <p>In the destination-account topology: <strong>DataSync uses the IAM role in the account where the task runs.</strong> The task runs in Account A, the role is in Account A, and that single role handles both the source location (Account B's bucket) and the destination location (Account A's bucket).</p>
 
@@ -274,7 +278,7 @@
 │  IAM Role: DataSyncCrossAcctRole  │
 │  (assumed by datasync.amazonaws.com)
 └──────────────────────────────────┘</pre>
-<p class="diagram-caption">Topology shown: task and role run in Account A (destination). AWS also documents a source-account-driven topology (task in Account B) — that approach requires disabling ACLs on Account A's destination bucket to ensure Account A owns the transferred objects.</p>
+<p class="diagram-caption">Topology shown: task and role run in Account A (destination). AWS also documents a source-account-driven topology (task in Account B) — with that approach, check that Account A's destination bucket has ACLs disabled (the S3 default) so Account A owns the transferred objects.</p>
 </div>
 
 <h3>Step 1: Create the IAM Role in Account A</h3>
@@ -298,6 +302,7 @@
       "Action": [
         "s3:GetObject",
         "s3:GetObjectVersion",
+        "s3:GetObjectVersionTagging",
         "s3:GetObjectTagging",
         "s3:ListMultipartUploadParts"
       ],
@@ -319,6 +324,7 @@
       "Action": [
         "s3:GetObject",
         "s3:GetObjectVersion",
+        "s3:GetObjectVersionTagging",
         "s3:GetObjectTagging",
         "s3:PutObject",
         "s3:PutObjectTagging",
@@ -359,6 +365,7 @@
       "Action": [
         "s3:GetObject",
         "s3:GetObjectVersion",
+        "s3:GetObjectVersionTagging",
         "s3:GetObjectTagging",
         "s3:ListMultipartUploadParts",
         "s3:ListBucket",
@@ -424,7 +431,7 @@ aws datasync describe-task-execution \
 
 <h2>The KMS Gotcha</h2>
 
-<p>If either bucket uses SSE-KMS encryption, the IAM policy alone is not sufficient — you must also update the KMS key policies in the relevant accounts. This is the most common failure point in cross-account DataSync setups, and the error message is a generic <code>AccessDenied</code> that doesn't mention KMS.</p>
+<p>If either bucket uses SSE-KMS encryption, the DataSync role needs KMS permissions as well as S3 ones. For the key in the other account, that means two grants: the key policy there must name the role, and the role's IAM policy must allow the key. For the key in the task's own account, the IAM policy is enough when the key policy delegates to IAM (the default). This is the most common failure point in cross-account DataSync setups, and the error message is a generic <code>AccessDenied</code> that doesn't mention KMS.</p>
 
 <h3>Source Bucket in Account B Uses KMS</h3>
 
@@ -443,9 +450,11 @@ aws datasync describe-task-execution \
   "Resource": "*"
 }</code></pre>
 
+<p>This only works with a customer managed key: objects encrypted with the AWS managed <code>aws/s3</code> key can't be read from another account, so re-encrypt them under a customer managed key first. Also add <code>kms:Decrypt</code> on that key's full ARN (not an alias) to the role's policy in Account A.</p>
+
 <h3>Destination Bucket in Account A Uses KMS</h3>
 
-<p>The DataSync role needs <code>kms:GenerateDataKey</code>, <code>kms:Encrypt</code>, and <code>kms:Decrypt</code> on Account A's KMS key. This is an identity-based permission (IAM policy) or a key policy addition — either works for same-account keys:</p>
+<p>The DataSync role needs <code>kms:GenerateDataKey</code>, <code>kms:Encrypt</code>, and <code>kms:Decrypt</code> on Account A's KMS key. This is an identity-based permission (IAM policy) or a key policy addition — either works for same-account keys, provided the key policy delegates to IAM (the default statement); naming the role in the key policy, as DataSync's docs do, is the safe default:</p>
 
 <pre><code>{
   "Effect": "Allow",
@@ -478,7 +487,7 @@ aws datasync describe-task-execution \
         <tr>
             <td><code>VerifyMode</code></td>
             <td><code>ONLY_FILES_TRANSFERRED</code></td>
-            <td>Use <code>POINT_IN_TIME_CONSISTENT</code> for full integrity checks; <code>NONE</code> to skip verification entirely and maximize throughput</td>
+            <td>Use <code>POINT_IN_TIME_CONSISTENT</code> for full integrity checks (Basic mode only; Enhanced mode, AWS's recommendation for S3-to-S3, verifies only transferred data); <code>NONE</code> to skip verification entirely and maximise throughput</td>
         </tr>
         <tr>
             <td><code>OverwriteMode</code></td>
@@ -545,13 +554,13 @@ aws datasync describe-task-execution \
 
 <div class="green-box">
     <p><strong>Object ownership — destination-account topology:</strong> When DataSync in Account A writes to Account A's bucket using Account A's role, Account A automatically owns the objects. Ownership follows from which account's role performed the write — no ACL configuration needed.</p>
-    <p><strong>Source-account topology note:</strong> In AWS's alternative documented pattern (task and role in Account B, the source), the role writes into Account A's bucket from Account B's credentials. In that case, Account B would own the transferred objects by default — to make Account A own them, you must disable ACLs on Account A's destination bucket first (S3 Object Ownership → Bucket owner enforced). AWS lists this as a required step in their cross-account DataSync tutorial.</p>
+    <p><strong>Source-account topology note:</strong> In AWS's alternative documented pattern (task and role in Account B, the source), the role writes into Account A's bucket from Account B's credentials. In that case, Account B would own the transferred objects if Account A's bucket still has ACLs enabled — under Object writer always, and under Bucket owner preferred unless each upload carries the <code>bucket-owner-full-control</code> ACL. On the S3 default, Bucket owner enforced, Account A owns everything regardless of who wrote it; AWS's cross-account tutorial includes a step to set it, so confirm it before the first run.</p>
 </div>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
-        <li>Two valid cross-account topologies exist: task in the destination account (covered here) or task in the source account (AWS's primary documented path). The destination-account topology avoids the mandatory ACL-disable step; the source-account topology requires disabling ACLs on the destination bucket to transfer ownership.</li>
+        <li>Two valid cross-account topologies exist: task in the destination account (covered here) or task in the source account (AWS's primary documented path). With the source-account topology, confirm the destination bucket has ACLs disabled (the S3 default) so the destination account owns what lands there.</li>
         <li>In the destination-account topology, cross-account S3 access requires both sides: the IAM policy in Account A and the bucket policy in Account B. Neither alone is sufficient.</li>
         <li>Always create cross-account source locations via CLI — the DataSync console cannot enumerate buckets in other accounts.</li>
         <li>KMS-encrypted buckets require key policy updates in addition to IAM permissions. This is the most common first failure point.</li>
@@ -585,6 +594,8 @@ aws datasync describe-task-execution \
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

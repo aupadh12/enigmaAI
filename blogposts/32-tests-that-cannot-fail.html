@@ -169,6 +169,7 @@
         <div class="author-title">Platform Engineering · October 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
 <p>The suite was green: 279 tests, all passing, written by a coding agent alongside a new tool for a research assistant. Several of those tests asserted that the tool returned statuses such as <code>"busy"</code>, <code>"running"</code> and <code>"needs_clarification"</code> at the top level of its result. The agent's framework accepts exactly two top-level values, <code>"success"</code> and <code>"error"</code>. Anything else is forwarded to the model API, which rejects it, and the next model call in the turn fails. The paths the skill relied on most (the one that tells the model to stop and ask instead of guessing) would have killed the conversation on first contact with the real service.</p>
 
@@ -205,17 +206,17 @@
 
 <p>The test looks right and runs real code, but the code under test is not the code that matters. This is the most common family, and the hardest to see by reading only the test.</p>
 
-<p><strong>Patching the wrong mock.</strong> A helper builds its own HTTP client inside the function. The test patches the client at the module level, outside the helper, and asserts on the outer mock. The helper re-patched the client, so the outer mock was never touched.</p>
+<p><strong>Patching the wrong mock.</strong> The test patched the HTTP client, then called a test helper that patched the same client again inside itself, and asserted on the outer mock. The code under test only ever saw the inner mock, so the outer one was never touched.</p>
 
 <pre><code># Before: asserts on a mock nothing uses
 def test_dry_run_sends_nothing():
     with patch("pkg.http.Client") as outer:
-        run_export(dry_run=True)       # builds and uses its own client inside
-    outer.return_value.post.assert_not_called()   # always true
+        run_export_via_helper(dry_run=True)   # the helper patches Client again inside
+    outer.return_value.post.assert_not_called()   # always true: the code saw the inner mock
 
 # After: assert on the mock actually in effect
 def test_dry_run_sends_nothing():
-    client = make_client_recorder()    # the same object the helper will use
+    client = make_client_recorder()    # the same object the code will use
     run_export(dry_run=True, client=client)
     assert client.calls == []</code></pre>
 
@@ -274,7 +275,7 @@ assert check_numbers("see item 7", items) == []     # passes with or without the
 # After: make the fixture unable to answer by accident
 items = [{"id": 7, "title": "Overview of outcomes"}]
 assert str(items[0]["id"]) not in items[0]["title"]
-assert check_numbers("see item 7", items) == [Flag("7")]   # the fix strips the ID</code></pre>
+assert check_numbers("see item 7", items) == []     # with the fix deleted, this returns [Flag("7")]</code></pre>
 
 
 <p><strong>Round-trip that doesn't round-trip.</strong> A save-and-reload test built the reloaded object from the test's <em>input</em> rather than from the bytes the code actually wrote. Write regressions were invisible. Feed the real captured write back in.</p>
@@ -334,17 +335,19 @@ test("export clones a proxied spec", () =&gt; {
   expect(() =&gt; exportSpec(spec)).not.toThrow();
 });</code></pre>
 
-<p><strong>A time-zone test that cannot fail on a UTC machine.</strong> A UTC date formatter was tested on a laptop and a CI runner, both in UTC, where local and UTC dates agree. Dropping the explicit <code>timeZone: "UTC"</code> from the implementation changed nothing. The test must pin the zone itself and choose a timestamp whose local date differs from its UTC date.</p>
+<p><strong>A time-zone test that cannot fail on a UTC machine.</strong> A UTC date formatter was tested on a laptop and a CI runner, both in UTC, where local and UTC dates agree. Dropping the explicit <code>timeZone: "UTC"</code> from the implementation changed nothing. The test must pin the zone itself, check that the pin took effect (a test runner that uses worker threads ignores a runtime change to <code>TZ</code>), and choose a timestamp whose local date differs from its UTC date.</p>
 
 <pre><code>test("formats the UTC range regardless of local zone", () =&gt; {
   const prev = process.env.TZ;
   process.env.TZ = "America/Los_Angeles";
   try {
-    // 02:00 UTC on the 1st is still the 30th in Los Angeles
+    // the pin took effect: 02:00 UTC on the 1st is still the 30th in Los Angeles
+    expect(new Date(Date.UTC(2026, 9, 1, 2)).getDate()).toBe(30);
     expect(format_utc_range(Date.UTC(2026, 9, 1, 2), Date.UTC(2026, 9, 2, 2)))
       .toBe("1 Oct 2026 to 2 Oct 2026");
   } finally {
-    process.env.TZ = prev;
+    if (prev === undefined) delete process.env.TZ;   // assigning undefined would store "undefined"
+    else process.env.TZ = prev;
   }
 });</code></pre>
 
@@ -382,7 +385,7 @@ test("export clones a proxied spec", () =&gt; {
 
 <pre><code>#!/usr/bin/env python3
 """mutate_check.py: prove a test fails when one guarantee is broken."""
-import pathlib, shutil, subprocess, sys, tempfile
+import os, pathlib, shutil, subprocess, sys, tempfile
 
 SRC = pathlib.Path(".").resolve()
 TARGET = "src/service.py"                    # file to mutate (relative)
@@ -401,14 +404,20 @@ with tempfile.TemporaryDirectory() as tmp:
     print(subprocess.run(["diff", "-u", str(SRC / TARGET), str(f)],
                          capture_output=True, text=True).stdout)
 
-    red = subprocess.run([sys.executable, "-m", "pytest", "-x", "-q", TEST],
-                         cwd=work, capture_output=True, text=True)
+    env = {**os.environ, "PYTHONPATH": str(work / "src")}   # import the copy, not an installed tree
+    try:
+        red = subprocess.run([sys.executable, "-m", "pytest", "-x", "-q", TEST],
+                             cwd=work, env=env, capture_output=True, text=True,
+                             timeout=300)
+    except subprocess.TimeoutExpired:
+        print("OK: the mutant made the test hang, which counts as red")
+        sys.exit(0)
     if red.returncode == 0:
         sys.exit("FAIL: test stayed green under the mutation (hollow test)")
     print("OK: test went red. Confirm the failure is the assertion, not an import error:")
     print(red.stdout[-600:])</code></pre>
 
-<p>Three details carry the weight. The <code>count == 1</code> assertion kills the no-op mutation. The printed diff kills the "wrong block" mistake, since you can see what changed. And the last line reminds you to read the failure: an <code>ImportError</code> caused by a bad edit is also a red test, but it says nothing about your guarantee.</p>
+<p>Three details carry the weight. The <code>count == 1</code> assertion kills the no-op mutation. The printed diff kills the "wrong block" mistake, since you can see what changed. And the last line reminds you to read the failure: an <code>ImportError</code> caused by a bad edit is also a red test, but it says nothing about your guarantee. Two more details keep the verdict honest. If the project is installed in editable mode, the copied tests would otherwise import the original tree and report a good test as hollow, so <code>PYTHONPATH</code> points at the copy. And the timeout turns a mutant that makes the test hang, which this example mutation easily can, into a red result instead of a stuck script.</p>
 
 <h3>2. Mock at the boundary, assert on the boundary</h3>
 
@@ -499,6 +508,8 @@ with tempfile.TemporaryDirectory() as tmp:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

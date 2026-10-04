@@ -140,6 +140,8 @@
     </div>
 </div>
 
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <p>We built a system that queries AWS CloudWatch Logs across multiple AWS accounts to extract AI model usage data. Each account logs model invocations to a CloudWatch log group. The goal: consolidate all usage into one dashboard — a unified view of who is calling what model, at what cost, across the entire organisation.</p>
 
 <p>The architecture looked simple enough. One EKS pod with an IRSA role. The IRSA role can assume a target role in each account. Each target role has <code>logs:FilterLogEvents</code> and <code>logs:DescribeLogGroups</code>. The pod iterates accounts, queries CloudWatch in fixed time windows, and stores results in SQLite. We had it working on the first account within a day.</p>
@@ -152,16 +154,25 @@
 
 <p>The trust chain is: EKS pod → IRSA role in home account → <code>sts:AssumeRole</code> → per-account target role. (The IRSA + cross-account AssumeRole pattern is covered in depth in the companion post — here we focus on the CloudWatch-specific pieces.)</p>
 
-<p>The target role policy for CloudWatch extraction:</p>
+<p>The target role policy for CloudWatch extraction (<code>DescribeLogGroups</code> doesn't support resource-level permissions, so it needs its own statement with <code>"Resource": "*"</code>):</p>
 
 <pre><code>{
-  "Effect": "Allow",
-  "Action": [
-    "logs:FilterLogEvents",
-    "logs:DescribeLogGroups",
-    "logs:GetLogEvents"
-  ],
-  "Resource": "arn:aws:logs:*:TARGET_ACCOUNT_ID:log-group:/aws/example*:*"
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "logs:DescribeLogGroups",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:TARGET_ACCOUNT_ID:log-group:/aws/example*"
+    }
+  ]
 }</code></pre>
 
 <p>Note the wildcard on region (<code>*</code>) in the Resource ARN. This is intentional — the role must work in whatever region the log group lives in, which you may not know up front. Locking it to a specific region at the IAM level would create a different but equally silent failure: <code>AccessDenied</code> only surfaces if you try to use the correct region, not if you're querying the wrong one.</p>
@@ -177,10 +188,10 @@
 <p><strong>Mechanism 3: Log group exists in both regions, but events are only in one.</strong> A log group provisioned in two regions (IaC that creates it everywhere, or a service that auto-creates on first use) will show up in both discovery probes. <code>FilterLogEvents</code> succeeds in both regions. The "wrong" region returns zero events with no error — a genuine empty result indistinguishable from "nothing happened in this window."</p>
 
 <div class="stale-box">
-    <p><strong>The consistent failure pattern across all three mechanisms:</strong> the sync job completes successfully, every window is marked complete with zero records, no alarms fire, and the dashboard shows zero for the affected account. Without per-account record-count anomaly detection, you won't notice for days or weeks. The data isn't lost permanently — it's still in CloudWatch — but the extraction windows are cached as done. You'll need to clear the cache and re-run from scratch for that account.</p>
+    <p><strong>The consistent failure pattern across all three mechanisms:</strong> the sync job completes successfully, every window is marked complete with zero records, no alarms fire, and the dashboard shows zero for the affected account. Without per-account record-count anomaly detection, you won't notice for days or weeks. The data isn't lost — as long as it's still inside the log group's retention period — but the extraction windows are cached as done. You'll need to clear the cache and re-run from scratch for that account. On short retention, every week you don't notice is a week you can't re-extract.</p>
 </div>
 
-<p>This is exactly what happened with our second account. The onboarding discovery probe ran against <code>us-east-1</code>, found nothing (Mechanism 1), and no extraction windows were created. When we later added the account manually with <code>regions: ["us-east-1"]</code>, the sync ran without errors — <code>FilterLogEvents</code> returned empty pages, each window completed, and 90 days of history was marked as zero-record. The actual log group was in <code>eu-west-1</code> the entire time.</p>
+<p>This is exactly what happened with our second account. The onboarding discovery probe ran against <code>us-east-1</code>, found nothing (Mechanism 1), and no extraction windows were created. When we later added the account manually with <code>regions: ["us-east-1"]</code>, the sync ran without errors — our query wrapper turned the "log group does not exist" error into an empty result (Mechanism 2 again), each window completed, and 90 days of history was marked as zero-record. The actual log group was in <code>eu-west-1</code> the entire time.</p>
 
 <h2>Why Accounts Use Different Regions</h2>
 
@@ -194,6 +205,8 @@
 </ul>
 
 <p>In practice, once you have five or more accounts you will find at least one that diverges from the pattern you assumed. The only safe approach is to discover and record the correct regions per account, explicitly.</p>
+
+<p>If your accounts sit in one AWS Organization, CloudWatch Logs centralization rules can now copy log groups from member accounts and Regions into one account — but only for data that arrives after the rule exists, so history still needs an extraction pattern like this one.</p>
 
 <h2>Region Discovery Pattern</h2>
 
@@ -215,10 +228,8 @@ def discover_log_group_regions(
                 logGroupNamePrefix=log_group_prefix,
                 limit=1
             )
-            if resp.get('logGroups'):
+            if resp.get('logGroups'):   # empty list = not in this region (no exception)
                 confirmed.append(region)
-        except client.exceptions.ResourceNotFoundException:
-            pass  # log group doesn't exist in this region — normal, move on
         except Exception as e:
             # Don't silently swallow unexpected errors — log them so you know why
             # a region was skipped. Broad except: pass is how silent zeros happen.
@@ -248,7 +259,7 @@ def discover_log_group_regions(
   }
 ]</code></pre>
 
-<p>The two-region entry for Account 3 costs one extra API call per sync window until you've verified it. That is a cheap price for correctness. Once you run a real extraction and confirm which region returns data, narrow the list to one.</p>
+<p>The two-region entry for Account 3 costs one extra API call per sync window until you've verified it. That is a cheap price for correctness. Once you run a real extraction and confirm which region returns data, you can narrow the list to one — knowing that narrowing re-arms the trap if the account later starts using the other region.</p>
 
 <div class="warn-box">
     <p><strong>Don't run discovery on every sync.</strong> <code>describe_log_groups</code> is a cheap probe, but running it on every window turns a one-time onboarding cost into N × W overhead (N accounts, W windows). Discover once during onboarding, store in config, update only when an account is reconfigured or a new log group is enabled.</p>
@@ -275,8 +286,9 @@ def get_windows(start: datetime, end: datetime) -> list[tuple]:
 
 <pre><code>def sync_account(account: dict, db):
     for region in account['regions']:
-        client = get_cached_client('logs', account['role_arn'], region)
         for start, end in get_incomplete_windows(account['account_id'], region, db):
+            # Fetch per window so the cache can renew credentials before they expire
+            client = get_cached_client('logs', account['role_arn'], region)
             events = query_window(client, account['log_group'], start, end)
             store_events(events, db)
             mark_window_complete(account['account_id'], region, start, end, db)</code></pre>
@@ -360,7 +372,7 @@ def get_cached_client(service: str, role_arn: str, region: str):
     _cred_cache[key] = (kw, c['Expiration'])
     return boto3.client(service, region_name=region, **kw)</code></pre>
 
-<p>The cache is keyed by <code>(service, role_arn, region)</code> because each unique combination requires its own set of credentials. The 5-minute buffer gives plenty of time to complete the current window before expiry forces a renewal on the next window boundary.</p>
+<p>The cache is keyed by <code>(service, role_arn, region)</code> because it caches ready-made clients; the credentials themselves are per role and work in every service and Region the role allows, so if STS volume matters, cache them by <code>role_arn</code> and build clients from them. The 5-minute buffer gives plenty of time to complete the current window before expiry forces a renewal on the next window boundary.</p>
 
 <h2>Operational Checklist</h2>
 
@@ -406,7 +418,7 @@ def get_cached_client(service: str, role_arn: str, region: str):
 <h2>The Safe Default for New Accounts</h2>
 
 <div class="green-box">
-    <p><strong>Default to both candidate regions for every new account.</strong> Querying an extra region costs one additional API call per sync window — negligible. Querying only the wrong region means all historical data is permanently lost from your extraction (because the windows are cached as complete with zero records). The cost asymmetry is extreme: a few wasted API calls vs weeks of missing data. Configure two regions, verify which one returns data on the first real run, then narrow to one in the config.</p>
+    <p><strong>Default to both candidate regions for every new account.</strong> Querying an extra region costs one additional API call per sync window — negligible. Querying only the wrong region means those windows stay missing until someone clears the cache (because they're cached as complete with zero records), and anything that ages past retention meanwhile is gone for good. The cost asymmetry is extreme: a few wasted API calls vs weeks of missing data. Configure two regions, verify which one returns data on the first real run, then narrow to one in the config if you're confident the account won't start using the other region.</p>
 </div>
 
 <p>The date comment in the config entry matters. "Not yet verified" is a signal to re-check. Once you've run a real extraction and seen which region produced records, update the comment to "Verified: us-east-1 only" with the date. This prevents the list from drifting back to two regions indefinitely.</p>
@@ -466,6 +478,8 @@ def get_cached_client(service: str, role_arn: str, region: str):
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

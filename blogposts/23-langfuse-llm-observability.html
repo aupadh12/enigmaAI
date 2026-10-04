@@ -139,14 +139,15 @@
         <div class="author-title">Platform Engineering · August 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
-<p>A traditional web service fails loudly — a 500 status, a timeout, an exception in the logs. An LLM agent fails quietly. It answers with apparent confidence, spends $0.40, takes 12 seconds, and returns a response that's subtly wrong. Your application metrics show a successful request. Your users get a bad answer. Console logs tell you the call happened. They don't tell you whether it was good, what it cost, whether it used the latest prompt, or why the Critic stage took four times longer than usual.</p>
+<p>A traditional web service fails loudly — a 500 status, a timeout, an exception in the logs. An LLM agent fails quietly. It answers with apparent confidence, burns through tokens, takes its time, and returns a response that's subtly wrong. Your application metrics show a successful request. Your users get a bad answer. Console logs tell you the call happened. They don't tell you whether it was good, what it cost, whether it used the latest prompt, or why the Critic stage took four times longer than usual.</p>
 
 <p>That's the gap LLM observability fills. After running a four-stage multi-agent AI system in production for six months, here is what Langfuse actually surfaces — and what we would have missed without it.</p>
 
 <h2>What Langfuse Is</h2>
 
-<p>Langfuse describes itself as "an open-source AI engineering platform that helps teams collaboratively debug, analyze, and iterate on their LLM applications." (<a href="https://langfuse.com" target="_blank" rel="noopener">langfuse.com</a>). The numbers: 33.6k GitHub stars, 90 billion observations processed per month, used by 21 of the Fortune 50. Version 3 introduced a ClickHouse backend for trace storage, delivering up to 165× faster query performance on large trace datasets. Version 4 built on that foundation with full-text search, advanced filtering, new Metrics and Observations APIs, and threshold-based alerts.</p>
+<p>Langfuse describes itself as "an open-source AI engineering platform that helps teams collaboratively debug, analyze, and iterate on their LLM applications." (<a href="https://langfuse.com" target="_blank" rel="noopener">langfuse.com</a>). The numbers (as of August 2026): 33.6k GitHub stars, 90 billion observations processed per month, used by 21 of the Fortune 50. Version 3 moved trace storage to ClickHouse. Version 4 re-architected the data model around observations — Langfuse quotes up to 165× faster UI and API performance — and added full-text search, a filter search bar, the v2 Metrics and Observations APIs, and threshold-based alerts.</p>
 
 <p>The platform has four pillars, and they are more integrated than they first appear:</p>
 
@@ -161,21 +162,25 @@
 
 <h2>The Architecture: ADOT → Langfuse</h2>
 
-<p>Our production setup runs on EKS. Each pod in the four-stage pipeline — Data Scout, Analyst, Synthesizer, Critic — instruments with standard OpenTelemetry. An ADOT (AWS Distro for OpenTelemetry) collector sidecar attaches to each pod and fans out traces to two backends simultaneously: CloudWatch for infrastructure metrics and Langfuse for LLM-specific traces.</p>
+<p>Our production setup runs on EKS. Every pod — the orchestrator and the four pipeline stages, Data Scout, Analyst, Synthesizer and Critic — instruments with standard OpenTelemetry. The orchestrator pod runs an ADOT (AWS Distro for OpenTelemetry) collector sidecar that fans its spans out to X-Ray and Langfuse, and its metrics to CloudWatch. The four stage pods have no sidecar and export spans straight to Langfuse with the exporter below.</p>
 
 <div class="diagram-container">
 <pre style="background: #f8fafc; color: #334155; margin: 0; font-size: 13px;">
-EKS Pod (any stage)
+Orchestrator pod
   ├── Application (OpenTelemetry instrumented)
-  │     └── OTLP spans → localhost:4317
+  │     └── OTLP/HTTP → localhost:4318
   └── ADOT Collector (sidecar)
-        ├── CloudWatch Exporter  → CloudWatch (pod metrics, error rates)
-        └── OTLP Exporter        → Langfuse  (LLM traces, token costs, evals)
+        ├── X-Ray exporter       → X-Ray (distributed traces)
+        ├── EMF exporter         → CloudWatch (pod metrics, error rates)
+        └── OTLP HTTP exporter   → Langfuse  (LLM traces, token costs, evals)
+
+Stage pods (Data Scout, Analyst, Synthesizer, Critic)
+  └── Application → OTLP/HTTP straight to Langfuse
 </pre>
-<p class="diagram-caption">The ADOT sidecar pattern: one instrumentation, two observability backends.</p>
+<p class="diagram-caption">The ADOT sidecar pattern: one instrumentation, several observability backends.</p>
 </div>
 
-<p>The OTLP exporter is configured to point at the Langfuse ingest endpoint:</p>
+<p>In the stage pods, the OTLP exporter points straight at the Langfuse ingest endpoint:</p>
 
 <pre><code>from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -190,7 +195,10 @@ langfuse_auth = base64.b64encode(
 
 exporter = OTLPSpanExporter(
     endpoint="https://cloud.langfuse.com/api/public/otel/v1/traces",
-    headers={"Authorization": f"Basic {langfuse_auth}"}
+    headers={
+        "Authorization": f"Basic {langfuse_auth}",
+        "x-langfuse-ingestion-version": "4",  # real-time ingestion on Langfuse v4
+    },
 )
 
 provider = TracerProvider()
@@ -207,7 +215,7 @@ trace.set_tracer_provider(provider)</code></pre>
     <li>Top-level span: total wall-clock duration, total cost, user ID, session ID</li>
     <li>Data Scout span: tool calls to each data source (inputs, outputs, latency per tool)</li>
     <li>Analyst span: statistical analysis LLM call with the exact system prompt, the evidence payload, and the model's analytical output</li>
-    <li>Synthesizer span: Opus 5 synthesis call with thinking token block, token counts broken out (input, output, thinking)</li>
+    <li>Synthesizer span: Opus 5 synthesis call with its thinking block (empty unless you request summarised thinking), token counts broken out (input, output, thinking)</li>
     <li>Critic span: adversarial verification call with the synthesis and the rejection/acceptance decision</li>
 </ul>
 
@@ -230,7 +238,8 @@ def handle_request(raw_headers: dict, payload: dict):
         "analyst-stage", context=ctx
     ) as span:
         result = run_analyst(payload)
-        span.set_attribute("output.tokens", result["token_count"])
+        # Filterable metadata; token usage itself comes from the LLM call spans
+        span.set_attribute("langfuse.observation.metadata.output_tokens", result["token_count"])
         return result</code></pre>
 
 <div class="highlight-box">
@@ -241,45 +250,52 @@ def handle_request(raw_headers: dict, payload: dict):
 
 <p>Langfuse tracks per-token costs by model. You configure the model pricing in Langfuse's model settings — input cost per 1M tokens, output cost per 1M tokens. For most models this is straightforward.</p>
 
-<p>For Claude Opus 5 with extended thinking enabled, there is a catch: <strong>extended thinking tokens are billed as output tokens</strong> — the more expensive rate, not input. The thinking block (the model's internal reasoning before its final response) appears as a separate field in the API response. Additionally, when thinking blocks are replayed into subsequent turns as context, they are billed as input tokens at that point. If your Langfuse model configuration counts thinking tokens at the input rate (or ignores them entirely), your cost estimates will be significantly lower than actual AWS Bedrock invoices.</p>
+<p>For Claude Opus 5, which thinks by default, there is a catch: <strong>thinking tokens are billed as output tokens</strong> — the more expensive rate, not input. The thinking block (the model's internal reasoning before its final response) appears as a separate field in the API response. Additionally, when thinking blocks are replayed into subsequent turns as context, they are billed as input tokens at that point. If thinking tokens are missing from the usage Langfuse prices — or priced at the input rate — your cost estimates will be significantly lower than actual AWS Bedrock invoices.</p>
 
 <div class="stale-box">
-    <p><strong>The fix:</strong> ensure your Langfuse model pricing entry tracks thinking tokens at the <strong>output token rate</strong>, not the input rate. After the correction, our estimates aligned with actual invoices within 2–3%. Before the fix, Opus 5 queries appeared 30–40% cheaper than they actually were — which skewed the model comparison data and made Opus 5 look more cost-efficient relative to Sonnet than it actually is.</p>
+    <p><strong>The fix:</strong> ingest the usage Claude returns rather than letting Langfuse infer it from visible text — <code>output_tokens</code> already includes thinking. If you split thinking out as its own usage key, subtract it from output and give that key the <strong>output token rate</strong>. After the correction, our estimates aligned with actual invoices within 2–3%. Before the fix, Opus 5 queries appeared 30–40% cheaper than they actually were — which skewed the model comparison data and made Opus 5 look more cost-efficient relative to Sonnet than it actually is.</p>
 </div>
 
-<p>With correct cost tracking, you can pull per-model cost breakdowns from the Langfuse API and expose them directly in a monitoring endpoint:</p>
+<p>With correct cost tracking, you can pull per-model cost breakdowns from the Langfuse Metrics API and expose them directly in a monitoring endpoint:</p>
 
-<pre><code>from langfuse import Langfuse
+<pre><code>import json
 from datetime import datetime, timedelta, timezone
+from langfuse import Langfuse
 
 langfuse = Langfuse()
 
 def get_cost_summary(days: int = 30) -> dict:
-    """Pull cost breakdown from Langfuse for the monitoring dashboard."""
-    since = datetime.now(timezone.utc) - timedelta(days=days)
-    # Langfuse Observations API — filter by model and date range
-    obs = langfuse.api.observations.get_many(
-        from_start_time=since,
-        type="GENERATION"
-    ).data
-    by_model = {}
-    for o in obs:
-        model = o.model or "unknown"
-        cost = (o.calculated_total_cost or 0)
-        by_model[model] = by_model.get(model, 0) + cost
-    return {"period_days": days, "cost_by_model": by_model}</code></pre>
+    """Cost by model for the monitoring dashboard (Metrics API v2, Langfuse v4)."""
+    now = datetime.now(timezone.utc)
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    query = {
+        "view": "observations",
+        "metrics": [{"measure": "totalCost", "aggregation": "sum"}],
+        "dimensions": [{"field": "providedModelName"}],
+        "filters": [],
+        "fromTimestamp": (now - timedelta(days=days)).strftime(fmt),
+        "toTimestamp": now.strftime(fmt),
+    }
+    rows = langfuse.api.metrics.metrics(query=json.dumps(query)).data
+    return {
+        "period_days": days,
+        "cost_by_model": {
+            r.get("providedModelName") or "unknown": r.get("sum_totalCost") or 0
+            for r in rows
+        },
+    }</code></pre>
 
 <p>Cost data from a typical month in our system:</p>
 
 <table>
     <thead>
-        <tr><th>Stage</th><th>Model</th><th>% of Total Cost</th><th>Avg Cost/Query</th></tr>
+        <tr><th>Stage</th><th>Model</th><th>% of Total Cost</th></tr>
     </thead>
     <tbody>
-        <tr><td>Data Scout</td><td>Claude Sonnet</td><td class="decision-cell-green">18%</td><td>$0.04</td></tr>
-        <tr><td>Analyst</td><td>Claude Sonnet</td><td class="decision-cell-green">22%</td><td>$0.05</td></tr>
-        <tr><td>Synthesizer</td><td>Claude Opus 5</td><td class="decision-cell-red">38%</td><td>$0.18</td></tr>
-        <tr><td>Critic</td><td>Claude Opus 5</td><td class="decision-cell-yellow">22%</td><td>$0.11</td></tr>
+        <tr><td>Data Scout</td><td>Claude Sonnet</td><td class="decision-cell-green">18%</td></tr>
+        <tr><td>Analyst</td><td>Claude Sonnet</td><td class="decision-cell-green">22%</td></tr>
+        <tr><td>Synthesizer</td><td>Claude Opus 5</td><td class="decision-cell-red">38%</td></tr>
+        <tr><td>Critic</td><td>Claude Opus 5</td><td class="decision-cell-yellow">22%</td></tr>
     </tbody>
 </table>
 
@@ -287,40 +303,34 @@ def get_cost_summary(days: int = 30) -> dict:
 
 <h2>Prompt Management: Decoupling Iterations from Deployments</h2>
 
-<p>Our system prompt is approximately 8,900 tokens. It includes domain-specific reasoning heuristics, tool usage guidelines, output format instructions, and examples. We iterate on it regularly — roughly once a week based on evaluation feedback and user corrections.</p>
+<p>Our system prompt is approximately 8,900 tokens. It includes domain-specific reasoning heuristics, tool usage guidelines, output format instructions, and examples. We iterate on it regularly — roughly once a week, based on user feedback and corrections.</p>
 
-<p>With the prompt hardcoded in the application, each iteration requires a code change, a code review, a build pipeline run, and a pod restart. For a weekly cadence, that's 52 deployments per year that exist solely to change text. With Langfuse Prompt Management, the prompt lives in Langfuse and the application fetches it at start:</p>
+<p>With the prompt hardcoded in the application, each iteration requires a code change, a code review, a build pipeline run, and a pod restart. For a weekly cadence, that's 52 deployments per year that exist solely to change text. With Langfuse Prompt Management, the prompt can live in Langfuse, and the application fetches it through the SDK:</p>
 
 <pre><code>from langfuse import Langfuse
 
 langfuse = Langfuse()
-_cached_prompt: str | None = None
 
-def get_system_prompt() -> str:
-    global _cached_prompt
-    if _cached_prompt is None:
-        prompt_obj = langfuse.get_prompt(
-            "agent-system-prompt",
-            label="production"
-        )
-        _cached_prompt = prompt_obj.compile()
-    return _cached_prompt</code></pre>
+def get_system_prompt():
+    # SDK cache: served from memory, refreshed in the background (60 s TTL by default)
+    prompt = langfuse.get_prompt("agent-system-prompt", label="production")
+    return prompt, prompt.compile()</code></pre>
 
-<p>The SDK caches the response in memory. Subsequent calls to <code>get_system_prompt()</code> return immediately without a network call. Updating the prompt in the Langfuse UI and flipping the <code>production</code> label to the new version takes effect on the next pod start — or immediately if you add cache invalidation logic. No deployment required.</p>
+<p>The SDK caches the prompt in memory and refreshes it in the background, so calls to <code>get_system_prompt()</code> return immediately. Flip the <code>production</code> label in the Langfuse UI and every pod picks up the new version within the cache TTL — 60 seconds by default. No deployment, no restart. Pass the prompt object to the generation (or wrap the call in <code>propagate_attributes(prompt=prompt)</code>) so each trace records the version.</p>
 
 <div class="green-box">
-    <p><strong>The version linkage:</strong> every trace in Langfuse records which prompt version was active when that query ran. When a new version degrades quality — which you see in the evaluation score trends — you can diff the two versions, identify the change, and revert by flipping the label back. The full audit trail is in Langfuse: when each version was deployed, which traces it affected, and what the quality scores looked like before and after.</p>
+    <p><strong>The version linkage:</strong> once generations are linked to the prompt, every trace in Langfuse records which prompt version was active when that query ran. When a new version degrades quality — which you see in the evaluation score trends — you can diff the two versions, identify the change, and revert by flipping the label back. The full audit trail is in Langfuse: when each version was deployed, which traces it affected, and what the quality scores looked like before and after.</p>
 </div>
 
-<p>One important note about prompt caching on AWS Bedrock: the system prompt is a prime candidate for Bedrock's prompt caching feature. Cache hits on the 8,900-token system prompt reduce input token costs by roughly 80% for that prefix. Bedrock's prompt cache is server-side — a pod restart doesn't clear it. The most likely cause of deployment-correlated cost spikes is the deployment gap exceeding the cache TTL (default 5 minutes; up to 1 hour with the extended <code>cache_control</code> option). If a rolling deployment takes longer than the TTL, the first queries after the rollout pay full input cost for the entire system prompt. Langfuse makes this visible as a cost spike in the cost-per-query trend immediately after a deployment — which is the signal to extend your cache TTL.</p>
+<p>One important note about prompt caching on AWS Bedrock: the system prompt is a prime candidate for Bedrock's prompt caching feature. Cache hits on the 8,900-token system prompt cut input cost for that prefix by about 90% (cache reads bill at a tenth of the input rate). Bedrock's prompt cache is server-side and keyed on the prefix, not the pod — a restart doesn't clear it, and every hit resets the 5-minute TTL. So when cost spikes right after a deployment, look first at what the release changed in the cached prefix: prompt text, tool definitions, or their order. A traffic gap longer than the TTL has the same effect; the 1-hour TTL (<code>"ttl": "1h"</code> on the cache point) covers that. Langfuse makes either case visible as a cost spike in the cost-per-query trend immediately after a deployment.</p>
 
 <h2>Evaluation: Turning Traces into Quality Signals</h2>
 
-<p>A trace tells you what happened. An evaluation tells you whether it was good. Langfuse provides three evaluation paths and we use all three.</p>
+<p>A trace tells you what happened. An evaluation tells you whether it was good. Langfuse provides three evaluation paths, and each answers a different question.</p>
 
 <h3>LLM-as-a-Judge (automated, online)</h3>
 
-<p>After each production query completes, a lightweight post-processing step sends the Critic's final output to Claude Haiku for automated evaluation on three dimensions: factual coherence (0–1), source citation quality (0–1), and query relevance (0–1). Each score is appended to the trace as a named score. This runs asynchronously after the user receives their response — zero latency impact.</p>
+<p>After each production query completes, a lightweight post-processing step can send the Critic's final output to a small, fast model such as Claude Haiku for automated evaluation on three dimensions: factual coherence (0–1), source citation quality (0–1), and query relevance (0–1). Each score is attached to the trace as a named score. Run it asynchronously after the user receives their response, and it adds no latency.</p>
 
 <pre><code>from langfuse import Langfuse
 
@@ -340,11 +350,11 @@ def score_response(trace_id: str, response: str, query: str):
 
 <h3>Annotation Queues (human review, targeted)</h3>
 
-<p>Traces where the Critic rejected the Synthesizer's output are automatically routed to a Langfuse annotation queue. A human reviewer reads the original query, the rejected synthesis, and the Critic's rejection reason, then marks the rejection as either valid (the synthesis had a real problem) or false positive (the Critic was overly strict). This ground-truth data is used to calibrate the automated judge — specifically to tune the factual coherence threshold that triggers a rejection.</p>
+<p>Route traces where the Critic rejected the Synthesizer's output to a Langfuse annotation queue. A human reviewer reads the original query, the rejected synthesis, and the Critic's rejection reason, then marks the rejection as either valid (the synthesis had a real problem) or false positive (the Critic was overly strict). That ground truth calibrates the automated judge — specifically the factual coherence threshold that triggers a rejection.</p>
 
 <h3>Experiments (offline, pre-deployment)</h3>
 
-<p>Before deploying a new prompt version to production, we run an offline experiment: take a dataset of 50 representative historical queries (stored in Langfuse Datasets), run both the current production prompt and the candidate prompt against them, and compare the LLM-as-judge scores. If the candidate's average factual coherence score drops more than 5% relative to the current prompt, it doesn't go to production.</p>
+<p>Before deploying a new prompt version to production, run an offline experiment: take a dataset of 50 representative historical queries (stored in Langfuse Datasets), run both the current production prompt and the candidate prompt against them, and compare the LLM-as-judge scores. If the candidate's average factual coherence score drops more than 5% relative to the current prompt, it doesn't go to production.</p>
 
 <p>This gates deployments on quality, not just test coverage. The experiment history in Langfuse shows every prompt version ever tested, the scores it achieved, and whether it was promoted to production.</p>
 
@@ -358,12 +368,12 @@ def score_response(trace_id: str, response: str, query: str):
     </thead>
     <tbody>
         <tr>
-            <td><strong>Thinking token billing</strong> — Opus 5 extended thinking billed as <strong>output tokens</strong> (not input), not reflected in initial cost model</td>
+            <td><strong>Thinking token billing</strong> — Opus 5 thinking billed as <strong>output tokens</strong> (not input), missing from the initial cost model</td>
             <td>Cost-per-query trend showed 30–40% variance from Bedrock invoices</td>
             <td>Model comparison data systematically wrong; Opus 5 appeared more efficient than it is</td>
         </tr>
         <tr>
-            <td><strong>Prompt cache miss spike</strong> — pod restarts cause cache cold-start, 8× cost per query for first N queries after restart</td>
+            <td><strong>Prompt cache miss spike</strong> — releases that changed the cached prefix forced fresh cache writes, 8× cost per query for the first N queries after a deploy</td>
             <td>Cost-per-query trend showed periodic spikes correlated with deployment timestamps</td>
             <td>Cost anomalies attributed to usage patterns, not deployment events</td>
         </tr>
@@ -384,7 +394,7 @@ def score_response(trace_id: str, response: str, query: str):
 
 <h2>Self-Hosting on EKS</h2>
 
-<p>Langfuse is fully open source and can be deployed within your own cloud account. For regulated environments where sending production LLM inputs and outputs to a SaaS platform requires governance review, self-hosting keeps all trace data within your account boundary.</p>
+<p>Langfuse's core is MIT-licensed open source and can be deployed within your own cloud account; audit logs and data-retention policies are Enterprise add-ons when self-hosted. For regulated environments where sending production LLM inputs and outputs to a SaaS platform requires governance review, self-hosting keeps all trace data within your account boundary.</p>
 
 <p>Langfuse v4 on EKS requires four dependencies:</p>
 
@@ -400,7 +410,7 @@ def score_response(trace_id: str, response: str, query: str):
     </tbody>
 </table>
 
-<p>The official AWS Terraform module provisions all four plus the Langfuse application itself. For lighter setups — particularly when you already have the dependencies running — the Helm chart deploys just the application containers.</p>
+<p>The official AWS Terraform module provisions all four plus the Langfuse application itself. For lighter setups — particularly when you already have the dependencies running — the Helm chart can deploy just the application containers and point at the dependencies you already run.</p>
 
 <div class="warn-box">
     <p><strong>IRSA for S3:</strong> use IRSA to give the Langfuse pods access to the S3 bucket rather than static credentials. The service account annotation pattern (<code>eks.amazonaws.com/role-arn</code>) works cleanly here. Avoid mounting AWS credentials as environment variables into the Langfuse pods — the S3 bucket will contain production LLM inputs and outputs.</p>
@@ -428,7 +438,7 @@ def score_response(trace_id: str, response: str, query: str):
     <ul>
         <li>LLM agents fail quietly. Langfuse makes the failure visible: wrong answers, cost anomalies, prompt version regressions, and quality score trends are all surfaced before users notice.</li>
         <li>Propagate W3C <code>traceparent</code> headers between sub-agents to get one coherent trace tree across a multi-pod pipeline — not four isolated traces.</li>
-        <li>Claude Opus 5 extended thinking tokens are billed as <strong>output tokens</strong> — the expensive rate. Configure the Langfuse model entry to track them at the output token rate or your cost estimates will be systematically wrong.</li>
+        <li>Claude Opus 5 thinking tokens are billed as <strong>output tokens</strong> — the expensive rate. Ingest the usage Claude returns (<code>output_tokens</code> already includes thinking), or your cost estimates will be systematically wrong.</li>
         <li>Prompt Management decouples prompt iterations from code deployments. Store the system prompt in Langfuse; deploy prompt changes without restarting pods.</li>
         <li>The ADOT sidecar pattern fans out one OpenTelemetry instrumentation to both CloudWatch (infrastructure) and Langfuse (LLM traces). No dual instrumentation.</li>
         <li>Self-host on EKS using the official Helm chart + IRSA for S3 to keep all trace data within your cloud account. Use the AWS Terraform module for a full production setup.</li>
@@ -468,6 +478,8 @@ def score_response(trace_id: str, response: str, query: str):
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

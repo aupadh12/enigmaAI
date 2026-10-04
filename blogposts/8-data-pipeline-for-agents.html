@@ -11,8 +11,8 @@
         content="The agent gets the credit. The data pipeline does the work. Here's the production ingestion architecture that keeps a 19-source research agent reliable.">
     <meta property="og:image" name="image"
         content="https://aupadh12.github.io/enigmaAI/blogposts/covers/8-data-pipeline-for-agents.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="627">
+    <meta property="og:image:width" content="732">
+    <meta property="og:image:height" content="384">
     <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/8-data-pipeline-for-agents.html">
     <meta name="twitter:card" content="summary_large_image">
@@ -325,6 +325,8 @@
         </div>
     </div>
 
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
     <h2>The Part Nobody Writes About</h2>
 
     <p>Every post about agentic AI systems talks about the model, the tool loop, the reasoning pattern. Nobody writes
@@ -439,7 +441,7 @@ spec:
         gets its own job with appropriate timing, or it gets excluded from <code>source="all"</code> so users can
         request it explicitly but it doesn't block the daily run.</p>
 
-    <pre><code># In the ingestion handler — sources that can't run in the daily job
+    <pre><code># In the ingestion handler — what source="all" (the daily job) runs, in order
 _BULK_SOURCES = (
     "string", "depmap", "cellosaurus", "ncats", "screening",
     # NOT: "ontology" (weekly), NOT: "upload" (user-driven)
@@ -465,7 +467,7 @@ def ingest_all_sources():
 
     <p>Ontology data — canonical disease terms, gene function annotations, pathway hierarchies — is permanent by design.
         It's curated controlled vocabulary. Giving it a TTL means it expires and disappears, and the next query that
-        asks "what pathways does this gene belong to" gets back nothing until the weekly job runs again. That's not a
+        asks "what pathways does this gene belong to" gets back nothing until the terms are loaded again. That's not a
         freshness issue; that's an availability hole.</p>
 
     <p>The solution is two separate DynamoDB tables with different write patterns:</p>
@@ -502,13 +504,12 @@ def ingest_all_sources():
         loading 40,000 GO terms is faster when batched than when sent as 40,000 individual requests.
         <code>BatchWriteItem</code> is not atomic — it does not provide transactional guarantees across the 25-item
         batch. (DynamoDB does support ACID transactions via <code>TransactWriteItems</code>, but that is not what
-        BatchWriteItem provides.) The thread-safe lock serializes shared client-side buffer access across the concurrent
-        ontology-loading threads.</p>
+        BatchWriteItem provides.) The loader fills one shared client-side write buffer from several threads, so a lock serialises access to it.</p>
 
     <div class="warn-box">
         <p><strong>BatchWriteItem silent-drop trap:</strong> <code>BatchWriteItem</code> returns HTTP 200 even when some
             writes fail — the unwritten items appear in an <code>UnprocessedItems</code> map in the response. If you
-            don't check and retry that field, writes are silently dropped with no error. For a job loading 40,000 GO
+            don't check and retry that field, writes are silently dropped with no error. boto3's <code>Table.batch_writer()</code> re-queues them for you; the trap is the raw client call or a hand-rolled buffer like ours. For a job loading 40,000 GO
             terms, this is the highest-probability silent-loss path in the whole pipeline.</p>
     </div>
 
@@ -543,8 +544,7 @@ def ingest_all_sources():
         with the wrong answer for one category. Tables are cheap; data availability holes are not.</p>
 
     <p><strong>5. Define your VALID_NODE_TYPES frozenset before you write your first node.</strong> Silent drops are the
-        hardest bugs to catch in a knowledge graph system. The frozenset is a contract; define it explicitly and gate
-        everything behind it.</p>
+        hardest bugs to catch in a knowledge graph system. The frozenset is a contract; define it explicitly, gate everything behind it, and make every rejection loud.</p>
 
     <div class="highlight-box">
         <p><strong>The unglamorous truth:</strong> when a user says "the agent gave me the wrong answer," the first
@@ -577,7 +577,7 @@ def ingest_all_sources():
                 for slow sources is a separate CronJob, not a longer timeout.</li>
             <li><strong>Two retention policies need two stores.</strong> One TTL setting on a unified table is always
                 wrong for at least one category of data.</li>
-            <li><strong>Silent drops are the hardest bugs.</strong> Gate all writes through an explicit type registry.
+            <li><strong>Silent drops are the hardest bugs.</strong> Gate all writes through an explicit type registry — and make every rejection loud: a log line and a counter.
                 An unlisted type that silently disappears will give you "no data found" answers that look like model
                 failures.</li>
             <li><strong>More wrong answers come from stale data than bad reasoning.</strong> Check the pipeline before
@@ -613,6 +613,8 @@ def ingest_all_sources():
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

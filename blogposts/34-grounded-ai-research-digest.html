@@ -169,8 +169,9 @@
         <div class="author-title">Platform Engineering · October 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
-<p>The first dry run against a real, busy week looked good at first glance. The executive summary read well, and the theme section had sensible labels. Then I scrolled to the snapshot table and every "key result" cell was a dash, and the "how this connects" line under each related item was missing entirely. Nothing had errored. The job had finished, archived its output and reported success.</p>
+<p>The first dry run against a real, busy week looked good at first glance. The theme section had sensible labels. Then I scrolled to the snapshot table and every "key result" cell was a dash, and the "how this connects" line under each related item was missing entirely. Nothing had errored. The job had finished, archived its output and reported success.</p>
 
 <p>Two different causes were hiding behind those blanks. The missing lines were a validator being too strict about something harmless; the dashes were the fail-closed verifier doing exactly its job after the model declined to verify anything. Both are covered below, along with the validator that was too loose, which I found later. All of them come back to one design question: who owns the numbers.</p>
 
@@ -311,7 +312,7 @@ def grounded_buggy(claim_number: str, corpus: str) -> bool:
     return claim_number in corpus
 
 # claim says 12, corpus says "0.125 nM"     -> "12" in "0.125 nM" is True
-# claim says 3,  corpus says "item 412"     -> True as well
+# claim says 41, corpus says "item 412"     -> True as well
 </code></pre>
 
 
@@ -390,7 +391,7 @@ def ungrounded_genes(claim, cited_texts):
 
 <h3>4. An unsorted table hid the top entry</h3>
 
-<p>This one was not a validator at all. The programs table in the portfolio statistics was rendered in the order the data arrived, and the top program was missing from it. Every number in the table was correct and the table was still misleading. Code owning the numbers does not mean the numbers are presented honestly; sorting is part of correctness. It is the same lesson as a counter that counts the wrong thing, which <a href="26-silent-wrong-data-agent-pipelines.html">the silent-wrong-data post</a> covers under its "counter is not a count" failure.</p>
+<p>This one was not a validator at all. The programs table in the portfolio statistics showed only its first few rows, in the order the data arrived, so the busiest program was cut off. Every number in the table was correct and the table was still misleading. Code owning the numbers does not mean the numbers are presented honestly; sorting is part of correctness. It is the same lesson as the sixth failure in <a href="26-silent-wrong-data-agent-pipelines.html">the silent-wrong-data post</a>, where a counter was measuring write events, not entities.</p>
 
 
 
@@ -501,6 +502,8 @@ def ungrounded_genes(claim, cited_texts):
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

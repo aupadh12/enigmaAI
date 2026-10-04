@@ -6,15 +6,15 @@
     <title>Releasing an AI System Is Not Like Releasing Software</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="Releasing an AI System Is Not Like Releasing Software">
-    <meta property="og:description" content="A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like.">
+    <meta property="og:description" content="A tag-only image bump left the UI, presentation, and diagrams stale — the diagram five versions behind. None of it errored. Here's what a real AI system release checklist looks like.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/9-releasing-ai-systems.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="627">
+    <meta property="og:image:width" content="732">
+    <meta property="og:image:height" content="384">
     <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Releasing an AI System Is Not Like Releasing Software">
-    <meta name="twitter:description" content="A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like.">
+    <meta name="twitter:description" content="A tag-only image bump left the UI, presentation, and diagrams stale — the diagram five versions behind. None of it errored. Here's what a real AI system release checklist looks like.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/9-releasing-ai-systems.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -123,7 +123,7 @@
 
 <span class="header-badge">Release Engineering</span>
 <h1>Releasing an AI System Is Not Like Releasing Software</h1>
-<p class="subtitle">A tag-only image bump left the UI, presentation, and diagrams five versions stale. None of it errored. Here's what a real AI system release checklist looks like — and why software release habits create the gap.</p>
+<p class="subtitle">A tag-only image bump left the UI, presentation, and diagrams stale — the diagram five versions behind. None of it errored. Here's what a real AI system release checklist looks like — and why software release habits create the gap.</p>
 
 <div class="author-block">
     <div class="author-avatar">AP</div>
@@ -133,11 +133,13 @@
     </div>
 </div>
 
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <h2>The Release That Wasn't</h2>
 
 <p>I bumped the image tag across 14 deploy files, ran the Jenkins job, watched 8 deployments and 4 CronJobs roll over cleanly. Green. Done.</p>
 
-<p>Three weeks later someone asked why the UI still said the old version. I looked. It did. I checked the presentation slides used for demos. They said an even older version. The architecture diagram served by the UI said a version from five releases ago. None of it had errored. No CI gate had caught it. The Kubernetes rollout was perfect; the system just wasn't self-consistent.</p>
+<p>That same day I noticed the UI still said the old version. I checked the presentation slides used for demos. They said an even older version. The architecture diagram served by the UI said a version from five releases ago. None of it had errored. No CI gate had caught it. The Kubernetes rollout was perfect; the system just wasn't self-consistent.</p>
 
 <p>This is the release failure mode specific to AI systems: <em>the container is correct but the system isn't.</em> Regular software release discipline gets you to a correct container. It doesn't get you to a consistent system.</p>
 
@@ -238,8 +240,10 @@ md5 -q experagent-ui/static/drawio/experagent.drawio
 <pre><code># This is what the agent actually calls at query time
 async def get_skills(domain: str) -> dict:
     s3_key = f"skills/{domain}.json"
-    response = s3_client.get_object(Bucket=SKILLS_BUCKET, Key=s3_key)
-    return json.loads(response["Body"].read())
+    # boto3 is synchronous: run it off the event loop
+    response = await asyncio.to_thread(s3_client.get_object, Bucket=SKILLS_BUCKET, Key=s3_key)
+    body = await asyncio.to_thread(response["Body"].read)
+    return json.loads(body)
     # reads from S3 — not from skills.py</code></pre>
 
 <p>The release step that most engineers omit: after editing <code>skills.py</code>, the S3 object must be overwritten manually. A container rebuild that includes the new <code>skills.py</code> has zero effect on agent behavior until the S3 overwrite happens. If you run two container versions side by side during a rollout, they'll both read from the same S3 object — the current one, not the version-matched one.</p>
@@ -261,7 +265,7 @@ grep -Ern "v21\.2|v21\.1|v20\." \
 <p>For every section, the rule is: discover by grep, not by recall. The number of files in each section has changed with every release. Remembered counts are wrong. The grep count is correct.</p>
 
 <div class="highlight-box">
-    <p><strong>The fix worth making permanent:</strong> a CI job that reads the version from the ConfigMap and verifies it appears consistently across all known surfaces. It doesn't prevent the surface list from drifting, but it prevents a known surface from being left behind. Pairing it with a "surface inventory" file that CI verifies is complete turns a checklist into a gate. Until then, the checklist is the best available control.</p>
+    <p><strong>The fix worth making permanent:</strong> a CI job that reads the version from the ConfigMap and verifies it appears consistently across all known surfaces. It doesn't prevent the surface list from drifting, but it prevents a known surface from being left behind. Pairing it with a "surface inventory" file that CI verifies is complete turns a checklist into a gate. Without such a gate, the checklist is the best available control.</p>
 </div>
 
 <div class="separator"></div>
@@ -272,12 +276,12 @@ grep -Ern "v21\.2|v21\.1|v20\." \
 
 <p>Regular software release discipline is built around the assumption that a container (or a build artifact, or a binary) is the complete thing. AI systems violate that assumption in at least four ways: runtime configuration, runtime-served content, documentation that is operationally load-bearing, and human-facing displays that are decoupled from the thing being deployed.</p>
 
-<p>The checklist is the stopgap. The permanent fix is discovering and eliminating every place where a version-dependent fact lives outside the deployment artifact, or at minimum making each such fact automatically verified at release time. Until then: discover, don't remember; grep counts are correct, mental counts are wrong; and "done" means the verification command prints nothing.</p>
+<p>A checklist is the practical control. The stronger fix is eliminating every place where a version-dependent fact lives outside the deployment artifact, or at minimum verifying each such fact automatically at release time. Either way: discover, don't remember; grep counts are correct, mental counts are wrong; and "done" means the verification command prints nothing.</p>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
-        <li><strong>A correct container is not a consistent system.</strong> Deploy manifests are 1 of 6 release categories. The rest are invisible to standard deployment tooling.</li>
+        <li><strong>A correct container is not a consistent system.</strong> Deploy manifests are 1 of 6 checklist sections. The rest are invisible to standard deployment tooling.</li>
         <li><strong>Human-facing version strings are operationally load-bearing.</strong> Demos, security reviews, and stakeholder decisions happen against these surfaces — not against the Kubernetes rollout log.</li>
         <li><strong>Model IDs live in ConfigMaps, not code.</strong> The UI display of model names must read from configuration, or it decouples the moment the config changes.</li>
         <li><strong>Diagrams exist in two places.</strong> The <code>docs/</code> copy and the <code>static/</code> copy are independent files. Verify with a checksum after updating both.</li>
@@ -315,6 +319,8 @@ grep -Ern "v21\.2|v21\.1|v20\." \
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

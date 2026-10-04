@@ -338,6 +338,8 @@
         </div>
     </div>
 
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
     <h2>The Question That Started It</h2>
 
     <p>A frontier model ships. It's better on every published benchmark. Leadership asks whether we should move our
@@ -392,7 +394,7 @@
         </tbody>
     </table>
 
-    <h3>Honeypots: your contamination detector</h3>
+    <h3>Honeypots: your memorisation tripwire</h3>
 
     <p>Three challenges are built to catch memorisation rather than test knowledge. The design I settled on is
         <em>conflict</em>, not fiction: the prompt states a fact that contradicts what the model has almost certainly
@@ -402,9 +404,9 @@
         the text in front of it fails.
     </p>
 
-    <p>The idea is sound and these are still the highest-signal items in the bank &mdash; they're a leakage tripwire,
-        because if a future model starts confidently overriding the prompt with the memorised value, your benchmark has
-        met that value in training and every other number is suspect.</p>
+    <p>The idea is sound and these are still the highest-signal items in the bank &mdash; they're a memorisation
+        tripwire: a model that confidently overrides the prompt with the memorised value is answering from training
+        rather than from the text in front of it, and every score that assumes it read the prompt becomes suspect.</p>
 
     <div class="warn-box">
         <p><strong>My first three honeypots were badly authored, in a way worth describing because it is easy to
@@ -414,8 +416,8 @@
             default differs" &mdash; gets penalised for the transparency. That is the single most desirable behaviour
             available to a model in this situation, and I had built a trap that punished it.</p>
         <p>The assertion has to distinguish <em>using</em> the memorised value from <em>mentioning</em> it. Mine
-            couldn't, which means the contamination signal they produced is not trustworthy and I'm not publishing a
-            contamination verdict from them until they're rewritten. A badly-authored honeypot doesn't fail loudly; it
+            couldn't, which meant the signal they produced could not be trusted. A badly-authored honeypot doesn't fail
+            loudly; it
             returns a clean-looking number, which is the same disease as every other item in this post.</p>
     </div>
 
@@ -478,7 +480,7 @@
                 <td>Cap 8000, no effort setting</td>
                 <td>—</td>
                 <td>—</td>
-                <td>Read timeout, thinking unbounded</td>
+                <td>Read timeout — the client's 60 s default gave up before 8,000 tokens arrived</td>
             </tr>
             <tr>
                 <td>Effort <code>low</code> + cap 8000</td>
@@ -511,7 +513,8 @@
         <li><strong>Generalise that to every terminal state that isn't "the model finished."</strong> Truncation is the
             one everybody hits, but it isn't the only one. Two of my challenges tripped a platform content filter and
             were recorded as <em>wrong answers to questions the model was never permitted to answer</em>. The stop
-            reason field has around six possible values; a harness that special-cases only the token-limit one will
+            reason field on Bedrock's Converse API has nine possible values today, and the list grows; a harness that
+            special-cases only the token-limit one will
             convert the others into fake capability findings.</li>
         <li><strong>Reasoning settings go in the run metadata,</strong> because they define what was measured. Two runs
             at different effort levels are not comparable, and six months later nobody remembers which was which.</li>
@@ -534,7 +537,7 @@
 
     <ul>
         <li><strong>A truncated honeypot scores zero</strong> — which in a hallucination test looks like a
-            <em>pass</em>. Your contamination detector now reports "clean" precisely because it failed.
+            <em>pass</em>. Your memorisation tripwire now reports "clean" precisely because it failed.
         </li>
         <li><strong>A truncated frontier model can score below your deliberately-weak control model</strong> — which
             fails your grading-sanity check, and reads as "the benchmark is broken" rather than "the harness truncated."
@@ -564,31 +567,18 @@
         that was wrong. Assert that a metric is non-zero somewhere in your test suite, or you will publish an artifact
         of your own plumbing.</p>
 
-    <h2>Failure #2: I Couldn't Pin the Judge's Version</h2>
+    <h2>Failure #2: I Thought I Couldn't Pin the Judge's Version</h2>
 
     <p>An LLM judge needs to be reproducible. If the judge silently changes between March and September, your
         longitudinal comparison is measuring judge drift and calling it model improvement.</p>
 
-    <p>So I went to pin the judge to a dated model snapshot, and found I couldn't — but not for the reason I expected.
-        The barrier isn't the routing tier: globally-routed endpoints don't categorically reject dated identifiers. The
-        problem is that the newest model releases simply have no dated identifier to use. A model like
-        <code>anthropic.claude-opus-5</code> has no date component in its ID at all — there is no
-        <code>opus-5-20260101</code> variant to pin to. The models that did expose a dated snapshot identifier were
-        older or weaker. The one whose snapshot resolved was a small fast model, too weak to judge expert-domain
-        answers. <strong>Test the exact identifier you intend to pin against the actual API</strong> rather than
-        reasoning from the routing tier — the barrier to pinning is in the model catalogue, not the endpoint
-        configuration.</p>
+    <p>So I went to pin the judge to a dated model snapshot and found there wasn't one. Globally-routed endpoints don't categorically reject dated identifiers; the newest models simply don't have one. A model like <code>anthropic.claude-opus-5</code> has no date component in its ID at all — there is no <code>opus-5-20260101</code> variant to pin to — and the one dated snapshot that did resolve belonged to a small fast model, too weak to judge expert-domain answers. I concluded the strong judge was unpinnable. That was wrong: from the 4.6 generation on, a dateless Claude ID <em>is</em> the pinned snapshot. Anthropic doesn't change the weights behind an existing model ID; an update ships under a new one (<a href="https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions" target="_blank" rel="noopener">Model IDs and versioning</a>). <strong>Check what an identifier guarantees in the provider's versioning docs</strong>, not from its shape, and test the exact string against the actual API.</p>
 
-    <p>That leaves three honest options: accept an unpinnable alias, accept a weaker but pinnable judge, or don't have a
-        judge. I took the first, behind an explicit configuration flag so it's a visible decision rather than an
-        accident, plus a nightly drift check as the compensating control.</p>
+    <p>I used the dateless ID behind an explicit configuration flag, so it's a visible decision rather than an accident, plus a nightly drift check. The drift check is worth keeping, though not for the reason I gave it: a fixed ID fixes the weights, not the serving layer around them — routing, safety classifiers, sampling logic — and a drift check on fixed transcripts is how you notice when that layer moves.</p>
 
-    <p>With one caveat I should state now rather than let you discover in the next section: that drift check is not yet
-        a control I've demonstrated works. Its golden baselines were authored before a single live judge call had
-        succeeded and have never been calibrated against one, and the global tolerance it was supposed to enforce was
-        dead code until quite recently. So the honest position is that I accepted an unpinnable judge on the strength of
-        a compensating control that is itself unproven. Given the next thing I'm about to describe is a compensating
-        control that had never once run, I'd rather flag the pattern than repeat it silently.</p>
+    <p>One caution before you copy this: a compensating control is only a control once you have seen it fire. Golden
+        baselines written before any live judge call has succeeded, or a tolerance the code never reads, give you a
+        check that passes without measuring anything.</p>
 
     <div class="warn-box">
         <p><strong>Do not write a plausible-looking version identifier into config as a placeholder.</strong> I nearly
@@ -598,17 +588,13 @@
             something, record null with the reason. Never a placeholder that will be mistaken for a fact.</p>
     </div>
 
-    <p>A related honesty problem: the API response echoes back the identifier you sent, so when you call an alias,
-        <strong>nothing downstream can record which underlying version actually served the request.</strong> Any score
-        built on an alias is attributable to a <em>name</em>, not a <em>version</em>. State that limitation in the
-        report rather than implying a provenance the platform can't give you.
-    </p>
+    <p>On provenance: for a dateless ID, the identifier you sent is the version, so <strong>record the exact ID with every score.</strong> What no response field tells you is whether the serving layer changed between two runs; say so in the report, and let the drift check cover that part.</p>
 
     <h2>Failure #3: The Compensating Control Had Never Run</h2>
 
     <p>This is the one that should worry you most, because it's not about models at all.</p>
 
-    <p>Remember the nightly drift check — the control that made the unpinnable judge acceptable? Weeks later I
+    <p>Remember the nightly drift check — the control I was counting on to catch judge drift? Then I
         discovered it had <strong>failed on every single run since the day it shipped.</strong></p>
 
     <p>The mechanics were mundane. The config flag was correct in the deployed configuration. The parser read it into
@@ -654,15 +640,13 @@
         plausible same-family preference.</p>
 
     <p>My harness detects this and records <code>judge_conflict = true</code>, which means <em>no rubric score is
-            publishable for that pairing</em>. Correct behaviour, and it also means I currently can't publish rubric
-        scores for the models I most want to evaluate. The fix is a secondary judge from a different vendor family, and
-        there's a useful practical note: several non-Anthropic model families were reachable through the same private
+            publishable for that pairing</em>. Correct behaviour — and it means a same-family pairing needs a secondary judge from a different vendor family before any rubric score is publishable, and there's a useful practical note: several non-Anthropic model families were reachable through the same private
         network path with no firewall change, which made cross-vendor judging an afternoon's work rather than a security
         review.</p>
 
-    <p>One gotcha I'd flag before anyone builds this: my code sends the reasoning-effort parameter unconditionally, and
-        the check for whether effort is supported introspects the <em>client adapter</em>, not the model. A
-        non-Anthropic model that rejects that parameter would make every secondary judge call raise. Day-zero
+    <p>One gotcha to check before you add a cross-vendor judge: if your code sends a reasoning-effort parameter
+        unconditionally, and the "is effort supported?" check introspects the <em>client adapter</em> rather than the
+        model, a non-Anthropic model that rejects the parameter will make every secondary judge call raise. Day-zero
         verification item, not a day-thirty one.</p>
 
     <h2>The People Problem Is the Real Blocker</h2>
@@ -670,7 +654,7 @@
     <p>Everything above is engineering. The actual critical path is human: <strong>who says the ground truth is
             correct?</strong></p>
 
-    <p>Of my 33 challenges, 24 need sign-off from someone qualified in that domain. I can author a plausible answer key
+    <p>Of my 33 challenges, 23 need sign-off from someone qualified in that domain. I can author a plausible answer key
         for domains I know well; for the rest, an unreviewed answer key means the benchmark measures <em>my</em>
         misconceptions and reports them as model errors.</p>
 
@@ -762,7 +746,7 @@
     <div class="metric-grid">
         <div class="metric-card">
             <div class="metric-value">14</div>
-            <div class="metric-label">Harness Bugs, No Saved Score Yet</div>
+            <div class="metric-label">Harness Bugs Before the First Saved Score</div>
         </div>
         <div class="metric-card">
             <div class="metric-value">~1h</div>
@@ -780,11 +764,11 @@
         write-to-temp-then-rename idiom throws instead of working — which in turn hid the truncation problem. Every
         failure masked the next, and none of them announced itself.</p>
 
-    <p>I have to be straight about where that leaves the project, because it's the most useful number in this post.
-        <strong>I do not yet have a saved score for any model.</strong> Two full sweeps ran every challenge to
-        completion and then lost one hundred percent of their results at the final write, on a permissions fault that
-        only existed on the real output path. Every figure I've produced so far is fixture replay: it proves the harness
-        works and says nothing whatsoever about any model.
+    <p>I have to be straight about what that cost, because it's the most useful number in this post.
+        <strong>Before the first score was saved,</strong> two full sweeps ran every challenge to completion and then
+        lost one hundred percent of their results at the final write, on a permissions fault that only existed on the
+        real output path. Until then, every figure I had was fixture replay: it proved the harness worked and said
+        nothing whatsoever about any model.
     </p>
 
     <p>And "four failures" was me being kind to myself. Counting honestly across five versions of the harness it's
@@ -793,9 +777,9 @@
         run is not "does the model score well." It is "does my harness work at all," and you will find out considerably
         more than once.</p>
 
-    <p>The good news on the human side: 24 challenges need external sign-off, at roughly twenty to thirty minutes each.
-        That's three challenges per reviewer across eight domains — about <em>an hour to ninety minutes each, once</em>.
-        Framed that way, people say yes. Framed as "help me review the benchmark," they don't. (The total is eight to
+    <p>The good news on the human side: 23 challenges need external sign-off, at roughly twenty to thirty minutes each.
+        That's about three challenges per reviewer across eight domains — about <em>an hour to ninety minutes each, once</em>.
+        Framed that way, people say yes. Framed as "help me review the benchmark," they don't. (The total is roughly eight to
         twelve person-hours; the thing that makes it tractable is that no individual is asked for more than an
         afternoon's fraction.)</p>
 
@@ -808,9 +792,9 @@
         <ul>
             <li><strong>Public benchmarks measure general capability; you need to measure your work.</strong> Ten real
                 domains beats a thousand synthetic questions.</li>
-            <li><strong>Honeypots are your best items.</strong> They measure hallucination under pressure and detect
-                benchmark leakage into training data.</li>
-            <li><strong>Truncation is a harness error, never a score.</strong> And above a threshold, it blocks
+            <li><strong>Honeypots are your best items.</strong> They measure whether a model follows the text in front
+                of it when that text contradicts what it memorised.</li>
+            <li><strong>Truncation is a harness error, never a silent score.</strong> And above a threshold, it blocks
                 publication — excluding rows biases the average and inverts your sanity checks.</li>
             <li><strong>Record the harness configuration with every score.</strong> Two runs at different reasoning
                 settings are not comparable.</li>
@@ -863,6 +847,8 @@
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

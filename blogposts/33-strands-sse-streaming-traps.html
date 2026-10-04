@@ -169,10 +169,11 @@
         <div class="author-title">Platform Engineering · October 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
 <p>The chat assistant for a UI-testing tool looked finished. The backend was a FastAPI route streaming a Strands agent to a browser over server-sent events. The unit suite had 192 passing tests. Then I opened the page and typed a question. The answer text streamed in nicely, but the "tool running" chips never turned into "tool done". In another run the browser received nothing at all, and the server log showed a perfectly healthy 200. And when I closed a tab mid-answer, the next message from the same user was told that another turn was still in progress.</p>
 
-<p>None of these were exotic. Each one was a mismatch between what my code assumed about a library and what the library actually did, and each one was invisible to a test suite whose fakes agreed with my assumptions. This post walks through the four traps (where tool results live in a Strands event stream, how sse-starlette frames bytes, and what it does not do when a client leaves), and then the testing approach that finally exposed them. The versions involved were Strands Agents 1.51 and sse-starlette 3.0.3. The general lesson about green tests that cannot fail is in <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a>; this one is the streaming-specific version.</p>
+<p>None of these were exotic. Each one was a mismatch between what my code assumed about a library and what the library actually did, and each one was invisible to a test suite whose fakes agreed with my assumptions. This post walks through the four traps (where tool results live in a Strands event stream, what a tool's exception sends to the model, how sse-starlette frames bytes, and what it does not do when a client leaves), and then the testing approach that finally exposed them. The versions involved were Strands Agents 1.51 and sse-starlette 3.0.3. The general lesson about green tests that cannot fail is in <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a>; this one is the streaming-specific version.</p>
 
 <h2>The Shape of the System</h2>
 
@@ -235,7 +236,7 @@ yield {"event": "done", "data": json.dumps({"stop_reason": stop})}</code></pre>
 
 <h2>Trap 2: Errors From Tools Are Sent to the Model, Verbatim</h2>
 
-<p>This one is less about streaming and more about what the stream shows the user and the model. When a function decorated with <code>@tool</code> raises, Strands catches it and turns it into a tool result whose text is <code>Error: &lt;ExceptionClass&gt; - &lt;message&gt;</code>. That text goes to the model as the tool result, and the model is happy to repeat it to the user. An access-denied error from a cloud SDK call includes resource identifiers in its message. You do not want those in a chat window, and you do not want to depend on the model's discretion to leave them out.</p>
+<p>This one is less about streaming and more about what the stream shows the user and the model. When a function decorated with <code>@tool</code> raises, Strands catches it and turns it into a tool result whose text is <code>Error: &lt;ExceptionClass&gt; - &lt;message&gt;</code>, or just <code>Error: &lt;message&gt;</code> for a <code>ValueError</code>. That text goes to the model as the tool result, and the model is happy to repeat it to the user. An access-denied error from a cloud SDK call includes resource identifiers in its message. You do not want those in a chat window, and you do not want to depend on the model's discretion to leave them out.</p>
 
 <p>The rule I adopted: no exception leaves a tool body. Every tool is wrapped, every failure maps to a short fixed code, and the detail goes to the server log instead.</p>
 
@@ -317,15 +318,16 @@ def safe_tool(fn):
     }
     buf = buf.slice(start);
   }
-  if (buf) line(buf);
-  dispatch();
+  // At the end, a held-back \r still ends a line. Anything else left over is an
+  // unfinished event, which the spec says to discard rather than dispatch.
+  if (buf.endsWith("\r")) line(buf.slice(0, -1));
 }</code></pre>
 
 <p>Server side it is one argument:</p>
 
 <pre><code>return EventSourceResponse(gen, ping=15, sep="\n", background=BackgroundTask(release))</code></pre>
 
-<p>That same call has the third argument, the one that fixes the next trap.</p>
+<p>That argument covers the dicts my generator yields, and the default ping. A <code>ServerSentEvent</code> object keeps its own separator (default <code>\r\n</code>), so if you yield those, or return one from a custom ping factory, pass <code>sep="\n"</code> to each of them too. That same call has the third argument, the one that fixes the next trap.</p>
 
 <h2>Trap 4: Disconnect Does Not Close Your Generator</h2>
 
@@ -403,7 +405,7 @@ TOOL_THEN_ANSWER = [
 agent = Agent(model=ScriptedModel(TOOL_THEN_ANSWER), tools=[list_items],
               callback_handler=None)</code></pre>
 
-<p>Run that through the real route, read the raw SSE bytes, and assert that a "running" chip is followed by a "done" chip. With the original translation that assertion fails immediately, which is the first time any test of mine had failed for this bug. The same scripted model, with a tool that raises, proves the fixed error code appears and the exception text does not. A third script that ends with an oversized stop reason exercises the token-limit path. Each of them is a few lines of data rather than a page of mocking.</p>
+<p>Run that through the real route, read the raw SSE bytes, and assert that a "running" chip is followed by a "done" chip. With the original translation that assertion fails immediately, which is the first time any test of mine had failed for this bug. The same scripted model, with a tool that raises, proves the fixed error code appears and the exception text does not. A third script that ends with a <code>max_tokens</code> stop reason exercises the token-limit path. Each of them is a few lines of data rather than a page of mocking.</p>
 
 <h3>The browser parser, at every chunk boundary</h3>
 
@@ -491,14 +493,14 @@ asyncio.run(scenario())</code></pre>
 
 <p>The scripted model still encodes my memory of what the Converse event stream looks like. The natural next step is recorded-stream contract fixtures: capture real event streams once from a live model (a plain answer, a tool call, a tool error, a token-limit stop) and replay them as the scripted model in CI. Then every upgrade of Strands or sse-starlette runs against recordings of reality instead of my recollection of it, and a changed event shape fails a test before it reaches a user.</p>
 
-<p>On the user-facing side, SSE has a built-in answer to dropped connections that I have not used yet: event IDs and the <code>Last-Event-ID</code> header. Numbering the events and letting a reconnecting client resume from where it left off would turn a tab refresh in the middle of a long answer from "start again" into "carry on". It is a UX improvement on top of a stream that now closes cleanly, which is the right order to build them in.</p>
+<p>On the user-facing side, SSE defines an answer to dropped connections: event IDs and the <code>Last-Event-ID</code> header. <code>EventSource</code> sends that header automatically when it reconnects; a fetch-based client like this one has to keep the last ID itself (in session storage, to survive a refresh) and send it, and the server has to keep recent events to replay. Built that way, a tab refresh in the middle of a long answer goes from "start again" to "carry on". It is a UX improvement on top of a stream that now closes cleanly, which is the right order to build them in.</p>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
         <li>In Strands 1.51 the tool-use event carries only the tool name, input and ID. Tool results arrive as user-role <code>message</code> events containing <code>toolResult</code> blocks; read completion from there.</li>
         <li>Hitting the token limit raises <code>MaxTokensReachedException</code>, guardrail stops report <code>guardrail_intervened</code>, and refusal is a normal stop reason. Handle each explicitly.</li>
-        <li>An uncaught exception inside a tool is sent to the model as text, class name and message included. Wrap every tool body and return fixed error codes. The top-level tool status must be <code>success</code> or <code>error</code>; carry richer states in the JSON body.</li>
+        <li>An uncaught exception inside a tool is sent to the model as text, with its message and usually its class name. Wrap every tool body and return fixed error codes. The top-level tool status must be <code>success</code> or <code>error</code>; carry richer states in the JSON body.</li>
         <li>Replayed history must alternate roles starting with <code>user</code> and contain no empty text blocks. Store a stand-in assistant text when a turn produced none.</li>
         <li>sse-starlette 3.0.3 frames with <code>\r\n</code> by default. Set <code>sep="\n"</code> on the server and make the client accept <code>\r\n</code>, <code>\r</code> and <code>\n</code>, holding back a trailing <code>\r</code> across chunks.</li>
         <li>sse-starlette does not <code>aclose()</code> your generator on client disconnect, only on a send timeout. Keep a handle and <code>await gen.aclose()</code> in a <code>background=</code> task, which still runs after a disconnect, with a release fallback.</li>
@@ -533,6 +535,8 @@ asyncio.run(scenario())</code></pre>
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

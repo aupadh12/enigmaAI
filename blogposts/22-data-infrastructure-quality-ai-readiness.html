@@ -141,13 +141,15 @@
     </div>
 </div>
 
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <p>Building an AI agent system that queries 20+ scientific data sources taught me one thing more clearly than anything else: the model is not the hard part. The data infrastructure is. As Brewer et al. (2025) put it, "The performance of AI systems is fundamentally limited by the quality and readiness of the data they consume" [<a href="https://arxiv.org/html/2507.23018v1" target="_blank">Brewer et al., 2025</a>]. IBM defines six core dimensions of data quality: accuracy, completeness, consistency, timeliness, uniqueness, and validity [<a href="https://www.ibm.com/think/topics/data-quality-dimensions" target="_blank">IBM Think</a>]. In practice, violations of every single one of them will be silent — no exception thrown, no alert fired, just wrong answers delivered with confidence.</p>
 
 <p>This is a post about those silent failures and how to prevent them. It's written from the perspective of building and operating a production AI research agent on Kubernetes, backed by a Parquet data lake on S3, a DynamoDB knowledge graph, and ingestion pipelines pulling from over twenty distinct scientific data sources.</p>
 
 <h2>The Five Levels of Data Readiness</h2>
 
-<p>Brewer et al. (2025) introduce a five-level AI readiness classification for scientific datasets, ranging from raw to fully AI-ready [<a href="https://arxiv.org/html/2507.23018v1" target="_blank">Brewer et al., 2025</a>]. In the context of a production agent system, the levels map like this:</p>
+<p>Brewer et al. (2025) introduce a five-level AI readiness classification for scientific datasets — raw, cleaned, labeled, feature-engineered and fully AI-ready [<a href="https://arxiv.org/html/2507.23018v1" target="_blank">Brewer et al., 2025</a>]. Here's my adaptation of their five levels for a production agent system (my names and numbering, not theirs):</p>
 
 <table>
     <thead>
@@ -194,13 +196,13 @@
 
 <h3>The File Format Extension Trap</h3>
 
-<p>Athena <code>UNLOAD</code> writes Parquet files without the <code>.parquet</code> extension. This is documented but easy to miss. A filter using <code>endswith(".parquet")</code> silently returns an empty list. The pipeline reads nothing, writes nothing to the database, marks the sync window as complete, and caches it. All future syncs skip that window.</p>
+<p>Athena <code>UNLOAD</code> writes Parquet files without the <code>.parquet</code> extension. This is easy to miss. A filter using <code>endswith(".parquet")</code> silently returns an empty list. The pipeline reads nothing, writes nothing to the database, marks the sync window as complete, and caches it. All future syncs skip that window.</p>
 
-<p>The fix isn't to filter by extension — it's to catch <code>FileNotFoundError</code> and verify the file's actual magic bytes, or to enumerate S3 keys without any extension filter and let pyarrow determine the format from content.</p>
+<p>The fix isn't a better extension filter. Read the prefix as Parquet whatever the file names (<code>ds.dataset(prefix, format="parquet")</code>), treat <code>FileNotFoundError</code> on an empty prefix as a genuine zero-row result and any other error as a failure — or read the data manifest Athena writes for every <code>UNLOAD</code>, which lists exactly the files it produced.</p>
 
 <h3>The Type Inference Trap</h3>
 
-<p>When you call <code>read_csv</code> on files from multiple sources without declaring an explicit schema, each file infers its own types. The same column reads as <code>int64</code> from three sources and <code>object</code> from a fourth. Concatenating with pyarrow throws — but only if you have schema validation enabled. Without it, silent type coercion produces arithmetic that is numerically wrong but never raises.</p>
+<p>When you call <code>read_csv</code> on files from multiple sources without declaring an explicit schema, each file infers its own types. The same column reads as <code>int64</code> from three sources and <code>string</code> from a fourth. pyarrow refuses to concatenate them — the good outcome. The silent version is pandas: <code>pd.concat</code> quietly turns the column into <code>object</code> dtype, and the failure surfaces far from its cause.</p>
 
 <p>The fix is always explicit schema declaration on read:</p>
 
@@ -228,14 +230,14 @@ table = pcsv.read_csv(path, convert_options=pcsv.ConvertOptions(column_types={
 
 <h2>The Null Propagation Problem</h2>
 
-<p>Kleene three-valued logic is mathematically correct and operationally surprising. In pyarrow, <code>pc.or_(null, False)</code> returns <code>null</code>, not <code>False</code>. A filter that ORs across sparse nullable columns — standard in scientific datasets — propagates nulls and drops every row in the result.</p>
+<p>pyarrow's <code>pc.or_</code> is not Kleene logic: if either input is null, the result is null — even <code>pc.or_(True, null)</code>. A filter that ORs across sparse nullable columns — standard in scientific datasets — propagates those nulls, and a row that matches on <code>gene_symbol</code> but has no alias is dropped. (<code>pc.or_kleene</code> would return <code>True</code> there.)</p>
 
 <pre><code># This silently drops rows where any column is null:
 mask = pc.or_(
     pc.equal(table["gene_symbol"], query_term),
     pc.equal(table["alias"], query_term)
 )
-result = table.filter(mask)  # empty if either column has nulls
+result = table.filter(mask)  # loses every row with a null in either column — including matches
 
 # Correct: fill nulls before OR-ing
 mask = pc.or_(
@@ -249,7 +251,7 @@ mask = pc.or_(
 
 <p>An AI agent querying many data sources encounters many independently evolving schemas. Some return <code>large_string</code> where the code expects <code>string</code>. Some return <code>float32</code> where an aggregate expects <code>float64</code>. IBM identifies consistency as one of the six core dimensions of data quality [<a href="https://www.ibm.com/think/topics/data-quality-dimensions" target="_blank">IBM Think</a>] — and schema consistency across sources is the hardest dimension to maintain as sources evolve independently.</p>
 
-<p>The pyarrow <code>large_string</code> trap is particularly common. It appears when pyarrow auto-promotes string columns in large datasets. A type check using <code>== pa.string()</code> returns <code>False</code> for <code>large_string</code> inputs — silently breaking any code path that branches on string type:</p>
+<p>The pyarrow <code>large_string</code> trap is particularly common. It usually arrives from the producer: pandas' string dtype (the default <code>str</code> in pandas 3) converts to Arrow <code>large_string</code>, and Parquet files carry that type forward. A type check using <code>== pa.string()</code> returns <code>False</code> for <code>large_string</code> inputs — silently breaking any code path that branches on string type:</p>
 
 <pre><code># Wrong — misses large_string
 def is_string_column(field: pa.Field) -> bool:
@@ -270,7 +272,7 @@ def coerce_to_string(arr: pa.Array) -> pa.Array:
 
 <h2>Data Freshness Is a First-Class Quality Dimension</h2>
 
-<p>IBM defines timeliness as one of the six core dimensions of data quality [<a href="https://www.ibm.com/think/topics/data-quality-dimensions" target="_blank">IBM Think</a>]. Brewer et al. (2025) identify data provenance and freshness tracking as a cross-cutting challenge at scale [<a href="https://arxiv.org/html/2507.23018v1" target="_blank">Brewer et al., 2025</a>]. In a production AI agent, freshness means: when was this data last ingested, and is that recent enough to answer the query correctly?</p>
+<p>IBM defines timeliness as one of the six core dimensions of data quality [<a href="https://www.ibm.com/think/topics/data-quality-dimensions" target="_blank">IBM Think</a>]. Brewer et al. (2025) identify provenance and reproducibility as a cross-cutting challenge at scale [<a href="https://arxiv.org/html/2507.23018v1" target="_blank">Brewer et al., 2025</a>]; in a live agent, freshness is the day-to-day face of the same problem. In a production AI agent, freshness means: when was this data last ingested, and is that recent enough to answer the query correctly?</p>
 
 <p>The architecture that worked in production:</p>
 <ul>
@@ -280,13 +282,13 @@ def coerce_to_string(arr: pa.Array) -> pa.Array:
     <li>If never ingested: the tool returns <code>not_ingested</code> — explicitly, not as an empty list</li>
 </ul>
 
-<pre><code>from datetime import datetime
+<pre><code>from datetime import datetime, timezone
 
 def check_freshness(source: str, max_age_days: int = 7) -> dict:
     manifest = load_manifest(source)  # reads from S3 manifest file
     if not manifest:
         return {"status": "not_ingested", "last_updated": None}
-    age = (datetime.now() - manifest["last_updated"]).days
+    age = (datetime.now(timezone.utc) - manifest["last_updated"]).days   # last_updated must be timezone-aware
     if age > max_age_days:
         return {
             "status": "stale",
@@ -317,7 +319,7 @@ def check_freshness(source: str, max_age_days: int = 7) -> dict:
 </ul>
 
 <div class="warn-box">
-    <p><strong>DynamoDB reserved word trap:</strong> <code>status</code>, <code>type</code>, <code>name</code>, and <code>comment</code> are reserved words in DynamoDB condition expressions. Using them without an alias (<code>#alias</code>) produces a silent <code>ClientError</code> that looks like a permissions failure. Always use expression attribute name aliases for any of these fields.</p>
+    <p><strong>DynamoDB reserved word trap:</strong> <code>status</code>, <code>type</code>, <code>name</code>, and <code>comment</code> are reserved words in every DynamoDB expression. Using one bare fails with a <code>ValidationException</code> ("Attribute name is a reserved keyword") — loud, unless a broad <code>except</code> swallows it, which is how writes disappear. Always use expression attribute name aliases for any of these fields.</p>
 </div>
 
 <h2>The AI Readiness Maturity Matrix</h2>
@@ -368,8 +370,8 @@ def check_freshness(source: str, max_age_days: int = 7) -> dict:
 <p>When data crosses account boundaries via DataSync (see <a href="18-aws-datasync-cross-account-s3.html">the DataSync post</a> for the IAM setup), the data quality implications go beyond the transfer mechanics:</p>
 
 <ul>
-    <li><strong>Object ownership</strong>: objects written by DataSync are owned by the destination account — read access is clean. But if the destination account's IAM policies didn't exist before the sync, the objects are readable but not yet discoverable by your Glue catalog or Athena queries.</li>
-    <li><strong>KMS re-encryption</strong>: data encrypted with the source account's KMS key arrives at the destination still encrypted with that key. If the destination account's workloads don't have cross-account KMS decrypt access, reads fail silently as permission errors that look like missing data.</li>
+    <li><strong>Object ownership</strong>: objects written by DataSync are owned by the destination account — read access is clean. But readable is not discoverable: Glue and Athena see nothing until you register the table and its partitions.</li>
+    <li><strong>KMS on both ends</strong>: S3 decrypts on read and re-encrypts on write, so copies land under the destination bucket's default encryption, not the source key. What breaks is the copy itself — without <code>kms:Decrypt</code> on the source key or <code>kms:GenerateDataKey</code> on the destination key, DataSync fails with <code>AccessDenied</code>.</li>
     <li><strong>Schema preservation</strong>: DataSync copies bytes, not schema metadata. The Parquet file retains its embedded Arrow schema, but your Glue Data Catalog in the destination account knows nothing about it until you register the table explicitly.</li>
 </ul>
 
@@ -433,7 +435,7 @@ def check_freshness(source: str, max_age_days: int = 7) -> dict:
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
-        <li>"AI-ready data" is a spectrum from Level 0 (raw) to Level 4 (AI-ready) [Brewer et al., 2025]. Most production pipelines sit at Level 2 when the AI needs Level 3 or 4.</li>
+        <li>"AI-ready data" is a spectrum, not a switch [Brewer et al., 2025]. In my adaptation (Level 0 raw to Level 4 AI-ready), most production pipelines sit at Level 2 when the AI needs Level 3 or 4.</li>
         <li>IBM defines six core dimensions of data quality: accuracy, completeness, consistency, timeliness, uniqueness, validity [<a href="https://www.ibm.com/think/topics/data-quality-dimensions" target="_blank">IBM Think</a>]. All six can fail silently in AI pipelines.</li>
         <li>Silent failures — wrong delimiter, missing extension, null propagation, wrong Athena UNLOAD extension — return empty results, not exceptions. Verify presence explicitly before marking a pipeline run complete.</li>
         <li>Timeliness is a first-class dimension. Build a per-source freshness manifest and check it at query time, not just at ingestion time.</li>
@@ -445,7 +447,7 @@ def check_freshness(source: str, max_age_days: int = 7) -> dict:
 
 <h2>References</h2>
 <ol class="references-list">
-    <li>IBM Think. "The Six Core Dimensions of Data Quality." IBM Think Topics. Available: <a href="https://www.ibm.com/think/topics/data-quality-dimensions" target="_blank">https://www.ibm.com/think/topics/data-quality-dimensions</a>. See also: <a href="https://www.ibm.com/think/topics/ai-ready-data" target="_blank">What Is AI-Ready Data?</a> for the broader AI readiness framing.</li>
+    <li>IBM Think. "What are data quality dimensions?" IBM Think Topics. Available: <a href="https://www.ibm.com/think/topics/data-quality-dimensions" target="_blank">https://www.ibm.com/think/topics/data-quality-dimensions</a>. See also: <a href="https://www.ibm.com/think/topics/ai-ready-data" target="_blank">What Is AI-Ready Data?</a> for the broader AI readiness framing.</li>
     <li>Wesley Brewer, Patrick Widener, Valentine Anantharaj, Feiyi Wang, Tom Beck, Arjun Shankar, and Sarp Oral. "Data Readiness for Scientific AI at Scale." <em>arXiv:2507.23018v1</em> [cs.AI], 30 July 2025. Available: <a href="https://arxiv.org/html/2507.23018v1" target="_blank">https://arxiv.org/html/2507.23018v1</a></li>
 </ol>
 
@@ -480,6 +482,8 @@ def check_freshness(source: str, max_age_days: int = 7) -> dict:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

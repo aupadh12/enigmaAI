@@ -336,6 +336,7 @@
             <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
         </div>
     </div>
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
     <h2>The Question Nobody Can Answer</h2>
 
@@ -394,7 +395,7 @@
                 <td>Cap 8000, no effort setting</td>
                 <td>—</td>
                 <td>—</td>
-                <td>Read timeout: thinking ran unbounded</td>
+                <td>Read timeout: the call outlasted the client's read timeout</td>
             </tr>
             <tr>
                 <td>Effort <code>low</code> + cap 8000</td>
@@ -411,7 +412,8 @@
             someone files a bug. A truncated one gets scored as a wrong answer, parsed as malformed JSON, or shown to a
             user as a bad summary — and nothing anywhere flags it as a config problem.</p>
         <p>You need <strong>both</strong> knobs: bound the reasoning effort <em>and</em> raise the ceiling well above
-            what the answer alone needs. Testing them together hides this, so isolate them when you diagnose.</p>
+            what the answer alone needs — and when you raise the cap, stream the response or raise the client's read
+            timeout to match. Testing them together hides this, so isolate them when you diagnose.</p>
     </div>
 
     <p>Two operational rules fall out of this:</p>
@@ -424,9 +426,7 @@
             on "low score = bad output" silently inverts.</li>
     </ul>
 
-    <p>The fingerprint to alert on: <code>output_tokens</code> sitting <em>exactly</em> at your cap with zero reasoning
-        tokens reported separately. That means you paid full price for thinking you never received and an answer that
-        never arrived.</p>
+    <p>The fingerprint to alert on: <code>stop_reason</code> is <code>max_tokens</code> and the response has no text block, or only an empty one. That means you paid full price for thinking you never received and an answer that never arrived. Don't key it on <code>output_tokens</code> alone: thinking isn't reported separately, so a count at the cap looks the same whether the answer is empty or merely truncated.</p>
 
     <h2>Cost Driver #2: The Response You Paid For and Threw Away</h2>
 
@@ -434,7 +434,7 @@
         is a <em>list of blocks</em> — and the thinking block comes first:</p>
 
     <pre><code># WRONG — silently returns '' whenever the model chose to think
-text = response["content"][0]["text"]
+text = response["content"][0].get("text", "")
 
 # RIGHT — select by type, never by position.
 # This shape is the native messages API / raw-invoke body:
@@ -486,21 +486,22 @@ text = "".join(b["text"] for b in blocks if "text" in b).strip()
         registered. With 30-plus tools, that schema block dwarfs the user's actual question.</p>
 
     <p>Cache economics are asymmetric in your favour: a cache <em>write</em> costs roughly 1.25x normal input price on
-        the short five-minute retention, and every subsequent <em>read</em> costs roughly 0.1x. Over a multi-turn agent
-        loop, that's transformative — one read pays the write back.</p>
+        the short five-minute retention, and every subsequent <em>read</em> costs roughly 0.1x (0.05x on Opus 5.5,
+        0.025x on Fable 5.1). Over a multi-turn agent loop, that's transformative — one read pays the write back.</p>
 
     <p>If your provider offers a longer retention window the write costs about 2x instead, which moves breakeven to two
         reads. That's usually still worth it for an agent loop, and it addresses a real problem: a five-minute window
         expires during exactly the sessions you most wanted to cache, where the user is thinking between turns or a tool
-        call is slow. Worth checking availability per model rather than assuming, though — on current models the longer
-        window is not offered everywhere.</p>
+        call is slow. Worth checking availability per model rather than assuming, though — the longer window is not
+        offered for every model or provider.</p>
 
     <p>Three things routinely stop it from working, and the first one is the least known.</p>
 
     <h3>Your prefix is below the minimum cacheable size</h3>
 
-    <p>Every cache checkpoint has a minimum token count, and it varies by model — around a thousand tokens for some,
-        four thousand for the larger and smaller ones alike. Below that threshold, the behaviour is the worst possible:
+    <p>Every cache checkpoint has a minimum token count, and it varies by model — 512 tokens on the newest models,
+        around a thousand on others, and four thousand on some older Opus releases and the smallest current model.
+        Below that threshold, the behaviour is the worst possible:
         <strong>the request succeeds and simply isn't cached.</strong> No error, no warning, no log line. If your system
         prompt is modest and you've only registered a handful of tools, you may be under the floor and never know. Check
         the reported cache-read tokens on a repeat call; if they're zero and you were expecting a hit, measure your
@@ -534,15 +535,16 @@ first_turn   = f"[User: {user_email}]\n{query}"
 
     <div class="warn-box">
         <p><strong>Making the prefix static is necessary but not sufficient</strong>, and this is where I lost a day.
-            Caching only writes at a <em>breakpoint</em>, and if you let the platform place that breakpoint
-            automatically it goes on the <em>last</em> cacheable block. In the layout above, the last block is the user
-            turn — the one thing that changes every request. So you write a fresh cache entry every single call and
-            never read one. Cache-write charges go up, hit rate stays at zero, and nothing errors.</p>
-        <p>Put the breakpoint at the end of the static prefix — after the tool schemas and the system prompt — rather
-            than at the end of the message list. Most agent frameworks expose this as a pair of flags for caching the
-            system prompt and the tool definitions rather than as a manual breakpoint, which is the easier path if
-            you're on one; if you're hand-rolling, place it explicitly and verify against the reported cache-read count
-            rather than assuming.</p>
+            Explicit caching only writes at a <em>breakpoint</em> (implicit caching, where offered, is best-effort),
+            and if you let the platform place that breakpoint automatically it goes on the <em>last</em> cacheable
+            block. In the layout above, the last block is the user turn — the one thing that changes every request. So
+            every call writes a fresh entry, and no other session ever reads the shared prefix. Cache-write charges go
+            up, the cross-user hit rate stays at zero, and nothing errors.</p>
+        <p>Put one breakpoint at the end of the static prefix — after the tool schemas and the system prompt — so every
+            session shares it, and keep a second on the latest turn so a long agent loop also reads back its own
+            history. Most agent frameworks expose both as configuration rather than as manual breakpoints, which is the
+            easier path if you're on one; if you're hand-rolling, place them explicitly and verify against the reported
+            cache-read count rather than assuming.</p>
     </div>
 
     <h3>Your cost reporting silently undercounts</h3>
@@ -562,9 +564,9 @@ first_turn   = f"[User: {user_email}]\n{query}"
 
     <h2>Attribution: Two Data Sources, Neither Sufficient Alone</h2>
 
-    <p>Here is the structural problem with LLM cost visibility. Your billing export is authoritative on <em>amount</em>
-        but has no idea who caused it. Your model invocation logs have exact token counts per call, but they are not the
-        invoice.</p>
+    <p>Here is the structural problem with LLM cost visibility. Your billing export is authoritative on <em>amount</em>,
+        but at best it knows which cloud principal made each call — not the person behind it. Your model invocation logs
+        have exact token counts per call, but they are not the invoice.</p>
 
     <div class="warn-box">
         <p><strong>And they probably don't know who your users are either.</strong> This is the assumption that will
@@ -576,9 +578,9 @@ first_turn   = f"[User: {user_email}]\n{query}"
         <p>The fix is to stamp the identity yourself. The invocation APIs accept a caller-supplied metadata object — a
             small set of key-value pairs that lands in the log record alongside the token counts — and that is the
             documented place to put your authenticated user, tenant, trace ID and cost-centre tag. Set it on every call.
-            The alternative is issuing per-user role sessions so the principal genuinely differs per person, which is a
-            much larger identity change and only makes sense if your users already federate directly to the cloud
-            provider.</p>
+            The alternative is per-user role sessions: the service assumes its role once per user, with the user in the
+            session name or session tags, and caches the credentials. That puts per-person dollars in the billing data
+            too, at the cost of an STS call per user session.</p>
         <p>Read the identity from your server-side request context when you set it, never from anything the model
             produced. Attribution that a user can influence is not attribution, and a cost report is exactly the kind of
             thing people will later be held to.</p>
@@ -605,8 +607,8 @@ first_turn   = f"[User: {user_email}]\n{query}"
                 Export</text>
             <text x="45" y="99" font-size="10" fill="#78350f">✓ Authoritative amount</text>
             <text x="45" y="117" font-size="10" fill="#78350f">✓ What you actually owe</text>
-            <text x="45" y="139" font-size="10" fill="#b45309">✗ Account-level only</text>
-            <text x="45" y="157" font-size="10" fill="#b45309">✗ No user, no model detail</text>
+            <text x="45" y="139" font-size="10" fill="#b45309">✗ Daily, per-principal grain</text>
+            <text x="45" y="157" font-size="10" fill="#b45309">✗ Shared role hides end users</text>
 
             <!-- Left: logs -->
             <rect x="30" y="192" width="200" height="120" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" />
@@ -625,10 +627,10 @@ first_turn   = f"[User: {user_email}]\n{query}"
             <rect x="305" y="140" width="150" height="84" rx="8" fill="#f0fdf4" stroke="#059669" stroke-width="2" />
             <rect x="305" y="140" width="150" height="24" rx="8" fill="url(#attGrad)" />
             <rect x="305" y="156" width="150" height="8" fill="url(#attGrad)" />
-            <text x="380" y="157" text-anchor="middle" font-size="11" font-weight="600" fill="white">Daily
+            <text x="380" y="157" text-anchor="middle" font-size="11" font-weight="600" fill="white">Scheduled
                 Extractor</text>
             <text x="380" y="182" text-anchor="middle" font-size="9" fill="#065f46">Cross-account assume-role</text>
-            <text x="380" y="197" text-anchor="middle" font-size="9" fill="#065f46">12h query windows</text>
+            <text x="380" y="197" text-anchor="middle" font-size="9" fill="#065f46">Cap-sized query windows</text>
             <text x="380" y="212" text-anchor="middle" font-size="9" fill="#065f46">Re-scan trailing 3 days</text>
 
             <path d="M455 182 L520 182" stroke="#64748b" stroke-width="1.5" marker-end="url(#attArrow)" />
@@ -662,7 +664,7 @@ first_turn   = f"[User: {user_email}]\n{query}"
     <p>The pipeline that solved this for me, across several cloud accounts:</p>
 
     <ol>
-        <li><strong>A daily extractor job</strong> in a designated central account, assuming a read-only role into each
+        <li><strong>A scheduled extractor job</strong> in a designated central account, assuming a read-only role into each
             source account.</li>
         <li><strong>Query the invocation logs</strong> per account <em>and per region</em> — this is a common miss;
             teams query their primary region and silently drop everything else.</li>
@@ -674,8 +676,9 @@ first_turn   = f"[User: {user_email}]\n{query}"
     <p>Four hard-won details in that loop:</p>
 
     <ul>
-        <li><strong>Use 12-hour query windows, not 24.</strong> Log query APIs cap result rows; a busy day silently
-            truncates and you under-report.</li>
+        <li><strong>Size query windows to the row cap, not the clock.</strong> Log query APIs cap result rows, and on a
+            busy account even a 12-hour window overflows; detect a result that hits the cap and split the window, or
+            extract with a paginated API that has no row cap.</li>
         <li><strong>Re-extract the trailing three days on every run.</strong> Logs arrive late. A single-day extraction
             permanently loses whatever hadn't landed.</li>
         <li><strong>Never overwrite existing data with an empty result.</strong> A transient query failure must leave
@@ -801,11 +804,8 @@ first_turn   = f"[User: {user_email}]\n{query}"
             use.</li>
     </ol>
 
-    <p>I deliberately deferred all three — the tactical fixes bought somewhere around 18 months of headroom, and knowing
-        roughly when the wall arrives is worth more than hitting it early. Read that last table row honestly, though:
-        nine seconds is already past what I would want to serve, so the real deadline is nearer than the arithmetic
-        suggests. But I wrote the measurements down, because "it's fine" and "it's fine for now, and here is the number
-        that says when it stops being fine" are different statements.</p>
+    <p>I wrote the measurements down, because "it's fine" and "it's fine for now, and here is the number that says
+        when it stops being fine" are different statements.</p>
 
     <h2>What I'd Set Up on Day One</h2>
 
@@ -816,7 +816,7 @@ first_turn   = f"[User: {user_email}]\n{query}"
         </div>
         <div class="metric-card">
             <div class="metric-value">0.1x</div>
-            <div class="metric-label">Cache Read Cost</div>
+            <div class="metric-label">Typical Cache Read Cost</div>
         </div>
         <div class="metric-card">
             <div class="metric-value">6+</div>
@@ -847,7 +847,7 @@ first_turn   = f"[User: {user_email}]\n{query}"
         <h3>Key Takeaways</h3>
         <ul>
             <li><strong>Reasoning tokens bill against your output ceiling.</strong> Bound effort <em>and</em> raise the
-                cap — one without the other silently truncates.</li>
+                cap — one without the other truncates or times out.</li>
             <li><strong>Always check <code>stop_reason</code>.</strong> Truncation is a config defect with its own error
                 type, never a quality score.</li>
             <li><strong>Never index response content by position.</strong> Adaptive thinking reorders blocks, so it
@@ -903,6 +903,8 @@ first_turn   = f"[User: {user_email}]\n{query}"
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

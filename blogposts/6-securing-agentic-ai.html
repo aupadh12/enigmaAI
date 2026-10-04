@@ -7,7 +7,7 @@
     <title>Your Agent Is a Confused Deputy: Security and Governance for Agentic AI</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="Your Agent Is a Confused Deputy">
-    <meta property="og:description" content="Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data — including a cross-tenant vulnerability I shipped, found and closed.">
+    <meta property="og:description" content="Security lessons from building an autonomous, tool-calling agent for regulated enterprise data — including a cross-tenant vulnerability found and closed before any such data was connected.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/6-securing-agentic-ai-v2.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="627">
@@ -15,7 +15,7 @@
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Your Agent Is a Confused Deputy">
-    <meta name="twitter:description" content="Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise data — including a cross-tenant vulnerability I shipped, found and closed.">
+    <meta name="twitter:description" content="Security lessons from building an autonomous, tool-calling agent for regulated enterprise data — including a cross-tenant vulnerability found and closed before any such data was connected.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/6-securing-agentic-ai-v2.png">
     <style>
         * {
@@ -324,9 +324,7 @@
     <span class="header-badge">AI Security</span>
 
     <h1>Your Agent Is a Confused Deputy</h1>
-    <p class="subtitle">Security lessons from putting an autonomous, tool-calling agent in front of regulated enterprise
-        data — including a cross-tenant vulnerability I shipped, found and closed &mdash; and how the architecture had
-        to change because of it.</p>
+    <p class="subtitle">Security lessons from building an autonomous, tool-calling agent for regulated enterprise data — including a cross-tenant vulnerability found and closed before any such data was connected &mdash; and how the architecture had to change because of it.</p>
 
     <div class="author-block">
         <div class="author-avatar">AP</div>
@@ -335,6 +333,7 @@
             <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
         </div>
     </div>
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
     <h2>The Vulnerability I Shipped</h2>
 
@@ -361,11 +360,9 @@ def analyze_uploaded_file(user_email: str, filename: str) -&gt; dict:
         tool. The tool trusts it. That was a cross-tenant IDOR, reachable by anyone with a keyboard and no security
         knowledge whatsoever.</p>
 
-    <p>For the avoidance of doubt, since this is the kind of thing worth stating plainly: this was found and fixed
-        during build-out, before any regulated or person-level data was connected to the system, and everything below is
-        written from the far side of the remediation. The reason to publish it is that the shape of the mistake is going
-        to be extremely common over the next few years, and it is much cheaper to recognise it in someone else's
-        write-up than in your own logs.</p>
+    <p>For the avoidance of doubt, since this is the kind of thing worth stating plainly: this was found and closed while the system held no regulated or person-level data. The reason to publish it is that the
+        shape of the mistake is going to be extremely common over the next few years, and it is much cheaper to
+        recognise it in someone else's write-up than in your own logs.</p>
 
     <div class="highlight-box">
         <p><strong>The generalisation:</strong> an LLM tool argument has exactly the trust level of a URL query
@@ -401,19 +398,22 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
     user_email = get_request_user_email()
     if not user_email:
         raise PermissionError("no authenticated identity in request context")
+    if "/" in filename or ".." in filename:  # still model-supplied — validate it
+        raise ValueError("invalid filename")
     key = f"uploads/{user_email}/{filename}"
     ...
 </code></pre>
 
-    <p>Two details in that snippet matter more than they look, and I got both wrong first time.</p>
+    <p>Two details in that snippet matter more than they look, and both are easy to get wrong first time.</p>
 
-    <p><strong>Remove the identity parameter from the signature entirely.</strong> My original fix kept it and overrode
-        it — <code>if ctx_email: user_email = ctx_email</code>, with a satisfied comment saying the model's value was
-        discarded. Read that branch again. If the context variable is ever unset, the <code>if</code> is skipped and the
-        <em>model's</em> value is used for the access decision. That's the original vulnerability, restored, silently —
-        and it will be unset one day, on a new entry point, a background task, a retry worker. I had written a fail-open
-        and reassured myself with a comment. If the parameter isn't in the signature, that code path cannot be written.
-        The model does not need to supply identity to select a tool correctly; that concern was unfounded.
+    <p><strong>Remove the identity parameter from the signature entirely.</strong> The tempting first fix keeps it and
+        overrides it — <code>if ctx_email: user_email = ctx_email</code>, with a satisfied comment saying the model's
+        value is discarded. Read that branch again. If the context variable is ever unset, the <code>if</code> is skipped
+        and the <em>model's</em> value is used for the access decision. That's the original vulnerability, restored,
+        silently — and it will be unset one day, on a new entry point, a background task, a retry worker. It is a
+        fail-open with a reassuring comment on top. If the parameter isn't in the signature, that code path cannot be
+        written. The model does not need to supply identity to select a tool correctly; the worry that it might is
+        unfounded.
     </p>
 
     <p><strong>Fail closed.</strong> No identity in context is not "fall back to something" — it's an error, and it
@@ -423,11 +423,11 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
     </p>
 
     <div class="warn-box">
-        <p><strong>The part that nearly got me twice.</strong> Request-scoped context does <strong>not</strong> cross a
-            process or HTTP boundary. My main service set it correctly, and tools running in-process were fine. But in
-            the multi-agent configuration, specialist agents run as separate services behind their own HTTP endpoints —
-            and there, the context variable was simply <em>unset</em>, falling back to the model-supplied value. The
-            vulnerability survived my <em>first</em> fix on every path that mattered most.</p>
+        <p><strong>The part that catches people twice.</strong> Request-scoped context does <strong>not</strong> cross a
+            process or HTTP boundary. The main service can set it correctly, with tools running in-process working fine.
+            But in a multi-agent configuration, specialist agents run as separate services behind their own HTTP
+            endpoints — and there, the context variable is simply <em>unset</em>, falling back to the model-supplied
+            value. The vulnerability survives the <em>first</em> fix on every path that matters most.</p>
         <p>If you fan work out to sub-agents, the identity has to be propagated explicitly on the internal call and
             re-established in the receiving process before the agent runs. Audit every agent-execution entry point, not
             just the one you were thinking about.</p>
@@ -437,7 +437,9 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
             deputy, they just call your sub-agent directly and claim to be anyone. An internal endpoint that accepts
             identity in its payload is an authentication boundary and has to be treated as one — a shared secret or
             mutual TLS on every internal hop, plus a default-deny network policy so only the services you intend can
-            reach it at all. Moving an IDOR from the model layer to the network layer is not fixing it.</p>
+            reach it at all — and check that your CNI actually enforces it, because on EKS the VPC CNI ignores
+            NetworkPolicy until enforcement is switched on. Moving an IDOR from the model layer to the network layer is
+            not fixing it.</p>
     </div>
 
     <p>The boundary I named above is also slightly wrong, in the direction that bites hardest. It is not only processes
@@ -478,7 +480,7 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
             should be equivalent to accessing it natively — same identity, same permissions, same audit trail.</p>
     </div>
 
-    <p>This sounds obvious and is violated by nearly every first-generation enterprise agent, including mine. The
+    <p>This sounds obvious and is violated by nearly every first-generation enterprise agent. The
         default architecture is: one service account, one platform role, every tool bound for every user. That design is
         <em>fine</em> while all your data is public reference material. The moment one proprietary source lands, you
         have built a privilege-escalation service with a friendly chat interface.
@@ -490,8 +492,8 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
 
     <h2>Where First-Generation Agents Actually Leak</h2>
 
-    <p>When I audited my own system against that principle, four structural problems came out. I suspect they're
-        near-universal.</p>
+    <p>Audit a first-generation agent against that principle and four structural problems tend to come out. I suspect
+        they're near-universal.</p>
 
     <table>
         <thead>
@@ -528,9 +530,9 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
         </tbody>
     </table>
 
-    <p>A fifth one worth naming: I had a perfectly good token validator sitting in the codebase, correctly implemented,
-        <strong>unused on the data path</strong>. Written for an admin route, never wired to the endpoint that mattered.
-        Existing-but-unwired security code is worse than absent security code, because a reviewer greps, finds it, and
+    <p>A fifth is common enough to name: a perfectly good token validator sitting in the codebase, correctly
+        implemented, <strong>unused on the data path</strong> — written for an admin route, never wired to the endpoint
+        that mattered. Existing-but-unwired security code is worse than absent security code, because a reviewer greps, finds it, and
         assumes coverage.
     </p>
 
@@ -582,8 +584,8 @@ def analyze_uploaded_file(filename: str) -&gt; dict:
 
     <p><strong>Tier 3 is a platform gate, not a control.</strong> The rule I'd write into any charter: <em>regulated
             person-level data does not onboard until the tier-3 controls exist.</em> Not "onboard and harden after" —
-        you cannot un-ingest data, and consent-scoped entitlement plus tamper-evident audit cannot be retrofitted onto a
-        system that's already serving it.</p>
+        you cannot un-ingest data, and consent-scoped entitlement plus immutable (ideally also tamper-evident) audit
+        cannot be retrofitted onto a system that's already serving it.</p>
 
     <h2>Control #2: Don't Bind the Tool You Won't Authorise</h2>
 
@@ -632,7 +634,7 @@ agent = Agent(
             scoped to only its own storage prefixes and secrets. Now a foothold in a tier-0 path cannot read tier-2
             storage even with working code execution.</li>
         <li><strong>Lock down sandbox egress.</strong> If your agent can execute generated code — and if it does data
-            analysis, it probably can — that sandbox is your top exfiltration vector. Mine had general outbound HTTPS.
+            analysis, it probably can — that sandbox is your top exfiltration vector. Many start with general outbound HTTPS.
             An agent that can read tier-2 data <em>and</em> make arbitrary outbound requests needs only one injected
             instruction to combine them. Allowlist egress to the specific services the sandbox legitimately needs.</li>
     </ul>
@@ -847,11 +849,10 @@ agent = Agent(
 
     <p><strong>Understand which guardrails apply where.</strong> Managed platforms increasingly offer policy engines
         that intercept tool traffic and apply content filtering, prompt-injection detection, and PII checks. Useful —
-        but the set applied automatically at the interception point is usually <em>narrower</em> than the provider's
-        full guardrail catalogue. In one platform I evaluated, the automatic policy layer covered exactly three
-        categories; denied-topic filtering and contextual grounding required an explicit call from agent code. If your
+        but the set available at the interception point is usually <em>narrower</em> than the provider's full guardrail
+        catalogue. In one platform I evaluated, the policy layer could express exactly three categories; denied-topic filtering and contextual grounding required an explicit call from agent code. If your
         governance document says "guardrails are enforced by the platform," verify which ones &mdash; and verify that
-        someone actually authored them, because on the platform I looked at closely the "automatic" part turned out to
+        someone actually authored them, because on the platform I looked at closely what looked automatic turned out to
         be default <em>thresholds</em> rather than default enforcement. Nothing intercepts anything until a policy
         exists.</p>
 
@@ -953,6 +954,8 @@ agent = Agent(
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

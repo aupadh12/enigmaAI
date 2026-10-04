@@ -157,6 +157,7 @@
         <div class="author-title">Platform Engineering · September 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
 <p>Three whole days of Bedrock cost data for one account in our seven-account FinOps pipeline vanished silently. Not a partial outage — one day had no file at all, two others captured fewer than half their actual invocations. The internal dashboard showed the gap. No alert fired. The CronJob running the extraction had been exiting non-zero for weeks, but nothing had been wired to watch that status.</p>
 
@@ -171,7 +172,7 @@
 <p>Cost calculation uses a pricing dictionary. Each entry maps a model identifier to a dict of rates:</p>
 
 <pre><code>PRICING = {
-    "anthropic.claude-sonnet-4-6": {
+    "global.anthropic.claude-sonnet-4-6": {
         "input":         3.00,   # per million input tokens
         "output":       15.00,   # per million output tokens
         "cache_read":    0.30,   # per million cache-read tokens
@@ -189,7 +190,7 @@
 
 <h2>The Inversion That Matters: Incomplete Over Unknown</h2>
 
-<p>The pricing table has a fallback path: if a model identifier doesn't match any explicit entry, it falls through to a default rate (approximately Sonnet-class pricing) and emits a loud <code>UNPRICED MODEL</code> warning in the log. The fallback entry has all four required keys. So a completely unknown model is handled gracefully.</p>
+<p>The pricing table has a fallback path: if a model identifier doesn't match any explicit entry, it falls through to a default rate (approximately Sonnet-class pricing) and emits a loud <code>UNPRICED MODEL</code> warning in the log. The fallback entry has every rate key, including the three the calculation subscripts directly. So a completely unknown model is handled gracefully.</p>
 
 <p>A model with a partial entry is not handled gracefully. It matches the explicit lookup — so it never reaches the fallback — and then crashes when a required key is absent.</p>
 
@@ -382,21 +383,21 @@ def load_pricing(config: dict) -> dict:
     <p><strong>Degrade to auditable, not to silent drop.</strong> The validation function removes incomplete entries rather than blocking startup entirely. A model that falls to the fallback still appears in the output with a loud UNPRICED MODEL marker. The day is written. The cost is wrong for that model, but a human can see it and correct it. Crashing the extractor on startup would leave the day with no data at all — which is worse than a known-wrong estimate.</p>
 </div>
 
-<h2>Sourcing Bedrock Pricing: What the Price List API Doesn't Cover</h2>
+<h2>Sourcing Bedrock Pricing: Two Service Codes, One Trap</h2>
 
-<p>Fixing the immediate entries led to an audit of all pricing data sources, which surfaced a less obvious problem: the AWS Price List API doesn't list most of the models in the estate.</p>
+<p>Fixing the immediate entries led to an audit of all pricing data sources, which surfaced a less obvious trap: the AWS Price List API appears not to list most of the models in the estate — until you look under the right service code.</p>
 
-<p>The standard programmatic source — <code>pricing:GetProducts</code> for <code>ServiceCode=AmazonBedrock</code> — returns only a small subset of Bedrock models. Cohere models are absent entirely. Current Claude models such as Claude Sonnet 4.6 and Claude Opus 5 are also absent; only legacy Claude generations are listed. The only reliable source for these models is the AWS Bedrock pricing page at <code>aws.amazon.com/bedrock/pricing/</code>.</p>
+<p>The standard programmatic source — <code>pricing:GetProducts</code> — splits Bedrock across two service codes. <code>ServiceCode=AmazonBedrock</code> covers Amazon's own models and others AWS sells directly, and lists only legacy Claude generations. Claude, Cohere and the other models sold through AWS Marketplace live under <code>AmazonBedrockFoundationModels</code>, identified by <code>servicename</code> (for example "Claude Sonnet 4.6 (Amazon Bedrock Edition)") rather than by a <code>model</code> attribute. Query only the first, or filter on an attribute the second doesn't have, and Cohere and current Claude look absent.</p>
 
-<p>However, that page cannot be scraped with <code>curl</code>. A standard HTTP GET returns approximately 900 KB of HTML that contains zero model names — the entire pricing table is client-side rendered via JavaScript. Extracting actual rates requires a headless browser. A second trap: the Cohere on-demand token table is region-gated within the page — clicking the region selector is required to reveal it. A scrape that captures only the initial page state may see only the per-query table and incorrectly conclude that no per-token rates exist for Cohere models.</p>
+<p>The pricing page at <code>aws.amazon.com/bedrock/pricing/</code> is a poor fallback. Its HTML names the models, but the current Claude and Cohere prices are filled in client-side, so a plain <code>curl</code> scrape returns placeholders rather than rates for them. A second trap: the Cohere on-demand token table is region-gated within the page — clicking the region selector is required to reveal it. A scrape that captures only the initial page state may see only the per-query table and incorrectly conclude that no per-token rates exist for Cohere models.</p>
 
 <div class="warn-box">
-    <p><strong>Do not rely on the AWS Price List API alone for Bedrock pricing.</strong> It returns no Cohere data and no modern Claude models. The pricing page is the primary source for most of the estate — and it requires a headless browser to access the data.</p>
+    <p><strong>Before concluding a model is missing from the Price List, check both service codes and list their attributes.</strong> The Marketplace models — Cohere and current Claude among them — are keyed by <code>servicename</code>, so a filter on a <code>model</code> attribute silently matches nothing. The public bulk price files need no credentials, which makes them a better programmatic source than scraping the pricing page.</p>
 </div>
 
 <h2>Models That Cannot Have a Per-Token Rate</h2>
 
-<p>The pricing audit also identified a category of models that should be deliberately left unpriced: models with billing dimensions that the invocation log doesn't carry.</p>
+<p>The pricing audit also identified a category of models that should be deliberately left unpriced: models with billing dimensions that a token-based extraction doesn't capture.</p>
 
 <table>
     <thead>
@@ -410,10 +411,10 @@ def load_pricing(config: dict) -> dict:
         <tr>
             <td>Amazon Nova Canvas</td>
             <td>Per image ($0.04–$0.08 by size and quality)</td>
-            <td>The invocation log carries token counts, not image counts. Cost is unknowable from the log alone.</td>
+            <td>Our extractor parses token counts, not image counts, so cost is unknowable from what it records.</td>
         </tr>
         <tr>
-            <td>Amazon Nova Sonic (multimodal)</td>
+            <td>Amazon Nova 2 Sonic (multimodal)</td>
             <td>Four rates: speech-in, speech-out, text-in, text-out — differing by ~9×</td>
             <td>The log does not distinguish speech from text. Applying any single rate produces a number that's wrong by up to 9× for each invocation.</td>
         </tr>
@@ -433,7 +434,7 @@ def load_pricing(config: dict) -> dict:
 
 <p><strong>Cohere Embed v4</strong> had no pricing entry and was falling through to the default Sonnet-class rate of approximately $3.00 per million input tokens. The published on-demand rate for Cohere Embed 4 in US East (N. Virginia) is $0.12 per million input tokens. That's approximately 25× lower than the fallback — meaning September's cost estimate for this model was roughly 25× higher than the actual Bedrock charge.</p>
 
-<p><strong>Amazon Nova Micro</strong> was similarly absent from the pricing table. Its published rates are $0.035 per million input tokens, $0.14 per million output tokens, and $0.00875 per million cache-read tokens. Priced at the default $3.00/MTok fallback instead, the one invocation we observed was overstated by roughly 89×.</p>
+<p><strong>Amazon Nova Micro</strong> was similarly absent from the pricing table. Its published rates are $0.035 per million input tokens, $0.14 per million output tokens, and $0.00875 per million cache-read tokens. Priced at the Sonnet-class fallback ($3.00 input / $15.00 output per MTok) instead, the observed usage was overstated by roughly 89×.</p>
 
 <p>Neither of these caused a crash — they just inflated cost figures for those models in the dashboard. Adding correct entries for both was part of the same update that fixed the Cohere Embed English entry.</p>
 
@@ -461,19 +462,19 @@ def load_pricing(config: dict) -> dict:
             <td>Day A</td>
             <td class="decision-cell-red">~23% of true total</td>
             <td class="decision-cell-green">100%</td>
-            <td>Partial data — Cohere invocations appeared in a later window; earlier windows completed successfully.</td>
+            <td>Partial file — written by an intra-day run that finished before the first Cohere call; every later run hit the pricing error and never overwrote it.</td>
         </tr>
         <tr>
             <td>Day B</td>
             <td class="decision-cell-red">0% (no file)</td>
             <td class="decision-cell-green">100%</td>
-            <td>Every extraction window on this day encountered the pricing error. No file was ever written.</td>
+            <td>Every run that covered this day hit at least one failing window. No file was ever written.</td>
         </tr>
         <tr>
             <td>Day C</td>
             <td class="decision-cell-red">~47% of true total</td>
             <td class="decision-cell-green">100%</td>
-            <td>Partial data — roughly half the windows succeeded before a Cohere-heavy window failed.</td>
+            <td>Partial file — an intra-day run captured roughly the first half of the day before the Cohere calls; every later run failed.</td>
         </tr>
     </tbody>
 </table>
@@ -491,7 +492,7 @@ def load_pricing(config: dict) -> dict:
         <li><strong>The truncated-day signature:</strong> <code>extracted_at[:10] == date</code> means the file was last written during that day and is incomplete. Scan all stored files for this condition when investigating data loss. Two expected false positives: today and yesterday before the overnight run completes.</li>
         <li><strong>filter_log_events returns empty pages with a valid nextToken.</strong> An ad-hoc probe that stops on the first empty page will silently miss events on subsequent pages. Always paginate to nextToken absence.</li>
         <li><strong>The flanking test distinguishes loss from genuine zeros.</strong> A gap surrounded by non-zero days on a normally-active account is suspicious; probe CloudWatch directly to confirm. A gap surrounded by other gaps during a known low-traffic period is more likely genuine.</li>
-        <li><strong>The AWS Price List API does not cover most Bedrock models.</strong> Cohere and modern Claude models are absent. The pricing page is JS-rendered and requires a headless browser; the Cohere token-rate table is additionally region-gated within the page.</li>
+        <li><strong>Bedrock pricing is split across two Price List service codes.</strong> Marketplace models — Cohere and current Claude — sit under <code>AmazonBedrockFoundationModels</code>, keyed by <code>servicename</code>. List the attributes before you filter; the pricing page fills its prices in client-side, and its Cohere token-rate table is region-gated.</li>
         <li><strong>Never fabricate a per-token rate for per-image or per-query models.</strong> A fake rate suppresses the UNPRICED MODEL warning and removes the model from the manual-attribution list. Leave them unpriced; an explicitly unpriced model is visible, a silently misattributed one is not.</li>
     </ul>
 </div>
@@ -522,6 +523,8 @@ def load_pricing(config: dict) -> dict:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

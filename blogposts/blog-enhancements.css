@@ -196,6 +196,27 @@
   height: 18px;
 }
 
+/* ---------- Wide Tables ---------- */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+  min-width: 560px;
+}
+
+/* ---------- Post Disclaimer ---------- */
+.post-disclaimer {
+  margin: 40px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 13px;
+  line-height: 1.6;
+  font-style: italic;
+  color: #64748b;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 480px) {
   .share-bar {
@@ -212,5 +233,37 @@
     right: 16px;
     width: 40px;
     height: 40px;
+  }
+}
+
+/* ---------- Mobile: keep wide content inside the page ---------- */
+@media (max-width: 600px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  p code, li code {
+    overflow-wrap: anywhere;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .metric-card {
+    min-width: 0;
+    padding: 14px;
+    overflow-wrap: anywhere;
+  }
+
+  .accum-label {
+    width: 64px;
+  }
+
+  .accum-note {
+    width: 76px;
+    flex-shrink: 1;
   }
 }

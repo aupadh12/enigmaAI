@@ -169,14 +169,15 @@
         <div class="author-title">Platform Engineering · September 2026</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
-<p>I filtered AWS Cost Explorer on <code>SERVICE = "Amazon Bedrock"</code> expecting to see our Claude Code spend for the month. The result came back as the equivalent of a rounding error — essentially zero. I briefly concluded that the usage must be missing, billed to a different account, or routed through a reseller arrangement. None of those were true. The usage was there and correctly attributed. I was looking at the wrong service line entirely.</p>
+<p>I filtered AWS Cost Explorer on <code>SERVICE = "Amazon Bedrock"</code> expecting to see our model spend for the month. The result came back as the equivalent of a rounding error — essentially zero. I briefly concluded that the usage must be missing, billed to a different account, or routed through a reseller arrangement. None of those were true. The usage was there and correctly attributed. I was looking at the wrong service line entirely.</p>
 
 <p>That confusion was the first of several metric-definition surprises encountered while building a unified analytics dashboard for two AI coding assistants deployed across an engineering organisation: Claude Code running against Amazon Bedrock, and Kiro, a purpose-built AI IDE assistant with its own credit-based usage model. The two tools route through different telemetry pipelines, store data in different shapes, and require different aggregation logic before their numbers become trustworthy. This post documents those differences and the specific traps that made obvious-looking queries produce wrong answers.</p>
 
 <h2>Two Tools, Two Telemetry Shapes</h2>
 
-<p>Claude Code, when configured to use Amazon Bedrock as its model provider, routes every completion request through the Bedrock API. Bedrock model invocation logging records each call as a structured JSON entry in a CloudWatch log group. The crucial property of this log structure is that the caller's identity, the model identifier, and the token counts for that call all appear in the <em>same</em> record. Per-user and per-model attribution does not require joining two separate sources; it is built into the log format.</p>
+<p>Claude Code, when configured to use Amazon Bedrock as its model provider, routes every completion request through the Bedrock Invoke API on the <code>bedrock-runtime</code> endpoint (the newer Mantle endpoint isn't captured by invocation logging). Bedrock model invocation logging records each call as a structured JSON entry in a CloudWatch log group. The crucial property of this log structure is that the caller's identity, the model identifier, and the token counts for that call all appear in the <em>same</em> record. Per-user and per-model attribution does not require joining two separate sources; it is built into the log format.</p>
 
 <p>Kiro operates differently. It is a managed SaaS tool with its own credit-based billing. Each user's daily activity is distilled into a credit report: a row per user per day containing the date, the user's identity, total credits consumed, and model message counts. The reports are delivered as daily files rather than as a continuous event stream.</p>
 
@@ -190,7 +191,7 @@
       <div class="pipeline-arrow">&#8595;</div>
       <div class="pipeline-step"><span class="pipeline-label">3</span> CloudWatch log group <code>/aws/bedrock</code> — one JSON entry per invocation</div>
       <div class="pipeline-arrow">&#8595;</div>
-      <div class="pipeline-step"><span class="pipeline-label">4</span> Scheduled extractor (6 h cadence) — CloudWatch Logs Insights query, writes day-files</div>
+      <div class="pipeline-step"><span class="pipeline-label">4</span> Scheduled extractor (6 h cadence) — paginated <code>filter_log_events</code>, writes day-files</div>
       <div class="pipeline-arrow">&#8595;</div>
       <div class="pipeline-step"><span class="pipeline-label">5</span> Dashboard — per-user × per-model cost table, no secondary join needed</div>
     </div>
@@ -207,7 +208,7 @@
       <div class="pipeline-step"><span class="pipeline-label">5</span> Dashboard — per-user credits + group enrichment, with explicit "no group" bucket</div>
     </div>
   </div>
-  <p class="diagram-caption">The two pipelines share no infrastructure. The key structural difference: Bedrock attribution is record-level (identity + model + tokens in one entry); Kiro attribution is file-level (one daily file per user, credits pre-aggregated by the provider).</p>
+  <p class="diagram-caption">The two pipelines share no infrastructure. The key structural difference: Bedrock attribution is record-level (identity + model + tokens in one entry); Kiro attribution is file-level (daily files with one row per user, credits pre-aggregated by the provider).</p>
 </div>
 
 <p>The pipelines share no infrastructure and require different extraction patterns, different cadence assumptions, and different approaches to group-level attribution. Getting the numbers right means understanding both shapes independently before trying to report on them together.</p>
@@ -218,28 +219,30 @@
 
 <ul>
     <li><strong><code>identity.arn</code></strong> — the IAM ARN of the caller. For an engineer using Claude Code, this is the ARN of the assumed role or user that issued the Bedrock API call.</li>
-    <li><strong><code>modelId</code></strong> — the Bedrock model identifier, e.g. <code>us.anthropic.claude-sonnet-4-5-20251101-v1:0</code>.</li>
+    <li><strong><code>modelId</code></strong> — the Bedrock model identifier, e.g. <code>us.anthropic.claude-sonnet-4-6</code>.</li>
     <li><strong>Token counts</strong> — input tokens, output tokens, and (when prompt caching is active) cache read and write tokens, all in the same record as the above two fields.</li>
 </ul>
 
 <p>Because all three appear together, grouping by <code>(identity.arn, modelId)</code> and summing token counts produces a complete per-user × per-model attribution table from a single log source. There is no secondary join with a billing table or a user directory. A CloudWatch Logs Insights query that captures this looks like:</p>
 
 <pre><code># Per-user × per-model token summary from Bedrock invocation logs
+# Cache-token field paths vary by record format: check one real record before relying on them
 fields identity.arn, modelId
-| filter @logStream like /ModelInvocationLog/
+| filter schemaType = "ModelInvocationLog"
 | stats
-    sum(inputTokenCount)           as input_tokens,
-    sum(outputTokenCount)          as output_tokens,
-    sum(cacheReadInputTokenCount)  as cache_read_tokens,
-    count()                        as invocations
+    sum(input.inputTokenCount)            as input_tokens,
+    sum(output.outputTokenCount)          as output_tokens,
+    sum(input.cacheReadInputTokenCount)   as cache_read_tokens,
+    sum(input.cacheWriteInputTokenCount)  as cache_write_tokens,
+    count()                               as invocations
   by identity.arn, modelId
-| sort by input_tokens desc</code></pre>
+| sort input_tokens desc</code></pre>
 
 <p>The resulting table gives you one row per (user, model) pair for the query window, with token counts that can be multiplied by per-model published prices to produce a cost estimate. Because the invocation log records the model at the time of the call, you get a natural audit trail when users switch between model versions — Sonnet versus Haiku versus Opus — without any configuration change on the analytics side.</p>
 
 <h3>Stripping ARNs to Readable Display Names</h3>
 
-<p>A raw caller identity ARN like <code>sts::ACCOUNT_ID:assumed-role/SomeRoleName/firstname.lastname</code> is not a useful dashboard label. The extractor strips it down to a readable username by matching against a configured list of account-specific prefixes. Because a real account's usernames frequently use mixed casing — the same person's ARN might appear with an uppercase prefix in some log entries and a lowercase one in others — the prefix list must cover both variants:</p>
+<p>A raw caller identity ARN like <code>sts::ACCOUNT_ID:assumed-role/SomeRoleName/firstname.lastname</code> is not a useful dashboard label. The extractor strips it down to a readable username by matching against a configured list of account-specific prefixes. Because a real account's usernames frequently mix casing — some users' ARNs carry an uppercase prefix and others a lowercase one, depending on how the identity was created — the prefix list must cover both variants:</p>
 
 <pre><code>def simplify_arn(arn: str, prefix_list: list[str]) -> str:
     """Extract a readable username from a caller ARN.
@@ -260,33 +263,33 @@ fields identity.arn, modelId
 
 <h2>The Cost Explorer Blind Spot</h2>
 
-<p>The opening confusion — filtering Cost Explorer on <code>SERVICE = "Amazon Bedrock"</code> and finding essentially zero spend — is a naming issue built into how AWS bills Bedrock usage.</p>
+<p>The opening confusion — filtering Cost Explorer on <code>SERVICE = "Amazon Bedrock"</code> and finding essentially zero spend — is a naming issue built into how AWS bills third-party models on Bedrock.</p>
 
-<p>Model inference charges do not appear under the "Amazon Bedrock" service line. They appear under per-model service lines, each named <code>&lt;Model Name&gt; (Amazon Bedrock Edition)</code>. In a typical active month, the ratio looks something like this:</p>
+<p>Inference for third-party models sold through AWS Marketplace — Claude among them — doesn't appear under the "Amazon Bedrock" service line. It appears under per-model service lines, each named <code>&lt;Model Name&gt; (Amazon Bedrock Edition)</code>. In a typical active month, the ratio looks something like this:</p>
 
 <table>
     <thead>
         <tr><th>Cost Explorer service line</th><th>Share of Bedrock-related spend</th></tr>
     </thead>
     <tbody>
-        <tr><td><code>Claude Sonnet X (Amazon Bedrock Edition)</code></td><td class="decision-cell-green">~60–70%</td></tr>
-        <tr><td><code>Claude Opus X (Amazon Bedrock Edition)</code></td><td class="decision-cell-yellow">~20–30%</td></tr>
+        <tr><td><code>Claude Sonnet X (Amazon Bedrock Edition)</code></td><td class="decision-cell-green">~80%</td></tr>
+        <tr><td><code>Claude Opus X (Amazon Bedrock Edition)</code></td><td class="decision-cell-yellow">~20%</td></tr>
         <tr><td><code>Amazon Bedrock</code></td><td class="decision-cell-red">Essentially zero (&lt;0.1%)</td></tr>
     </tbody>
 </table>
 
-<p>The "Amazon Bedrock" parent line covers non-inference charges — knowledge base storage, guardrails, retrieval requests — and carries a negligible share of spend in workloads dominated by model calls. A FinOps dashboard that reads model spend from the <code>SERVICE = "Amazon Bedrock"</code> line is reporting effectively nothing while the real spend accumulates invisibly elsewhere.</p>
+<p>The "Amazon Bedrock" line carries Amazon's own models and the others AWS sells directly (Nova, Llama, Mistral and more), plus features such as Guardrails; in a Claude-only workload it is a negligible share of spend. A FinOps dashboard that reads Claude spend from the <code>SERVICE = "Amazon Bedrock"</code> line is reporting effectively nothing while the real spend accumulates invisibly elsewhere.</p>
 
-<p>The correct approach is to group Cost Explorer by <code>SERVICE</code> for the billing period and then sum every line whose name ends in <code>(Amazon Bedrock Edition)</code>:</p>
+<p>The correct approach is to group Cost Explorer by <code>SERVICE</code> for the billing period and sum the per-model <code>(Amazon Bedrock Edition)</code> lines plus the <code>Amazon Bedrock</code> line itself — matched exactly, because a substring match also picks up other Bedrock-branded services such as AgentCore:</p>
 
 <pre><code>aws ce get-cost-and-usage \
   --time-period Start=YYYY-MM-01,End=YYYY-MM-DD \
   --granularity MONTHLY \
   --metrics UnblendedCost \
   --group-by Type=DIMENSION,Key=SERVICE \
-  --query 'ResultsByTime[0].Groups[?contains(Keys[0], `Amazon Bedrock Edition`)]'</code></pre>
+  --query "ResultsByTime[0].Groups[?Keys[0]=='Amazon Bedrock' || contains(Keys[0], 'Amazon Bedrock Edition')]"</code></pre>
 
-<p>A side benefit: the model name in each service line tells you which models are actually in use across the account — cheaper than grepping configuration files, and accurate in the way that only billing data can be.</p>
+<p>A side benefit: the model name in each Edition line tells you which Marketplace models are actually in use across the account — cheaper than grepping configuration files, and accurate in the way that only billing data can be.</p>
 
 <div class="highlight-box">
     <p><strong>Why this matters for multi-model cost visibility:</strong> when an organisation deploys multiple AI workloads in the same account — a coding assistant, a research agent, an API-facing service — the per-model service lines immediately tell you which workload is the dominant spender, even before any tagging strategy is in place. If Claude Sonnet accounts for 80% and Opus for 20%, and you know Claude Code primarily uses Sonnet while your research pipeline uses Opus, the cost split follows without additional joins.</p>
@@ -294,7 +297,7 @@ fields identity.arn, modelId
 
 <h2>Kiro Credits: Daily, Not Cumulative</h2>
 
-<p>Kiro's daily report files are incremental. Each file records what a user spent on that calendar day. Credits do not carry forward; they reset at the start of each day's file. This means summing credits across any date range is safe — you are summing independent daily increments, not re-counting a running total.</p>
+<p>Kiro's daily report files are incremental. Each file records what a user spent on that calendar day and nothing earlier, so summing credits across any date range is safe — you are summing independent daily increments, not re-counting a running total.</p>
 
 <p>The complexity arises when you compare a user's total spending against their overage allowance. The allowance is defined per month — a fixed credit cap that applies to usage above the base subscription level. When the analytics window is a rolling 30 or 90 days rather than a fixed calendar month, you need to scale that monthly cap to match the window.</p>
 
@@ -324,7 +327,7 @@ def months_in_window_naive(dates: pd.Series) -> int:
     so a 30-day window always applies exactly 1× the monthly cap
     regardless of which dates it covers.
 
-    max(1, ...) prevents a zero result for windows shorter than 15 days.
+    max(1, ...) prevents a zero result for windows of 15 days or fewer.
     """
     return max(1, round(days / 30))</code></pre>
 
@@ -382,7 +385,7 @@ def months_in_window_naive(dates: pd.Series) -> int:
 <p>Group coverage is not licence utilisation — define the denominator explicitly and state the window. A group-based denominator counts only people in groups, so define it explicitly and document what it includes and excludes.</p>
 
 <div class="warn-box">
-    <p><strong>Never call this ratio "licence utilisation."</strong> It is <em>group coverage</em> — the fraction of known group members who used the tool in the window. Licence utilisation would require a confirmed list of licence holders, which identity provider group membership cannot provide if some users hold licences through paths other than group assignment. The distinction matters when reporting to stakeholders who may act on the number: "61% utilisation" implies 39% of paid licences are wasted, which overstates the waste when the denominator covers only group-assigned members.</p>
+    <p><strong>Never call this ratio "licence utilisation."</strong> It is <em>group coverage</em> — the fraction of known group members who used the tool in the window. Licence utilisation would require a confirmed list of licence holders, which identity provider group membership cannot provide if some users hold licences through paths other than group assignment. The distinction matters when reporting to stakeholders who may act on the number: "61% utilisation" implies 39% of paid licences are wasted, which misstates the waste, in a direction the group data cannot tell you. The confirmed licence list lives in the billing export: with resource IDs enabled, each Kiro subscription line identifies its subscriber.</p>
 </div>
 
 <p>The AD mail casing trap and multi-group membership accounting are covered in detail in <a href="16-multi-tenant-finops.html">post #16 on multi-tenant FinOps data joins</a>.</p>
@@ -399,7 +402,7 @@ def months_in_window_naive(dates: pd.Series) -> int:
 
 <p>Adding a new account to the Bedrock analytics pipeline involves two things that deserve explicit attention.</p>
 
-<p><strong>Confirm that invocation logging is already enabled before creating anything.</strong> Run <code>aws bedrock get-model-invocation-logging-configuration --region &lt;region&gt;</code> in the target account. In at least one account we onboarded, invocation logging had already been active for well over a year — auto-configured during an earlier Bedrock setup, with a very long log retention period. Attempting to create logging configuration in that account would have been a no-op at best. The check takes ten seconds and avoids confusion about whether new log data is the result of a fresh setup or pre-existing data.</p>
+<p><strong>Confirm that invocation logging is already enabled before creating anything.</strong> Run <code>aws bedrock get-model-invocation-logging-configuration --region &lt;region&gt;</code> in the target account. In at least one account we onboarded, invocation logging was already on — auto-configured during an earlier Bedrock setup, with a multi-year log retention period. Attempting to create logging configuration in that account would have been a no-op at best. The check takes ten seconds and avoids confusion about whether new log data is the result of a fresh setup or pre-existing data.</p>
 
 <p><strong>Username prefix matching is case-sensitive in two separate implementations.</strong> The extractor that reads CloudWatch logs uses a <code>startswith</code> check to strip ARN prefixes to readable usernames. An independent copy of the same logic exists in the API layer that serves the dashboard. Real accounts mix casing: the same underlying population may appear as <code>ORG-ACCOUNT-firstname.lastname</code> in 83% of log entries and <code>org-account-firstname.lastname</code> in the remainder, because different mechanisms created the IAM identities at different times. Always list both casings in the prefix configuration, and list longer variants before shorter ones so a more specific prefix wins over a partial match:</p>
 
@@ -416,21 +419,21 @@ username_prefixes:
 
 <p>After building both pipelines, the combined dashboard answers three distinct questions that were previously answered with guesswork:</p>
 
-<p><strong>Who is spending what on which models?</strong> The Bedrock per-user × per-model table answers this directly, derived from log records rather than from cost allocation tags, which tend to be incomplete in early-stage deployments. The Cost Explorer per-model service lines answer the complementary question: which models are active across the whole account, and in roughly what proportion.</p>
+<p><strong>Who is spending what on which models?</strong> The Bedrock per-user × per-model table answers this directly, derived from log records rather than from cost allocation tags, which tend to be incomplete in early-stage deployments. The Cost Explorer per-model service lines answer the complementary question: which Marketplace models are active across the whole account, and in roughly what proportion.</p>
 
 <p><strong>How active is Kiro relative to the assigned population?</strong> The group coverage ratio at 30 and 90 days answers this, noting that the denominator covers only explicitly group-assigned members. The "no group" bucket makes that boundary explicit rather than hiding it in the coverage number.</p>
 
-<p><strong>Is overage usage concentrated or distributed?</strong> Comparing per-user credit totals against the scaled cap — using <code>max(1, round(days/30))</code> as the multiplier — identifies which users have exceeded their monthly allowance over the selected window, without the boundary artifact that inflates or deflates the cap depending on where month boundaries fall.</p>
+<p><strong>Is overage usage concentrated or distributed?</strong> Scaling the cap with <code>max(1, round(days/30))</code> compares each user's 30-day consumption rate with their monthly allowance, without the boundary artifact that inflates or deflates the cap depending on where month boundaries fall.</p>
 
 <p>None of these are difficult to measure once the telemetry shape is understood. The difficulty is in the details: the wrong Cost Explorer filter, the wrong overage cap formula, the wrong denominator for the coverage ratio. Each of those gives you a number that looks plausible and is wrong in a way that only becomes apparent when you trace it back to the source.</p>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
-        <li>Bedrock model usage does <strong>not</strong> appear under the "Amazon Bedrock" Cost Explorer service line. It appears under per-model <code>(Amazon Bedrock Edition)</code> lines. The parent line is essentially zero for inference-heavy workloads. Filter on the per-model lines, not the parent.</li>
+        <li>Claude and other Marketplace model usage does <strong>not</strong> appear under the "Amazon Bedrock" Cost Explorer service line. It appears under per-model <code>(Amazon Bedrock Edition)</code> lines, while Amazon's own models bill under "Amazon Bedrock" itself. Sum both, and never read Claude spend from the parent line alone.</li>
         <li>Every Bedrock invocation log record carries identity, model ID, and token counts together. Per-user × per-model cost attribution is built into the log structure — no secondary join required.</li>
         <li>Username prefix matching is case-sensitive in every implementation that uses <code>startswith</code>. List both casings explicitly, longest prefix first, to avoid leaving a fraction of users labelled with their raw ARN.</li>
-        <li>Kiro credits are daily increments, not cumulative totals. Sum them safely across any window. Scale the monthly overage cap with <code>max(1, round(days/30))</code>, not by counting distinct calendar months — the calendar approach doubles the cap for any window that straddles a month boundary.</li>
+        <li>Kiro credits are daily increments, not cumulative totals. Sum them safely across any window. Scale the monthly overage cap with <code>max(1, round(days/30))</code> to compare at a 30-day rate, not by counting distinct calendar months — the calendar approach doubles the cap for any 30-day window that straddles a month boundary.</li>
         <li>"Group coverage" is not "licence utilisation." A group-membership denominator counts only assigned group members; users spending credits outside any group fall outside it. Show the "no group" bucket explicitly. State the window alongside every coverage number — 61.0% (30-day) and 69.8% (90-day) measure different populations against the same denominator.</li>
 <li>Before onboarding a new account, confirm whether invocation logging is already active. Check casing distribution in the actual logs before finalising the prefix list for that account.</li>
     </ul>
@@ -463,6 +466,8 @@ username_prefixes:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

@@ -149,6 +149,9 @@
         <div class="author-title">Platform Engineering · September 2026</div>
     </div>
 </div>
+
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <p>A research query against a scientific research agent — multi-stage, pulling from a dozen data sources — returned a partial result with a note the agent hadn't seen before: context window exceeded. The agent had been running for several minutes, called tools across a wide surface of APIs and schemas, accumulated the responses, and then hit a wall somewhere in synthesis. Partial results were surfaced; the run ended early.</p>
 
 <p>Our first instinct was the obvious one. This was a session-enabled agent. Users asked follow-up questions. Session history accumulated. History grows. History overflows. The natural diagnosis was that a long-running session had crossed the context limit at load time — the moment history was pulled from the store and injected into the model.</p>
@@ -169,10 +172,10 @@
 
 <h2>What the Measurement Showed</h2>
 
-<p>We serialized the last-30-turn slice from 86 live sessions and measured the byte sizes. The results removed any ambiguity:</p>
+<p>We serialized the last-30-turn slice from every live session in the store and measured the byte sizes. The results removed any ambiguity:</p>
 
 <ul>
-    <li><strong>Maximum observed:</strong> 268,000 bytes across all 86 sessions</li>
+    <li><strong>Maximum observed:</strong> 268,000 bytes across all sessions</li>
     <li><strong>Session store write cap:</strong> 300,000 bytes</li>
     <li><strong>Proposed load-time budget:</strong> 750,000 bytes</li>
     <li><strong>Sessions above the proposed budget:</strong> zero</li>
@@ -190,7 +193,7 @@
 
 <p>In a research agent that consults many data sources — schemas, APIs, reference databases — a single user query can involve up to around 80 tool calls before the call cap fires. Each tool call appends two messages to the live list: the tool use request and the tool result. Some results are small. A schema response from a database with many tables can be tens of kilobytes on its own. Multiplied across a full research trace, the in-flight messages list can grow to a size that the model cannot accept.</p>
 
-<p>Here is the structural problem: in the Strands version we ran (1.51.0), the conversation manager's <code>apply_management</code> method is called <strong>once, after the entire agent invocation ends</strong> (in a finally block) — not after each individual tool call, and not mid-flight while tool calls are accumulating. Separately, when a <code>ContextWindowOverflowException</code> occurs mid-loop, the manager's <code>reduce_context</code> runs. For the whole duration of a long multi-tool request, the messages list is otherwise unconstrained. There is no trimming, no capping, no enforcement of any size policy until the invocation has already finished. If the window overflows mid-loop, it overflows — <code>apply_management</code> has not yet been called.</p>
+<p>Here is the structural problem: in the Strands version we ran (1.51.0), the conversation manager's <code>apply_management</code> method is called <strong>once, after the entire agent invocation ends</strong> (in a finally block) — not after each individual tool call, and not mid-flight while tool calls are accumulating. Separately, when a <code>ContextWindowOverflowException</code> occurs mid-loop, the manager's <code>reduce_context</code> runs. With the default configuration, the messages list is otherwise unconstrained for the whole duration of a long multi-tool request: there is no trimming, no capping, no enforcement of any size policy until the invocation has already finished. If the window overflows mid-loop, it overflows — <code>apply_management</code> has not yet been called.</p>
 
 <div class="diagram-container">
     <div class="accum-phase">Request lifecycle — messages buffer grows in-flight</div>
@@ -245,10 +248,10 @@
 
     <div class="accum-arrow" style="font-size: 13px; color: #64748b; margin-top: 10px;">apply_management() would run here — but it's too late</div>
 
-    <p class="diagram-caption">Tool results append to the live messages list with no mid-flight trimming. apply_management runs once per invocation, after the event loop ends — it cannot prevent an overflow that happens mid-loop (when reduce_context would run instead).</p>
+    <p class="diagram-caption">By default, tool results append to the live messages list with no mid-flight trimming. apply_management runs once per invocation, after the event loop ends — it cannot prevent an overflow that happens mid-loop (when reduce_context would run instead).</p>
 </div>
 
-<p>This is not a bug in Strands — it is the intended design. The framework's event loop is not meant to trim the conversation mid-call; it delegates that to the conversation manager after each complete agent invocation. The question is: what should the conversation manager do, and which of the available options preserves correctness for a session-enabled agent?</p>
+<p>This is not a bug in Strands — it is the default. Out of the box, management runs once per invocation; mid-loop management is opt-in (<code>SlidingWindowConversationManager(per_turn=True)</code>, or <code>proactive_compression</code> on any manager — both run from a <code>BeforeModelCallEvent</code> hook before each model call). In the built-in sliding-window and summarising managers, both work by removing messages, which is exactly what the delta anchor described below rules out. The question is: what should the conversation manager do, and which of the available options preserves correctness for a session-enabled agent?</p>
 
 <h2>Three Ways to Manage the Conversation</h2>
 
@@ -275,7 +278,7 @@
         <tr>
             <td><code>SlidingWindowConversationManager</code></td>
             <td class="decision-cell-yellow">Yes (oldest first)</td>
-            <td class="decision-cell-yellow">Yes (often bundled)</td>
+            <td class="decision-cell-yellow">Only on overflow</td>
             <td class="decision-cell-red">No — pops change the base count</td>
             <td>Silently corrupts the delta anchor; wrong messages persisted to session store</td>
         </tr>
@@ -293,17 +296,17 @@
 
 <p><code>NullConversationManager</code> performs no management at all. It never trims the message history and never caps tool result content. The delta-slice anchor is safe — messages are never removed — so session persistence works correctly.</p>
 
-<p>The problem is token spend. Every model call within the loop sends the full accumulated message history to the API. If a tool returns a large schema document and that document sits unmodified in the messages list, it is re-billed as input tokens on every subsequent model call in the same run. With dozens of tool calls, this compounds: the token cost per run grows quadratically with the number and size of tool results. For a research workload where tool results can each be tens of kilobytes and a run can have many tool calls, <code>NullConversationManager</code> alone produces billing that scales badly.</p>
+<p>The problem is token spend. Every model call within the loop sends the full accumulated message history to the API. If a tool returns a large schema document and that document sits unmodified in the messages list, it is re-billed as input tokens on every subsequent model call in the same run — and, because nothing ever trims it, it is saved to session history and re-sent on every later turn too. With dozens of tool calls, this compounds: the token cost per run grows quadratically with the number and size of tool results. For a research workload where tool results can each be tens of kilobytes and a run can have many tool calls, <code>NullConversationManager</code> alone produces billing that scales badly.</p>
 
 <h3>Option 2: SlidingWindowConversationManager</h3>
 
-<p><code>SlidingWindowConversationManager</code> trims the oldest messages from the list whenever the message count exceeds the configured window size. This prevents unbounded growth and keeps token spend bounded per run.</p>
+<p><code>SlidingWindowConversationManager</code> trims the oldest messages from the list whenever the message count exceeds the configured window size. This prevents unbounded growth and bounds what each run carries forward (and, with <code>per_turn=True</code>, what each model call sends).</p>
 
-<p>For a session-enabled agent, this creates a correctness problem. At the start of a run, the agent records the message count as a baseline. At the end of the run, it computes <em>new messages added = final count − baseline count</em>, then writes exactly those new messages to the session store. If the sliding window has removed messages from the list during the run, the final count is not what the baseline arithmetic expects. The resulting write may duplicate earlier messages, drop new ones, or write malformed turns. The failure is silent — the persistence operation succeeds without error, but the session history is corrupted.</p>
+<p>For a session-enabled agent, this creates a correctness problem. At the start of a run, the agent records the message count as a baseline. At the end of the run, it computes <em>new messages added = final count − baseline count</em>, then writes exactly those new messages to the session store. If the sliding window removes messages — routinely at the end of the invocation, or mid-run on an overflow — the final count is not what the baseline arithmetic expects. The resulting write may duplicate earlier messages, drop new ones, or write malformed turns. The failure is silent — the persistence operation succeeds without error, but the session history is corrupted.</p>
 
 <h3>Option 3: Cap-Only Manager (the one we chose)</h3>
 
-<p>The cap-only manager wraps <code>NullConversationManager</code> and adds exactly one behaviour: after each invocation ends, its <code>apply_management</code> method runs on <code>agent.messages</code> and truncates any tool-result content blocks that exceed a configurable byte limit. It never removes messages from the list, so the delta-slice anchor is always valid. Because results are truncated in-place before the session store persists them, oversized outputs are not carried forward into saved history — later turns and sessions are not re-billed for them. The re-billing problem is across turns, not within a single run.</p>
+<p>The cap-only manager wraps <code>NullConversationManager</code> and adds exactly one behaviour: after each invocation ends, its <code>apply_management</code> method runs on <code>agent.messages</code> and truncates any tool-result content blocks that exceed a configurable byte limit. It never removes messages from the list, so the delta-slice anchor is always valid. Because results are truncated in-place before the session store persists them, oversized outputs are not carried forward into saved history — later turns and sessions are not re-billed for them. Within a run the full result is still re-sent on each model call; what the cap removes is the carry-over into later turns and sessions.</p>
 
 <pre><code>from typing import TYPE_CHECKING, Any
 from strands.agent.conversation_manager import NullConversationManager
@@ -313,7 +316,7 @@ if TYPE_CHECKING:
 
 class CapToolResultsManager(NullConversationManager):
     """
-    Caps the byte size of each tool result in agent.messages.
+    Caps the byte size of each text item in the tool results in agent.messages.
     apply_management runs once after each invocation (in Strands' finally block),
     operating on agent.messages in place. Oversized results are truncated before
     session persistence, so future turns are not re-billed for them.
@@ -333,16 +336,16 @@ class CapToolResultsManager(NullConversationManager):
                             if "text" in item:
                                 encoded = item["text"].encode()
                                 if len(encoded) > self._max_bytes:
-                                    item["text"] = item["text"][: self._max_bytes] + " … [truncated]"
+                                    item["text"] = encoded[: self._max_bytes].decode("utf-8", "ignore") + " … [truncated]"
         # Intentionally does NOT call super() to remove messages</code></pre>
 
 <div class="highlight-box">
-    <p><strong>Why wrapping NullConversationManager matters:</strong> <code>NullConversationManager</code> also defines the overflow behaviour — when the context window is genuinely exceeded it raises <code>ContextWindowOverflowException</code> rather than silently returning a degraded response. That exception is the right signal for a session-enabled agent: it means the in-flight chain was too large even after capping. The correct response is to bank whatever partial results have been gathered and surface a useful message to the user, not to corrupt the conversation with a silent partial answer.</p>
+    <p><strong>Why wrapping NullConversationManager matters:</strong> <code>NullConversationManager</code> also defines the overflow behaviour — when the context window is genuinely exceeded it raises <code>ContextWindowOverflowException</code> rather than silently returning a degraded response. That exception is the right signal for a session-enabled agent: it means the in-flight chain outgrew the window. The correct response is to bank whatever partial results have been gathered and surface a useful message to the user, not to corrupt the conversation with a silent partial answer.</p>
 </div>
 
 <h2>Handling the Overflow Exception</h2>
 
-<p>Even with per-result caps in place, a sufficiently large research query — many tool calls, many results, all of them legitimately large after capping — can exceed the context window. <code>ContextWindowOverflowException</code> is the framework's signal for this case. The handling pattern matters:</p>
+<p>Even with stored history capped, a sufficiently large research query — many tool calls, many large results within one run — can exceed the context window. <code>ContextWindowOverflowException</code> is the framework's signal for this case. The handling pattern matters:</p>
 
 <pre><code>from strands.types.exceptions import ContextWindowOverflowException
 
@@ -384,8 +387,9 @@ async def run_research_query(agent, prompt: str, session_id: str) -> dict:
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 
 # Sub-agent with an explicit window above the realistic tool-call ceiling.
-# 2 messages per tool call, plus prompt and system message.
-# window_size=150 handles up to 74 tool calls comfortably.
+# 2 messages per tool call, plus the prompt and the final reply
+# (the system prompt is not in agent.messages).
+# window_size=150 holds 74 tool calls; size it from your own call cap.
 sub_agent = Agent(
     model=model,
     tools=tools,
@@ -406,7 +410,7 @@ results = capture_tool_results_handler.get_results()</code></pre>
 
 <p>Two pre-existing tests were green while both of the above truncations were active. The first test asserted that a function named <code>harvest_tool_results</code> was present in the module. The function existed — behind an <code>if False:</code> guard that had been left in during a refactor. The test passed; the function never executed.</p>
 
-<p>The second test asserted that <code>[:16000]</code> did not appear in the inter-stage prompt builder. It passed because the slice had been replaced with a constant — but the comment explaining the removal still contained the literal string <code>[:16000]</code>. The test matched the comment.</p>
+<p>The second test was a substring check on the inter-stage prompt builder's source for <code>[:16000]</code> — and the string it matched sat in the comment explaining the slice's removal, not in the code. Its verdict said nothing about whether the cap still applied.</p>
 
 <div class="stale-box">
     <p><strong>Substring matching against source text proves presence, not behaviour.</strong> If you need to verify that a truncation has been removed, parse the AST and confirm the slice node is absent — or better, observe the behaviour directly: pass an input longer than the limit and assert the output is not truncated. Then deliberately restore the truncation and watch the test go red. A test you have not seen fail is not evidence that the behaviour it checks is correct.</p>
@@ -421,7 +425,7 @@ results = capture_tool_results_handler.get_results()</code></pre>
 <p>With a modest input size, the Bedrock call completed fast enough that the event loop blockage was never noticed. When the Critic's input was substantially enlarged, the call's latency pushed past the liveness probe's kill window. The pod was restarted mid-response.</p>
 
 <pre><code>import asyncio
-import botocore
+from botocore.config import Config
 
 # Before: blocks the event loop
 result = bedrock_client.invoke_model(...)   # DO NOT do this inside async def
@@ -434,7 +438,7 @@ result = await _loop.run_in_executor(
 )
 
 # Also: add a read timeout so a single throttle does not block indefinitely
-config = botocore.config.Config(
+config = Config(
     read_timeout=35,
     retries={"max_attempts": 1}
 )</code></pre>
@@ -448,8 +452,8 @@ config = botocore.config.Config(
 <div class="green-box">
     <p><strong>Confirmed shipped:</strong></p>
     <ul>
-        <li>Measurement of 86 live sessions confirming the overflow could not be in loaded history — and the consequent revert of the load-time budget</li>
-        <li>Cap-only conversation manager for the main agent: stops quadratic re-billing, preserves the delta-slice anchor for session persistence</li>
+        <li>Measurement of every live session in the store confirming the overflow could not be in loaded history — and the consequent revert of the load-time budget</li>
+        <li>Cap-only conversation manager for the main agent: stops quadratic re-billing across turns, preserves the delta-slice anchor for session persistence</li>
         <li><code>ContextWindowOverflowException</code> handling: banks partial results before returning an actionable message to the user</li>
         <li>Sub-agent pods: explicit window size above the realistic tool-call ceiling; capture-at-event handler rather than post-run walk of <code>agent.messages</code></li>
         <li>Removal of the <code>[:16000]</code> inter-stage slice on the prior-stage context prompt</li>
@@ -475,8 +479,8 @@ config = botocore.config.Config(
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
-        <li><strong>Measure the overflow location before fixing it.</strong> Load-time history was bounded at 268KB by the session store's 300KB write cap. A 750KB load-time budget would have fired zero times. The real overflow was in-flight, within a single request.</li>
-        <li><strong>In-flight accumulation is structural, not incidental.</strong> The conversation manager's <code>apply_management</code> runs once after the event loop — not mid-flight. Tool results accumulate unconstrained during the run. On a large research query with many tool calls and verbose API responses, the context window can be exceeded before the loop ends.</li>
+        <li><strong>Measure the overflow location before fixing it.</strong> Load-time history was bounded by the session store's 300KB write cap; the largest real slice measured 268KB. A 750KB load-time budget would have fired zero times. The real overflow was in-flight, within a single request.</li>
+        <li><strong>In-flight accumulation is structural, not incidental.</strong> By default, the conversation manager's <code>apply_management</code> runs once after the event loop — not mid-flight. Tool results accumulate unconstrained during the run. On a large research query with many tool calls and verbose API responses, the context window can be exceeded before the loop ends.</li>
         <li><strong>The delta-slice anchor constrains your manager options.</strong> For a session-enabled agent, any manager that removes messages corrupts the "how many new messages did I add" count, breaking session persistence silently. Cap-only management — truncating tool result bytes in <code>agent.messages</code> after each invocation without removing messages — preserves the anchor and prevents oversized results from being carried into session history, stopping quadratic re-billing across turns.</li>
         <li><strong><code>ContextWindowOverflowException</code> is a condition to handle, not just suppress.</strong> Bank partial results in the exception handler before returning. If the overflow path does not harvest, real work is lost.</li>
         <li><strong>agent.messages is working state.</strong> The framework default trims it in place after each agent invocation. Capture tool results at the event, not from the post-run list. Never compute completeness counts from the source you may have truncated.</li>
@@ -516,6 +520,8 @@ config = botocore.config.Config(
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

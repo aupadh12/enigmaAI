@@ -141,13 +141,15 @@
     </div>
 </div>
 
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
 <p>A user submits a routine query to a scientific research agent backed by AWS Bedrock. The response is confident and well-formatted: a data-access tool is "currently unavailable due to an API issue," and the agent proceeds to answer from its internal reasoning instead. The user assumes a transient glitch and moves on.</p>
 
-<p>Three days later, a different user gets the same message. Different account, different session, same phantom unavailability claim. Then another user. The data-access tool is working perfectly — not a single error in any application log or infrastructure metric. The only place this claim of unavailability exists is in the agent's long-term memory.</p>
+<p>Three days later, a different user gets the same message — and then another. Different accounts, different sessions, same phantom unavailability claim, each one now sitting in that user's own long-term memory. The data-access tool is working perfectly — not a single error in any application log or infrastructure metric. The only place this claim of unavailability exists is in the agent's long-term memory.</p>
 
-<p>What happened: the first response was a hallucination. The model had received no error. It fabricated the unavailability claim as part of a reasoning turn, and that turn was persisted unconditionally to AgentCore Memory. The platform's extraction strategy processed it and produced a behavioral rule at confidence 0.85 — something to the effect of "verify tool availability before calling." At the start of every subsequent session, that rule was retrieved and injected into the conversation as a user-role message. The model read its own prior fabrication, now attributed to the user, and reproduced it faithfully. Each reproduction was persisted, closing the loop tighter.</p>
+<p>What happened, in each case: the first response was a hallucination. The model had received no error. It fabricated the unavailability claim as part of a reasoning turn, and that turn was persisted unconditionally to AgentCore Memory. The platform's extraction strategy processed it and produced a behavioral rule at confidence 0.85 — something to the effect of "verify tool availability before calling." At the start of every subsequent session, that rule was retrieved and injected into the conversation as a user-role message. The model read its own prior fabrication, now attributed to the user, and reproduced it faithfully. Each reproduction was persisted, closing the loop tighter.</p>
 
-<p>This is memory self-poisoning. It requires no external attacker, no malicious input, no misconfiguration. It emerges naturally from three default behaviors: persist everything, extract behavioral rules from session events, and inject retrieved memory as the user's voice.</p>
+<p>This is memory self-poisoning. It requires no external attacker, no malicious input, no misconfiguration. It emerges naturally from four default behaviors: persist everything, extract behavioral rules from session events, keep extracted records indefinitely, and inject retrieved memory as the user's voice.</p>
 
 <h2>How Long-Term Memory Gets Populated</h2>
 
@@ -209,7 +211,7 @@
   <!-- Step 5: User-Voice Injection (highlighted) -->
   <rect x="70" y="378" width="490" height="66" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2.5"/>
   <text x="315" y="402" text-anchor="middle" font-size="13" font-weight="700" fill="#b91c1c">Step 5 — User-Voice Injection  &#x25C4; critical</text>
-  <text x="315" y="424" text-anchor="middle" font-size="12" fill="#7f1d1d">Record placed in context as role: user — highest-trust channel — no provenance label</text>
+  <text x="315" y="424" text-anchor="middle" font-size="12" fill="#7f1d1d">Record placed in context as role: user — high-trust channel — no provenance label</text>
 
   <!-- Arrow 5 to 6 -->
   <line x1="315" y1="444" x2="315" y2="472" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowGray24)"/>
@@ -308,13 +310,13 @@ def should_persist_turn(tool_success_count: int) -> bool:
 
 <h3>Fix 2: Delete Record and Source Event</h3>
 
-<p>When a poisoned record is found and needs to be removed, deleting the record alone is not sufficient. The raw session event that was extracted to produce the record may still be present in the store. We delete both the extracted record and its source event — a retained source event could potentially be re-extracted on a subsequent consolidation pass, regenerating the poisoned record even after it has been purged.</p>
+<p>When a poisoned record is found and needs to be removed, deleting the record alone is not sufficient. The raw session event that was extracted to produce the record may still be present in the store. We delete both the extracted record and its source event — a retained source event could potentially feed a later extraction pass, regenerating the poisoned record even after it has been purged.</p>
 
 <p>This means the cleanup workflow is always two steps: first remove the extracted record from the long-term store, then locate and remove the corresponding source event. Auditing tools that show extracted records should also surface the event they came from, making the two-step cleanup straightforward rather than requiring a separate search.</p>
 
 <h3>Fix 3: Raising the Relevance Threshold</h3>
 
-<p>AgentCore Memory retrieves records based on semantic similarity to the current query. The minimum relevance score that a record must achieve to be injected is configurable. Before the fix, this threshold was 0.25 — a low floor that allowed marginally relevant (and often incorrect) content through.</p>
+<p>AgentCore Memory retrieves records based on semantic similarity to the current query and returns a relevance score with each one. The minimum score a record must reach before we inject it is a filter applied in our own code. Before the fix, this threshold was 0.25 — a low floor that allowed marginally relevant (and often incorrect) content through.</p>
 
 <p>Measuring actual score distributions in production revealed two distinct clusters: genuinely relevant records scored between 0.45 and 0.57, while unrelated content scored between 0.36 and 0.41. At the original threshold of 0.25, both clusters were being retrieved. Raising the threshold to 0.45 cleanly separated the signal from the noise, keeping the relevant cluster while excluding content that scored in the unrelated range.</p>
 
@@ -341,7 +343,8 @@ MEMORY_INJECTION_PREFIX = (
 def build_memory_context(records: list[dict]) -> str:
     if not records:
         return ""
-    content_blocks = "\n\n".join(r.get("content", "") for r in records)
+    # each AgentCore record's content is a {"text": ...} structure
+    content_blocks = "\n\n".join(r.get("content", {}).get("text", "") for r in records)
     return MEMORY_INJECTION_PREFIX + content_blocks</code></pre>
 
 <p>The label needs to be explicit about what "unverified" means in practice. Saying "historical notes" is necessary but not sufficient — the model also needs to know that it should not use these notes to determine current tool availability. That specific constraint matters because tool availability is exactly the class of claim that started the poisoning loop.</p>
@@ -400,20 +403,20 @@ Do not substitute reasoning or prior knowledge for a tool call.
 
 <p>The self-poisoning pattern is not a bug in AgentCore Memory. It is a predictable consequence of combining four reasonable defaults: unconditional persistence, automatic extraction, indefinite record storage, and user-voice injection. Each default is defensible in isolation. Together, without additional gates, they create a path from a single hallucinated turn to a persistent cross-session behavioral constraint.</p>
 
-<p>The generalizable lesson is about where verification needs to sit in a memory pipeline. Persistence is not free — every event that enters the store is a candidate for extraction, and every extracted record is a candidate for injection. Verification at the persistence step (the tool-success gate) is the cheapest and most effective intervention because it prevents poisoned content from entering the pipeline at all. Verification at the injection step (the provenance label) is the last line of defense when a record has already been extracted and stored.</p>
+<p>The generalizable lesson is about where verification needs to sit in a memory pipeline. Persistence is not free — every event that enters the store is a candidate for extraction, and every extracted record is a candidate for injection. Verification at the persistence step (the tool-success gate) is the cheapest and most effective intervention because it keeps pure-reasoning turns — the kind that started this loop — out of the pipeline entirely. Verification at the injection step (the provenance label) is the last line of defense when a record has already been extracted and stored.</p>
 
-<p>Memory injected as the user's voice is the highest-trust input path you have. Anything that reaches that channel is treated by the model as a current instruction from the entity it is serving. That is exactly the property that makes user-voice injection powerful for legitimate personalization — and exactly what makes it the most dangerous channel for unverified content to exploit.</p>
+<p>Memory injected as the user's voice is the highest-trust path retrieved content can take — only the system prompt outranks it. Anything that reaches that channel is treated by the model as a current instruction from the entity it is serving. That is exactly the property that makes user-voice injection powerful for legitimate personalization — and exactly what makes it the most dangerous channel for unverified content to exploit.</p>
 
 <div class="takeaway">
     <h3>Key Takeaways</h3>
     <ul>
         <li>Memory self-poisoning emerges from the combination of unconditional persistence, automatic extraction, indefinite record storage, and user-voice injection — not from any single design flaw.</li>
-        <li>Gate persistence at the source: skip persisting turns with zero successful tool calls. This is the cheapest intervention and prevents poisoned content from entering the pipeline.</li>
-        <li>When purging poisoned records, delete both the extracted record and its source event — a retained source event could be re-extracted on a subsequent consolidation pass.</li>
+        <li>Gate persistence at the source: skip persisting turns with zero successful tool calls. This is the cheapest intervention and keeps pure-reasoning turns — the kind that started this loop — out of the pipeline.</li>
+        <li>When purging poisoned records, delete both the extracted record and its source event — a retained source event could feed a later extraction pass.</li>
         <li>Calibrate the retrieval relevance threshold from measured score distributions, not assumptions. Relevant content and irrelevant content formed two distinct clusters; raising the threshold from 0.25 to 0.45 separated them cleanly.</li>
         <li>Label every injected memory block with an explicit provenance marker — specifically calling out that it should not be used to determine current tool availability or system state. Without this, the model has no way to distinguish historical context from a current user instruction.</li>
         <li>System prompt rules that use "if no tool result" as the trigger are insufficient for agents with strong pretraining in the domain. Use "ALWAYS call the tool first" phrasing that fires unconditionally rather than waiting for a failure condition that the model may never reach.</li>
-        <li>Memory injected as <code>role: user</code> is the highest-trust channel in the conversation. Anything unverified that reaches that channel is processed as a current instruction. That makes provenance labeling load-bearing, not cosmetic.</li>
+        <li>Memory injected as <code>role: user</code> is the highest-trust channel retrieved content can reach — only the system prompt outranks it. Anything unverified that reaches that channel is processed as a current instruction. That makes provenance labeling load-bearing, not cosmetic.</li>
     </ul>
 </div>
 
@@ -444,6 +447,8 @@ Do not substitute reasoning or prior knowledge for a tool call.
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

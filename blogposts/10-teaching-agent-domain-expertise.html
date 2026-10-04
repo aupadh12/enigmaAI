@@ -8,8 +8,8 @@
     <meta property="og:title" content="Teaching an Agent to Think Like a Domain Expert — Without Fine-Tuning">
     <meta property="og:description" content="Not fine-tuning. Not prompt-stuffing. A skills system that retrieves domain heuristics at query time — and the failure modes that shaped it.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/10-teaching-agent-domain-expertise.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="627">
+    <meta property="og:image:width" content="732">
+    <meta property="og:image:height" content="384">
     <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/10-teaching-agent-domain-expertise.html">
     <meta name="twitter:card" content="summary_large_image">
@@ -133,6 +133,7 @@
         <div class="author-title">Platform Engineer | AI/ML Infrastructure | AWS &amp; Kubernetes</div>
     </div>
 </div>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
 
 <h2>The Problem With a Smart Agent in a Specialist Domain</h2>
 
@@ -146,7 +147,7 @@
 
 <p>My first instinct was RAG — build a vector index of domain documentation and retrieve relevant passages when needed. I tried a version of this. It helped with factual questions ("what does this gene do?") but didn't solve the interpretation problem.</p>
 
-<p>The distinction matters: RAG retrieves <em>documents</em>. What I needed was to retrieve <em>rules</em>. There's a difference between "here's a passage from a paper about TP53" and "here's how you should interpret a result involving TP53 in this specific dataset with its specific identifier conventions and known data quality issues."</p>
+<p>The distinction matters: RAG retrieves <em>documents</em>. What I needed was to retrieve <em>rules</em>. There's a difference between "here's a passage from a paper about GENE-A" and "here's how you should interpret a result involving GENE-A in this specific dataset with its specific identifier conventions and known data quality issues."</p>
 
 <p>Documents tell the agent what things are. Rules tell it how to reason about them. Mixing the two into a single RAG index means your rules get diluted by documents during retrieval — the rule about identifier conventions might get ranked below a relevant-but-not-helpful passage about protein biology.</p>
 
@@ -157,15 +158,15 @@
 <p>A skill is a structured JSON object stored in S3. Each skill covers one data source or analysis domain. It has four fields:</p>
 
 <pre><code>{
-  "knowledge": "string interactions use combined_score 0-1000; default cutoff 400 is low — use 700+ for high-confidence edges",
+  "knowledge": "string interactions use combined_score 0-1000; default cutoff 400 is only medium confidence — use 700+ for high-confidence edges",
   "key_concepts": ["combined_score", "experimental_score", "coexpression_score"],
   "common_mistakes": [
     "treating all interaction types as equivalent — coexpression ≠ physical interaction",
-    "using default cutoff 400 for network analysis — results in thousands of low-confidence edges"
+    "using default cutoff 400 for network analysis — results in thousands of medium-confidence edges"
   ],
   "example_prompts": [
-    "Find high-confidence interaction partners for TP53",
-    "Which proteins form a tight interaction cluster with CDK2?"
+    "Find high-confidence interaction partners for GENE-A",
+    "Which proteins form a tight interaction cluster with GENE-B?"
   ]
 }</code></pre>
 
@@ -185,7 +186,7 @@
 <p>That last line is the part that bit me for three months. The agent reads from S3. Editing the Python definition of the skill changes nothing at runtime until you overwrite the S3 object. I updated the interaction score cutoff recommendation in the code, rebuilt the container, deployed it, and the agent kept applying the old cutoff for a week before I realized why.</p>
 
 <div class="stale-box">
-    <p><strong>Editing the Python file alone is inert.</strong> The container is not the authoritative copy of a skill. The S3 object is. Every skill edit has two steps: update the code (for version control and review), then overwrite the S3 object (for actual runtime effect). Treating the code edit as the complete change is the most common mistake I see people make with this pattern.</p>
+    <p><strong>Editing the Python file alone is inert.</strong> The container is not the authoritative copy of a skill. The S3 object is. If your code only seeds S3 when a skill is missing, every skill edit has two steps: update the code (for version control and review), then overwrite the S3 object (for actual runtime effect). Treating the code edit as the complete change is the most common mistake I see people make with this pattern.</p>
 </div>
 
 <h2>The Difference Skills Made</h2>
@@ -204,7 +205,7 @@
 
 <p><strong>I assumed the agent would always call get_skills.</strong> It doesn't, unless the system prompt says to. I added an explicit instruction: "When working with data from a new source, call get_skills before beginning analysis." Without that, the agent would skip the skill call when it felt confident enough to proceed without it — which is exactly the situation where a skill is most needed. Confidence is not a reliable signal that the agent has the right domain context.</p>
 
-<p><strong>I put the skills in one place.</strong> I built a single-agent system first, then split into a multi-agent architecture. When I split, I added <code>get_skills</code> to the primary agent but forgot to add it to the four specialist subagents. For weeks, the Data Scout subagent was retrieving and analyzing data without domain context, while the primary agent was answering final questions with correct context about data it hadn't itself retrieved. The error was subtle: final answers looked reasonable because the primary agent had the skill, but the intermediate analysis the specialist did was applying wrong defaults. Add <code>get_skills</code> to every agent that touches domain data, not just the one that produces the final answer.</p>
+<p><strong>I put the skills in one place.</strong> I built a single-agent system first, then split into a multi-agent architecture. When I split, I gave <code>get_skills</code> to the primary agent and left it off the four specialist subagents. For weeks, the Data Scout subagent was retrieving and analyzing data without domain context, while the primary agent was answering final questions with correct context about data it hadn't itself retrieved. The error was subtle: final answers looked reasonable because the primary agent had the skill, but the intermediate analysis the specialist did was applying wrong defaults. Add <code>get_skills</code> to every agent that touches domain data, not just the one that produces the final answer.</p>
 
 <div class="highlight-box">
     <p><strong>The version that works:</strong> each specialist agent calls get_skills for the specific source it's working with. The primary orchestrator calls get_skills for the overall domain. Both skill calls happen before any data retrieval. The specialist's skill covers "how to read this source correctly"; the orchestrator's skill covers "how to synthesize results from multiple sources in this domain." They're different questions and benefit from different answers.</p>
@@ -218,7 +219,7 @@
     <li>Proprietary or internal datasets with custom identifier schemes</li>
     <li>Public databases that have evolved their scoring conventions and have outdated documentation</li>
     <li>Any source where the "correct" interpretation depends on subtle context (cell line origin, assay conditions, normalization method)</li>
-    <li>Any domain where there are well-known known errors in the data that an expert would mentally correct for but a model won't</li>
+    <li>Any domain where there are well-known errors in the data that an expert would mentally correct for but a model won't</li>
 </ul>
 
 <p>If a domain expert would spend ten minutes briefing a junior analyst before letting them loose on your data, those ten minutes of domain context are worth capturing as a skill. The model is the junior analyst; the skill is the briefing.</p>
@@ -237,7 +238,7 @@
     <h3>Key Takeaways</h3>
     <ul>
         <li><strong>RAG retrieves documents; skills retrieve rules.</strong> Both have a place, but they answer different questions: RAG answers "what is this?" — skills answer "how should I reason about this?"</li>
-        <li><strong>The agent reads from S3, not from Python.</strong> A skill edit has two steps: update the code, then overwrite the S3 object. The code edit alone is inert at runtime.</li>
+        <li><strong>The agent reads from S3, not from Python.</strong> If code only seeds S3 when a skill is missing, a skill edit has two steps: update the code, then overwrite the S3 object. The code edit alone is inert at runtime.</li>
         <li><strong>Tight skills beat comprehensive ones.</strong> 150 focused words covering three common mistakes outperforms 800 words of documentation. Skills are briefings, not manuals.</li>
         <li><strong>Confidence is not a reliable signal.</strong> Add an explicit instruction to call get_skills before analysis — the agent skips it exactly when it's most needed.</li>
         <li><strong>Every agent that touches domain data needs its own skill call.</strong> A specialist subagent retrieving data without domain context produces wrong intermediate results even when the final-answer agent has correct context.</li>
@@ -273,6 +274,8 @@
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

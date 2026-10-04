@@ -11,7 +11,7 @@
     <meta property="og:title" content="Building AI With AI on Claude Code">
     <meta property="og:description" content="How I use Claude Code’s agent system to build AI systems — with a mandatory Advisor that catches production bugs, persistent memory that compounds across sessions, and a full EKS deployment architecture.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/1-claude-code-for-agentic-development.png">
-    <meta property="og:image:width" content="1200">
+    <meta property="og:image:width" content="1114">
     <meta property="og:image:height" content="627">
     <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/1-claude-code-for-agentic-development.html">
@@ -399,6 +399,8 @@
         </div>
     </div>
 
+    <p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
     <h2>The Meta-Problem: Building AI With AI</h2>
 
     <p>I've built and deployed a production multi-agent AI system — 35 tools, 4 specialized agent roles, running on EKS
@@ -424,8 +426,8 @@
 
     <h2>The Advisor Agent: Mandatory Architecture Review</h2>
 
-    <p>The most impactful pattern in my setup is a mandatory Advisor agent — a senior reviewer that runs on the most
-        capable model (Opus) and must be consulted before every significant decision.</p>
+    <p>The most impactful pattern in my setup is a mandatory Advisor agent — a senior reviewer that runs on a
+        frontier-tier model (Opus) and must be consulted before every significant decision.</p>
 
     <pre><code># .claude/agents/advisor.md (simplified)
 ---
@@ -474,8 +476,9 @@ Rules:
 
     <div class="warning-box">
         <p><strong>Why this matters:</strong> The Advisor has caught production bugs in changes I considered "trivial" —
-            wrong data types silently corrupting outputs, URL encoding issues that would expire after 7 days, iframe
-            security headers that would block rendering in production. Every single one of these would have been a
+            wrong data types silently corrupting outputs, pre-signed URLs that asked for a 7-day lifetime but would
+            expire with the pod's short-lived IRSA credentials, iframe security headers that would block rendering in
+            production. Every single one of these would have been a
             production incident.</p>
     </div>
 
@@ -572,7 +575,7 @@ Rules:
             <rect x="400" y="325" width="200" height="50" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2" />
             <text x="500" y="347" text-anchor="middle" font-size="11" font-weight="600" fill="#065f46">Version
                 Bump</text>
-            <text x="500" y="365" text-anchor="middle" font-size="10" fill="#065f46">14-file checklist</text>
+            <text x="500" y="365" text-anchor="middle" font-size="10" fill="#065f46">release checklist</text>
 
             <!-- Arrow between -->
             <path d="M340 350 L400 350" stroke="#059669" stroke-width="2" marker-end="url(#arrowG)" />
@@ -603,15 +606,15 @@ Rules:
         index that carries hard-won knowledge across sessions:</p>
 
     <div class="file-tree">
-        <span class="dir">.claude/memory/</span>
-        ├── <span class="file">MEMORY.md</span> <span class="comment"># Index — loaded every session</span>
+        <span class="dir">~/.claude/projects/&lt;project&gt;/memory/</span>
+        ├── <span class="file">MEMORY.md</span> <span class="comment"># Index — first 200 lines load each session; topic files on demand</span>
         ├── <span class="file">user_role.md</span> <span class="comment"># Who I am, what I work on</span>
         ├── <span class="file">feedback_planning.md</span> <span class="comment"># "Always ask questions before
             implementing"</span>
         ├── <span class="file">feedback_no_auto_commit.md</span> <span class="comment"># "Never git push without
             asking"</span>
-        ├── <span class="file">feedback_image_bump.md</span> <span class="comment"># "14 files to update on every
-            version bump"</span>
+        ├── <span class="file">feedback_image_bump.md</span> <span class="comment"># "Run the release checklist; discover
+            files by grep"</span>
         ├── <span class="file">project_current.md</span> <span class="comment"># What version is live, what's
             pending</span>
         ├── <span class="file">reference_pricing.md</span> <span class="comment"># Claude API pricing (verified, not
@@ -634,7 +637,7 @@ Rules:
             <tr>
                 <td><strong>Feedback</strong></td>
                 <td>Corrections + confirmed approaches</td>
-                <td>The AI never repeats the same mistake twice</td>
+                <td>Past corrections are indexed in every session</td>
             </tr>
             <tr>
                 <td><strong>Project</strong></td>
@@ -644,7 +647,7 @@ Rules:
             <tr>
                 <td><strong>Reference</strong></td>
                 <td>External resources, API versions, pricing</td>
-                <td>Facts verified once, never hallucinated again</td>
+                <td>Facts verified once, re-read instead of re-guessed</td>
             </tr>
             <tr>
                 <td><strong>User</strong></td>
@@ -656,8 +659,9 @@ Rules:
 
     <div class="highlight-box">
         <p><strong>Example:</strong> After I got burned 3 times forgetting to update one of 14 files during a version
-            bump, that became a feedback memory. Now Claude Code <em>always</em> checks all 14 files on every version
-            bump — because the memory carries that lesson forward permanently.</p>
+            bump, that became a feedback memory. Now every version bump starts from a release checklist that finds the
+            files by grep rather than a remembered count — the memory carries the lesson; the checklist applies it
+            (see <a href="9-releasing-ai-systems.html">Releasing an AI System Is Not Like Releasing Software</a>).</p>
     </div>
 
     <h2>The Full EKS Deployment Architecture</h2>
@@ -747,7 +751,7 @@ Rules:
             <rect x="370" y="360" width="130" height="18" rx="6" fill="#f59e0b" />
             <rect x="370" y="372" width="130" height="6" fill="#f59e0b" />
             <text x="435" y="375" text-anchor="middle" font-size="9" font-weight="600" fill="white">Synthesizer</text>
-            <text x="435" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 1</text>
+            <text x="435" y="395" text-anchor="middle" font-size="8" fill="#64748b">replicas: 2</text>
             <text x="435" y="408" text-anchor="middle" font-size="8" fill="#64748b">Opus model</text>
 
             <rect x="530" y="360" width="130" height="55" rx="6" fill="white" stroke="#ef4444" stroke-width="1.5" />
@@ -803,10 +807,10 @@ Rules:
             <text x="225" y="622" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">ConfigMap: model
                 selection, feature flags, cache TTLs</text>
 
-            <!-- NetworkPolicy -->
+            <!-- Service-to-service auth -->
             <rect x="410" y="600" width="250" height="35" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-width="1" />
-            <text x="535" y="622" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">NetworkPolicy:
-                egress allow-list only</text>
+            <text x="535" y="622" text-anchor="middle" font-size="10" font-weight="600" fill="#991b1b">Service-to-service:
+                shared-secret auth</text>
         </svg>
         <div class="diagram-caption">Figure 2: Full EKS production architecture — separate deployments per agent role,
             AWS services via IRSA, automated ingestion CronJobs</div>
@@ -817,9 +821,11 @@ Rules:
     <h3>1. Separate Deployment per Agent Role</h3>
     <p>Each agent role is its own Kubernetes Deployment with its own Service. This gives you:</p>
     <ul>
-        <li><strong>Independent scaling:</strong> Data Scouts scale to 2 replicas for throughput; Synthesizer stays at 1
+        <li><strong>Independent scaling:</strong> Data Scouts scale out for throughput; the Synthesizer runs two replicas
+            for concurrent users
         </li>
-        <li><strong>Resource isolation:</strong> The Opus-tier agents get more memory; Scouts are lightweight</li>
+        <li><strong>Resource isolation:</strong> Each role gets its own memory profile — the Scout, which holds raw tool
+            results, needs the most</li>
         <li><strong>Rolling updates:</strong> Update the Critic's prompt without restarting the Analyst</li>
         <li><strong>Targeted monitoring:</strong> Langfuse traces per-service let you see exactly where time is spent
         </li>
@@ -833,16 +839,17 @@ metadata:
   name: agent-config
 data:
   SCOUT_MODEL: "us.anthropic.claude-sonnet-4-6"
-  SYNTHESIZER_MODEL: "us.anthropic.claude-opus-4-8"
-  CRITIC_MODEL: "us.anthropic.claude-opus-4-8"
+  SYNTHESIZER_MODEL: "us.anthropic.claude-opus-5"
+  CRITIC_MODEL: "us.anthropic.claude-opus-5"
   KNOWLEDGE_GRAPH_TABLE: "agent-kg"
   CACHE_TTL_HOURS: "24"
   TOKEN_BUDGET: "10000000"
   LANGFUSE_ENABLED: "true"
 </code></pre>
 
-    <p>Model selection lives in a ConfigMap, not in code. When a new Claude model drops, you update the ConfigMap and
-        restart pods — no code change, no build, no PR.</p>
+    <p>Model selection lives in a ConfigMap, not in code. When a new Claude model drops, the model ID is a ConfigMap
+        change, not a code change — but a new model generation can still change the request shape (see
+        <a href="28-opus-5-bedrock-migration.html">the Opus 5 migration</a>), so test the swap before trusting it.</p>
 
     <h3>3. IRSA for Zero-Credential Pods</h3>
     <pre><code># iam/trust-policy.json (simplified)
@@ -851,12 +858,12 @@ data:
   "Statement": [{
     "Effect": "Allow",
     "Principal": {
-      "Federated": "arn:aws:iam::ACCOUNT:oidc-provider/oidc.eks.REGION.amazonaws.com"
+      "Federated": "arn:aws:iam::ACCOUNT:oidc-provider/oidc.eks.REGION.amazonaws.com/id/OIDC_ID"
     },
     "Action": "sts:AssumeRoleWithWebIdentity",
     "Condition": {
       "StringEquals": {
-        "oidc.eks....:sub": "system:serviceaccount:ai-agent:agent-sa"
+        "oidc.eks.REGION.amazonaws.com/id/OIDC_ID:sub": "system:serviceaccount:ai-agent:agent-sa"
       }
     }
   }]
@@ -881,6 +888,7 @@ spec:
       activeDeadlineSeconds: 21600  # 6-hour timeout
       template:
         spec:
+          restartPolicy: OnFailure  # Job pods must be OnFailure or Never
           containers:
             - name: ingest
               image: agent:${VERSION}
@@ -955,8 +963,8 @@ spec:
 
     <div class="metric-grid">
         <div class="metric-card">
-            <div class="metric-value">14</div>
-            <div class="metric-label">Files Per Version Bump</div>
+            <div class="metric-value">30</div>
+            <div class="metric-label">Release Checklist Items</div>
         </div>
         <div class="metric-card">
             <div class="metric-value">4</div>
@@ -971,8 +979,7 @@ spec:
     <h2>What I'd Do Differently Starting Today</h2>
 
     <h3>1. Start with the Advisor pattern from day one</h3>
-    <p>I added the mandatory Advisor after it caught its 4th production bug. If I'd had it from the start, those 4 bugs
-        would never have shipped.</p>
+    <p>I made the Advisor mandatory after it caught its fourth would-be production bug — each one found before it shipped.</p>
 
     <h3>2. Set up Langfuse before writing the first agent</h3>
     <p>Retrofitting observability is painful. Instrument from the beginning. Even if the first version is one agent with
@@ -980,7 +987,7 @@ spec:
 
     <h3>3. Use ConfigMaps for everything that might change</h3>
     <p>Model names, feature flags, cache TTLs, token budgets — if it might change without a code change, it belongs in a
-        ConfigMap. I've updated models twice without a single line of code.</p>
+        ConfigMap. A model ID swap is a ConfigMap edit; a new model generation can still need a code change.</p>
 
     <h3>4. Write the memory system for your future self</h3>
     <p>Every hard-won lesson — every "oh, I missed that file again" or "that API changed" — goes into persistent memory
@@ -1059,12 +1066,14 @@ spec:
     <div class="separator"></div>
 
 
-    <p><em>Coming soon: how I migrated this entire agentic platform from self-managed EKS deployments to AWS Bedrock
-            AgentCore — reducing operational overhead while keeping the same multi-agent architecture. Stay tuned.</em>
+    <p><em>Follow-up: I evaluated moving this platform to a managed agent runtime — what genuinely improves, what
+            quietly stays your problem, and why a hybrid split was the honest answer — in
+            <a href="7-kubernetes-to-managed-agent-runtime.html">What a Managed Agent Runtime Actually Changes</a> and
+            <a href="17-eks-vs-managed-runtime.html">EKS or Managed Agent Runtime?</a></em>
     </p>
 
-    <p><em>If you're building similar systems or have questions about deploying agents on EKS (or migrating off it),
-            feel free to connect.</em></p>
+    <p><em>If you're building similar systems or have questions about deploying agents on EKS, feel free to
+            connect.</em></p>
 
     <div class="tag-list">
         <span class="tag">#ClaudeCode</span>
@@ -1095,6 +1104,8 @@ spec:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">

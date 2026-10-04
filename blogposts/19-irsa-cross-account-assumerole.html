@@ -6,7 +6,7 @@
     <title>The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS</title>
     <meta property="og:type" content="article">
     <meta property="og:title" content="The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS">
-    <meta property="og:description" content="Your EKS pod needs credentials in six different AWS accounts. IRSA gets you one hop. A second AssumeRole call gets you anywhere. Here's how to wire both correctly.">
+    <meta property="og:description" content="Your pod gets credentials from IRSA. Then it assumes a role in a different account. Here's how to wire both hops without creating a credential management nightmare.">
     <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/19-irsa-cross-account-assumerole.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="627">
@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/19-irsa-cross-account-assumerole.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="The Two-Hop IAM Pattern: IRSA + Cross-Account AssumeRole on EKS">
-    <meta name="twitter:description" content="Your EKS pod needs credentials in six different AWS accounts. IRSA gets you one hop. A second AssumeRole call gets you anywhere. Here's how to wire both correctly.">
+    <meta name="twitter:description" content="Your pod gets credentials from IRSA. Then it assumes a role in a different account. Here's how to wire both hops without creating a credential management nightmare.">
     <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/19-irsa-cross-account-assumerole.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -140,7 +140,9 @@
     </div>
 </div>
 
-<p>IRSA (IAM Roles for Service Accounts) solves the credential problem for EKS workloads that only need access to resources in their own AWS account. The moment your pod needs to reach a resource in a different account — CloudWatch logs here, an S3 bucket there, a DynamoDB table somewhere else — IRSA alone isn't enough. You need a second hop.</p>
+<p style="font-size:13px;color:#666;margin-top:-28px;margin-bottom:32px;"><em>Updated 4 October 2026 with technical corrections.</em></p>
+
+<p>IRSA (IAM Roles for Service Accounts) solves the credential problem for EKS workloads that only need access to resources in their own AWS account. The moment your pod needs to reach a resource in a different account — CloudWatch logs here, an S3 bucket there, a DynamoDB table somewhere else — IRSA alone reaches another account only if the resource's own policy names your role (S3, KMS, DynamoDB) or the target account registers your cluster's OIDC issuer. Everything else, and any account whose identity setup you can't change, needs a second hop.</p>
 
 <p>The two-hop pattern is the standard solution: IRSA gets the pod an identity in the home account, then the application code calls <code>sts:AssumeRole</code> to get credentials in the target account. Done right, it's clean and auditable. Done wrong, it produces intermittent <code>ExpiredTokenException</code> errors at 3 AM and confused-deputy vulnerabilities in your trust policies.</p>
 
@@ -148,7 +150,7 @@
 
 <h2>Why One IAM Role Isn't Enough</h2>
 
-<p>An IRSA role is scoped to a single AWS account — the account where the EKS cluster runs. Its trust policy names the cluster's OIDC provider as the trusted principal, and conditions lock it to a specific Kubernetes ServiceAccount. That's the right boundary for workload identity. But it means an IRSA role can only directly access resources in the same account.</p>
+<p>An IRSA role usually lives in the account where the EKS cluster runs. Its trust policy names the cluster's OIDC provider as the trusted principal, and conditions lock it to a specific Kubernetes ServiceAccount. That's the right boundary for workload identity. But it means an IRSA role reaches other accounts only through their resource policies, or through a role of their own.</p>
 
 <p>When your workload spans accounts — reading usage metrics from multiple AWS accounts, federating data from different environments, or querying resources that live in separate accounts for governance reasons — you need credentials in each of those accounts. The clean way to get them: the IRSA role in the home account assumes a role in each target account. Each assumption is explicit, auditable, and controlled by trust policies that you own.</p>
 
@@ -183,7 +185,7 @@ Hop 2: sts:AssumeRole
 
 <h2>Hop 1: IRSA — How the Credential Chain Works</h2>
 
-<p>IRSA works through OIDC federation. When your EKS cluster is created, AWS creates an OIDC identity provider for it. Each pod that needs AWS credentials runs with a projected ServiceAccount token — a short-lived JWT signed by the cluster's OIDC issuer. The AWS SDK's credential provider detects this token and calls <code>sts:AssumeRoleWithWebIdentity</code> to exchange it for temporary IAM credentials.</p>
+<p>IRSA works through OIDC federation. Every EKS cluster has an OIDC issuer URL; to use IRSA you register that issuer as an IAM OIDC identity provider in the account (<code>eksctl utils associate-iam-oidc-provider</code> or the IAM console). Each pod that needs AWS credentials runs with a projected ServiceAccount token — a short-lived JWT signed by the cluster's OIDC issuer. The AWS SDK's credential provider detects this token and calls <code>sts:AssumeRoleWithWebIdentity</code> to exchange it for temporary IAM credentials.</p>
 
 <p>The ServiceAccount annotation tells the SDK which role to request:</p>
 
@@ -217,8 +219,8 @@ metadata:
 <p>Three things to get right here:</p>
 <ul>
     <li>The <code>sub</code> condition locks the trust to one specific ServiceAccount in one namespace. Change either and the token exchange fails.</li>
-    <li>The <code>aud</code> condition is strongly recommended hardening. Removing a condition can only widen access, never cause a denial — so omitting <code>aud</code> won't break anything, but it lets tokens with unexpected audience values be accepted. The <em>actual</em> source of cryptic <code>InvalidIdentityToken</code> errors is the OIDC identity provider object's configured audience list: it must include <code>sts.amazonaws.com</code>. That's set when you register the OIDC provider in IAM, not in the role trust policy. If you see token exchange failures after verifying the trust policy looks correct, check the provider's audience list first.</li>
-    <li>The <code>Federated</code> principal must be the full OIDC provider ARN — not just the issuer URL. The ARN has the format <code>arn:aws:iam::ACCOUNT_ID:oidc-provider/&lt;issuer-host&gt;</code>.</li>
+    <li>The <code>aud</code> condition is strongly recommended hardening. Removing a condition can only widen access, never cause a denial — so omitting <code>aud</code> won't break anything, but it lets tokens with unexpected audience values be accepted. The <em>actual</em> source of cryptic <code>InvalidIdentityToken</code> errors is the OIDC identity provider object's configured audience list: it must include <code>sts.amazonaws.com</code>. That's set when you register the OIDC provider in IAM, not in the role trust policy. If you see token exchange failures after verifying the trust policy looks correct, check first that the provider exists for this cluster's issuer, then its audience list.</li>
+    <li>The <code>Federated</code> principal must be the full OIDC provider ARN — not just the issuer URL. The ARN has the format <code>arn:aws:iam::ACCOUNT_ID:oidc-provider/&lt;issuer URL without https://&gt;</code>, for example <code>oidc.eks.REGION.amazonaws.com/id/CLUSTER_ID</code>.</li>
 </ul>
 
 <h2>Hop 2: The IRSA Role Assumes a Target Account Role</h2>
@@ -251,16 +253,25 @@ metadata:
     <p><strong>Common mistake:</strong> using <code>arn:aws:iam::SOURCE_ACCOUNT_ID:root</code> as the Principal. This <em>delegates</em> the trust to the entire source account — any principal in that account who has been explicitly granted <code>sts:AssumeRole</code> in their own identity policy can then assume the target role. It's bad practice because it widens the blast radius to anyone who can self-grant that permission, but the mechanism is delegation (not direct granting to every principal unconditionally). Always name the specific role ARN to eliminate that blast radius entirely.</p>
 </div>
 
-<p>Attach the needed permissions to the target role. For CloudWatch log extraction:</p>
+<p>Attach the needed permissions to the target role. For CloudWatch log extraction (<code>DescribeLogGroups</code> doesn't support resource-level permissions, so it needs its own statement with <code>"Resource": "*"</code>):</p>
 
 <pre><code>{
-  "Effect": "Allow",
-  "Action": [
-    "logs:FilterLogEvents",
-    "logs:DescribeLogGroups",
-    "logs:GetLogEvents"
-  ],
-  "Resource": "arn:aws:logs:*:TARGET_ACCOUNT_ID:log-group:/aws/your-log-group*:*"
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "logs:DescribeLogGroups",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:TARGET_ACCOUNT_ID:log-group:/aws/your-log-group*"
+    }
+  ]
 }</code></pre>
 
 <h2>In Application Code (Python / boto3)</h2>
@@ -333,10 +344,10 @@ def get_cached_client(service: str, role_arn: str, region: str) -> Any:
 <h2>Common Gotchas</h2>
 
 <div class="warn-box">
-    <p><strong>The <code>aud</code> condition is hardening, not a requirement.</strong> Removing a condition from a trust policy can only widen access, never cause a denial. The real source of <code>InvalidIdentityToken</code> exchange failures is the <strong>OIDC identity provider object's audience/client-ID list</strong> in IAM — it must include <code>sts.amazonaws.com</code>. That's configured when you register the OIDC provider, not in the role trust policy. If token exchange fails after the trust policy looks correct, check the provider's audience list in IAM → Identity providers → &lt;your provider&gt; → Audiences.</p>
-    <p><strong>Target role trust policy must name the role ARN, not <code>:root</code>.</strong> Using <code>arn:aws:iam::SOURCE_ACCOUNT_ID:root</code> as the Principal allows every IAM principal in the source account to assume the target role. This is almost never what you want. Use the exact role ARN.</p>
+    <p><strong>The <code>aud</code> condition is hardening, not a requirement.</strong> Removing a condition from a trust policy can only widen access, never cause a denial. The real source of <code>InvalidIdentityToken</code> exchange failures is the <strong>OIDC identity provider object's audience/client-ID list</strong> in IAM — it must include <code>sts.amazonaws.com</code>. That's configured when you register the OIDC provider, not in the role trust policy. If token exchange fails after the trust policy looks correct, check first that the provider exists for this cluster's issuer, then its audience list in IAM → Identity providers → &lt;your provider&gt; → Audiences.</p>
+    <p><strong>Target role trust policy must name the role ARN, not <code>:root</code>.</strong> Using <code>arn:aws:iam::SOURCE_ACCOUNT_ID:root</code> as the Principal delegates trust to the whole source account: any principal there granted <code>sts:AssumeRole</code> on this role can assume it. This is almost never what you want. Use the exact role ARN.</p>
     <p><strong>Credentials expire after 1 hour by default.</strong> A sync job that assumes a role at startup and runs for 90 minutes will hit <code>ExpiredTokenException</code> partway through without proactive renewal. The cache pattern above handles this; a single boto3 client created once at startup does not.</p>
-    <p><strong>KMS-encrypted resources require key policy changes.</strong> IAM policy alone is insufficient for KMS. If a target resource uses SSE-KMS, the assumed role must also be added as a key user in the KMS key policy in the target account. This is the most common AccessDenied that persists after the role trust setup looks correct.</p>
+    <p><strong>KMS-encrypted resources need key permissions too.</strong> If a target resource uses SSE-KMS, the assumed role also needs <code>kms:Decrypt</code> on the key — via its IAM policy if the key policy delegates to IAM (the default), otherwise named in the key policy. This is the most common AccessDenied that persists after the role trust setup looks correct.</p>
 </div>
 
 <div class="green-box">
@@ -359,7 +370,7 @@ def get_cached_client(service: str, role_arn: str, region: str) -> Any:
         </tr>
         <tr>
             <td>Pod needs resources in one other account</td>
-            <td class="decision-cell-green">IRSA + one target role, <code>AWS_ASSUME_ROLE_ARN</code> env var</td>
+            <td class="decision-cell-green">IRSA + one target role, <code>AWS_ASSUME_ROLE_ARN</code> env var — or an EKS Pod Identity association with a target role, which does both hops and refreshes the credentials for you</td>
         </tr>
         <tr>
             <td>Pod needs resources in N other accounts</td>
@@ -367,11 +378,11 @@ def get_cached_client(service: str, role_arn: str, region: str) -> Any:
         </tr>
         <tr>
             <td>Target resources use KMS encryption</td>
-            <td class="decision-cell-yellow">Add assumed role as key user in each target account's KMS key policy</td>
+            <td class="decision-cell-yellow">Grant the assumed role <code>kms:Decrypt</code> on each key — via IAM if the key policy delegates to IAM (the default), otherwise in the key policy</td>
         </tr>
         <tr>
             <td>Session duration needed &gt; 1 hour</td>
-            <td class="decision-cell-red">IRSA + AssumeRole is role chaining — AWS hard-caps chained sessions at <strong>1 hour regardless of <code>DurationSeconds</code></strong>. Proactive credential refresh (re-calling <code>assume_role</code> before expiry) is the only solution on this path.</td>
+            <td class="decision-cell-red">IRSA + AssumeRole is role chaining — AWS limits chained sessions to <strong>1 hour</strong>, and asking for more (<code>DurationSeconds</code> above 3600) makes the call fail rather than being capped. Proactive credential refresh (re-calling <code>assume_role</code> before expiry) is the only solution on this path.</td>
         </tr>
         <tr>
             <td>Same role needed by multiple workloads</td>
@@ -397,7 +408,7 @@ def get_cached_client(service: str, role_arn: str, region: str) -> Any:
         <li>The <code>aud</code> condition in the IRSA trust policy is recommended hardening, not a requirement. The setting that actually blocks token exchange is the OIDC identity provider object's audience list in IAM — verify it includes <code>sts.amazonaws.com</code> when debugging <code>InvalidIdentityToken</code> errors.</li>
         <li>Target role trust policy Principal must be the exact role ARN, never <code>:root</code>. Using <code>:root</code> delegates trust to the whole source account — any principal with <code>sts:AssumeRole</code> in their own policy can then assume the target role.</li>
         <li>Cache STS credentials per <code>(service, role_arn, region)</code>. Renew at least 5 minutes before the 1-hour default expiry to avoid mid-run <code>ExpiredTokenException</code>.</li>
-        <li>KMS-encrypted resources require key policy changes in the target account — IAM policy alone is insufficient.</li>
+        <li>KMS-encrypted resources also need <code>kms:Decrypt</code> on the key for the assumed role — through its IAM policy when the key policy delegates to IAM (the default), otherwise in the key policy.</li>
         <li>One IRSA role per Kubernetes ServiceAccount. Sharing breaks the workload isolation that the <code>sub</code> condition was designed to enforce.</li>
     </ul>
 </div>
@@ -427,6 +438,8 @@ def get_cached_client(service: str, role_arn: str, region: str) -> Any:
     <span class="share-btn-text">Copy Link</span>
   </button>
 </div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
 
 <!-- Giscus Comments -->
 <div class="giscus-container">
