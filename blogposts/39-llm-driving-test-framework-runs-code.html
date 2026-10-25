@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letting an LLM Drive Your Test Framework Is Letting It Run Code</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Letting an LLM Drive Your Test Framework Is Letting It Run Code">
+    <meta property="og:description" content="What an agent can make a test-framework MCP server do beyond testing a page, from reading the public rf-mcp source (as of 0.36.0) and Robot Framework documentation, and the controls that close each path.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/39-llm-driving-test-framework-runs-code.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/39-llm-driving-test-framework-runs-code.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Letting an LLM Drive Your Test Framework Is Letting It Run Code">
+    <meta name="twitter:description" content="What an agent can make a test-framework MCP server do beyond testing a page, from reading the public rf-mcp source (as of 0.36.0) and Robot Framework documentation, and the controls that close each path.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/39-llm-driving-test-framework-runs-code.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/39-llm-driving-test-framework-runs-code.png" alt="Blog cover">
+
+<div class="header-badge">AI SECURITY</div>
+<h1>Letting an LLM Drive Your Test Framework Is Letting It Run Code</h1>
+<p class="subtitle">What an agent can make a test-framework MCP server do beyond testing a page, from reading the public rf-mcp source (as of 0.36.0) and Robot Framework documentation, and the controls that close each path.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+
+<p>The question on the table was a reasonable one: could an AI agent author UI tests for us through an MCP server for Robot Framework? The agent would look at a page, try a keyword, see what happened, and keep the steps that worked until a runnable suite fell out. The public rf-mcp project does exactly that, and it is a well-built tool for the job it was designed for: a developer at a laptop, pairing with a model, on their own machine.</p>
+
+<p>Before putting something like that behind an agent, I read the server's source and the Robot Framework user guide with one question in mind: <strong>what can the model make this process do that has nothing to do with testing a web page?</strong> Everything below is from that reading, as of rf-mcp 0.36.0. None of it is a bug report. These are documented capabilities, working as designed, and they are the reason a test framework is a good thing to give an agent. They are also the reason it is not a thing to hand over unchanged.</p>
+
+<div class="highlight-box">
+    <p><strong>The core point.</strong> A test framework exists to execute arbitrary instructions about a system under test. When the author of those instructions is an LLM reading untrusted page content, "author a test" and "run code in the framework's process" are the same sentence. The controls belong around the framework, in code, not in the prompt.</p>
+</div>
+
+<h2>What the Server Hands an Agent</h2>
+
+<p>An MCP server for a test framework is a thin, friendly layer over the framework's own engine. As of rf-mcp 0.36.0 the surface an agent sees includes, among others:</p>
+
+<ul>
+    <li><strong><code>execute_step</code></strong>, which runs one keyword in a live session. It also has a <code>mode</code> parameter: <code>"keyword"</code> by default, or <code>"evaluate"</code>, which the tool's own docstring describes as running <code>BuiltIn.Evaluate</code> on a caller-supplied expression.</li>
+    <li><strong><code>execute_flow</code> and <code>execute_batch</code></strong>, which run structured if/for/try blocks and multi-step batches. For <code>if</code>, the implementation evaluates the <code>condition</code> string through the same <code>Evaluate</code> keyword and branches on the truthy result.</li>
+    <li><strong><code>manage_session</code></strong>, whose documented actions include <code>import_library</code>, <code>import_resource</code>, <code>set_variables</code> and <code>import_variables</code> (the last loads a Python variable file).</li>
+    <li><strong><code>analyze_scenario</code></strong>, the "front door" that creates a session from a natural-language scenario and configures libraries. Session profiles in the source are keyed on scenario patterns; the system-testing profile lists <code>OperatingSystem</code> and <code>Process</code> among its core libraries.</li>
+    <li><strong><code>get_session_state</code></strong>, a debugging aid. If the caller names no sections, it returns <code>summary</code>, <code>page_source</code> and <code>variables</code>, and the variables payload returns plain strings and numbers as they are.</li>
+    <li><strong><code>run_test_suite</code></strong>, which validates or executes a suite. Its <code>mode</code> defaults to <code>"full"</code>, it accepts a <code>suite_file_path</code> to an existing <code>.robot</code> file, and its <code>execution_options</code> are forwarded to Robot. In full mode that executes any suite file at the given path with caller-supplied <code>variables</code> (plus tags and log level). In dry/validate mode the forwarded options also include <code>pythonpath</code>, and a Robot dry run still imports the libraries a suite names.</li>
+    <li><strong><code>build_test_suite</code></strong>, which turns the steps that actually executed into a <code>.robot</code> file.</li>
+</ul>
+
+<p>Read that list as a developer and it is a productive tool. Read it as a threat model and each line is a different way to get an interpreter to do something the author of the suite did not intend. Importantly, none of those paths needs a clever exploit. Each is an ordinary parameter of an ordinary tool.</p>
+
+<h2>Where Robot Framework Itself Evaluates Code</h2>
+
+<p>The MCP layer is only half of the surface. The framework's own language has several places where text becomes code, all documented in the user guide and the standard library docs. An agent that can submit a keyword name and arguments can reach every one of them.</p>
+
+<pre><code># 1. Evaluate runs a Python expression
+Evaluate    1 + 1
+
+# 2. Inline Python evaluation inside any argument
+Log    ${{ [x * 2 for x in range(3)] }}
+
+# 3. Extended variable syntax: attribute access and method calls on a variable
+Log    ${SOME_OBJECT.method()}
+
+# 4. Environment variables are one syntax away
+Log    %{HOME}
+
+# 5. Keywords that take an expression or another keyword's name
+Should Be True      len('${NAME}') &gt; 3
+Run Keyword If      ${FLAG}    Some Other Keyword
+Run Keyword         Evaluate    1 + 1
+Wait Until Keyword Succeeds    3x    1s    Some Keyword
+
+# 6. Libraries that touch the host
+OperatingSystem.Create File    ${PATH}    some text
+Process.Run Process         ${COMMAND}    shell=True
+
+# 7. JavaScript through SeleniumLibrary
+Execute Javascript    return document.cookie
+Click Element         dom:document.forms[0].elements[0]
+</code></pre>
+
+<p>A few of these deserve a sentence each, because they are the ones people forget.</p>
+
+<ul>
+    <li><strong><code>Should Be True</code> and its relatives</strong> take an expression string and evaluate it as Python. They read like assertions, so they pass any reviewer who is scanning for "dangerous-looking" names.</li>
+    <li><strong>The <code>Run Keyword</code> family</strong> (<code>Run Keyword If</code>, <code>Run Keyword And Ignore Error</code>, <code>Wait Until Keyword Succeeds</code> and others) takes <em>another keyword's name as an argument</em>. A check that inspects only the outer keyword name never sees the inner one.</li>
+    <li><strong>Extended variable syntax</strong> means a variable reference is not inert text. <code>${x.attr}</code> and method calls on a variable are resolved through Python attribute access.</li>
+    <li><strong>SeleniumLibrary's <code>dom:</code> locator strategy</strong> is documented as evaluating JavaScript to find an element, so a "locator" can be a script.</li>
+    <li><strong>Keyword resolution has an order.</strong> Per the user guide, a keyword defined in the suite or a resource file takes precedence over a library keyword with the same name. If an agent can introduce resource content or an extra import path, a harmless-looking name can resolve to something else.</li>
+    <li><strong>Typed text can end up in logs.</strong> SeleniumLibrary's <code>Input Text</code> logs the typed value at INFO level. Its documentation points to <code>Input Password</code> as the variant that does not log it.</li>
+</ul>
+
+<p>The takeaway is not "avoid these keywords". They are the framework. The takeaway is that <em>the list of keywords an agent may call is a security boundary</em>, and it has to be drawn with that in mind.</p>
+
+<h2>Why Pattern Allowlists Fail</h2>
+
+<p>The first instinct is a pattern allowlist: let anything that looks like a UI action through. <code>Click *</code>, <code>Wait Until *</code>, <code>* Should *</code>. It is quick to write, it reads well in review, and it is wrong for three reasons.</p>
+
+<p><strong>The wildcards match the wrong things.</strong> <code>Wait Until *</code> matches <code>Wait Until Keyword Succeeds</code>, which runs any keyword. <code>* Should *</code> matches <code>Should Be True</code>, which evaluates Python. A pattern chosen for the harmless majority admits the dangerous few by construction.</p>
+
+<p><strong>Names are not canonical.</strong> Robot Framework keyword names are case-insensitive and ignore spaces and underscores, so these all resolve to the same keyword:</p>
+
+<pre><code>Should Be True
+should_be_true
+SHOULDBETRUE
+BuiltIn.Should Be True
+builtin.should_be_true</code></pre>
+
+<p>A denylist that compares strings, or a pattern that assumes spaces, is bypassed by retyping. The comparison must happen after the same normalisation the framework applies.</p>
+
+<p><strong>The danger is in the arguments as well as the name.</strong> A perfectly allowed keyword becomes an interpreter the moment one argument is <code>${{...}}</code>, a variable with a method call, or an environment lookup. Checking only the keyword name checks half of the call.</p>
+
+<p>This is the same shape of mistake as the one in <a href="6-securing-agentic-ai.html">the earlier post on agent security</a>: a capability you did not mean to grant, reachable because a broader grant covered it. The rule from there carries over unchanged. If a tool is not one you will authorise, do not bind it at all.</p>
+
+<h2>The Design: Make the Dangerous Thing Unreachable</h2>
+
+<p>The pattern that follows from the reading is to shrink the surface with code, in layers, so that no single layer is load-bearing. These are the controls I would put in front of any test-framework MCP server before an LLM drives it.</p>
+
+<h3>1. Pin the version, and treat upgrades as reviews</h3>
+
+<p>Every fact in this post is "as of rf-mcp 0.36.0". A tool surface that changes between minor releases (new modes, new tools, new defaults) invalidates an allowlist silently. Pin the exact version, and make a bump a change that has to re-answer the review question: what did this release add that an agent can now call?</p>
+
+<h3>2. Remove the tools you will not authorise</h3>
+
+<p>The cheapest control is the one that cannot be misconfigured: the tool is not registered. For an authoring agent whose job is to try keywords and keep the ones that work, the candidates for removal are the ones that evaluate conditions, change the session's library set, or run whole suites:</p>
+
+<ul>
+    <li><code>execute_flow</code> and <code>execute_batch</code> (conditions go through <code>Evaluate</code>; batches multiply the keyword calls you must vet),</li>
+    <li><code>manage_session</code> (library, resource and variable-file imports),</li>
+    <li><code>analyze_scenario</code> (it configures a session's libraries from free text),</li>
+    <li><code>run_test_suite</code> (default <code>full</code>, arbitrary file path, forwarded Robot options),</li>
+    <li>any library-search-order or plugin-management tool.</li>
+</ul>
+
+<p>Register only these four: discover keywords, execute one allowed keyword, read a redacted state, and build the suite file. Everything else is removed.</p>
+
+<h3>3. Create the session from code, not from the model</h3>
+
+<p>The model should never choose which libraries exist. The host creates the session at startup with a fixed library list (for a browser-authoring agent: SeleniumLibrary, plus a narrow set of data helpers) and a fixed variable set. A session profile that lists <code>OperatingSystem</code> and <code>Process</code> among its core libraries is a capability that free text could select. Make that impossible by never offering the option.</p>
+
+<h3>4. An exact-name allowlist, matched after normalisation</h3>
+
+<p>Replace patterns with a dictionary of exact canonical names, each with a validator for its arguments. Compare after Robot's own normalisation, and reject anything with a library prefix that is not on the list.</p>
+
+<pre><code>import re
+
+def canonical(name: str) -&gt; str:
+    # Robot Framework ignores case, spaces and underscores in keyword names.
+    return name.lower().replace(" ", "").replace("_", "")
+
+ALLOWED = {canonical(n) for n in (
+    "Click Element", "Input Text",             # Input Text: non-secret fields only
+    "Get Text", "Wait Until Element Is Visible",
+    "Sign In As",                              # vetted wrapper, see below
+)}
+
+DECLARED_VARS = {"BASE_URL"}                   # the only variables an argument may mention
+VAR = re.compile(r"[$@&amp;%]\{([^}]*)")           # any variable-like opener
+
+def check_call(keyword: str, args: list[str]) -&gt; None:
+    key = canonical(keyword)
+    if "." in key:                             # Library.Keyword form: never allowed
+        raise PermissionError(f"qualified name not allowed: {keyword!r}")
+    if key not in ALLOWED:
+        raise PermissionError(f"keyword not allowed: {keyword!r}")
+    for a in args:
+        for m in VAR.finditer(a):
+            if m.group(1) not in DECLARED_VARS:   # blocks ${{...}}, ${x.attr}, %{ENV}, @{...}
+                raise PermissionError(f"variable syntax not allowed: {a!r}")
+</code></pre>
+
+<p>Three details matter. The allowlist is a set of exact names, so adding <code>Wait Until Element Is Visible</code> does not admit <code>Wait Until Keyword Succeeds</code>. The variable check rejects every variable-looking opener whose body is not on a short declared list, which covers inline Python, extended syntax and environment lookups in one rule without trying to enumerate them. And the check runs in the host process <em>before</em> the call is forwarded, never inside a prompt.</p>
+
+<h3>5. Literal locators only</h3>
+
+<p>Locators are strings the model composes from page content, and some strategies run script. Allow a small set of strategies, reject any locator body that contains variable syntax, and allow nothing else:</p>
+
+<pre><code>LOCATOR = re.compile(r"^(css|xpath|id|name):(?!.*[$@&amp;%]\{)[^\\]+$")
+
+def check_locator(loc: str) -&gt; None:
+    if not LOCATOR.match(loc):
+        raise PermissionError(f"locator not allowed: {loc!r}")
+</code></pre>
+
+<p>This rejects <code>dom:</code>, script-backed strategies, and any locator that smuggles in variable syntax. Combined with the exact-name list (which has no <code>Execute Javascript</code>), the page can no longer run script on the agent's behalf.</p>
+
+<h3>6. Redact on the parsed result, not on the text</h3>
+
+<p>State inspection is where secrets leak: a session variable set for a login, a page source with a token in it. A regular expression over the serialised JSON fails on the first escaped quote or backslash in a secret. Redact the parsed structure instead, walking it and replacing both sensitive keys and any known secret value:</p>
+
+<pre><code>SENSITIVE_KEYS = {"variables", "cookies", "headers"}
+
+def redact(node, secrets: set[str]):
+    if isinstance(node, dict):
+        return {k: "***" if k in SENSITIVE_KEYS else redact(v, secrets)
+                for k, v in node.items()}
+    if isinstance(node, list):
+        return [redact(v, secrets) for v in node]
+    if isinstance(node, str):
+        for s in secrets:
+            node = node.replace(s, "***")
+    return node
+</code></pre>
+
+<p>Even better, never request the sensitive sections at all: force the <code>sections</code> argument of the state tool to exclude <code>variables</code>, then redact whatever else comes back as a second layer.</p>
+
+<h3>7. Credentials are typed by a vetted keyword, never by the model</h3>
+
+<p>An agent testing a login page needs the page to receive a username and password. It does not need to see them. Write one keyword, in your own small library, that takes a <em>role name</em>, reads the credential from the host's secret store, and types it through the WebDriver API so nothing passes through Robot's keyword log:</p>
+
+<pre><code>from robot.api.deco import keyword, library
+from robot.libraries.BuiltIn import BuiltIn
+
+@library(scope="GLOBAL")
+class SignIn:
+    def __init__(self, secret_source):
+        self._secrets = secret_source              # injected by the host, never by the model
+
+    @keyword
+    def sign_in_as(self, role: str):
+        cred = self._secrets[role]                 # unknown role raises, no fallback
+        driver = BuiltIn().get_library_instance("SeleniumLibrary").driver
+        driver.find_element("css selector", "#username").send_keys(cred.user)
+        driver.find_element("css selector", "#password").send_keys(cred.password)
+        driver.find_element("css selector", "button[type=submit]").click()
+</code></pre>
+
+<p>The only argument the model controls is a role name. The selectors belong to the library, the secret never enters the model's context, and the keyword's logged arguments contain nothing sensitive. Pair it with redaction from step 6 so that a stray page source or state call cannot echo the value back.</p>
+
+<h2>A Risk Map</h2>
+
+<p>Here is the whole reading in one table. Each row is a documented capability, why it matters when an LLM is the caller, and the control that closes it.</p>
+
+<table>
+    <thead>
+        <tr><th>Feature or keyword</th><th>Why it is dangerous with an LLM caller</th><th>Control</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>execute_step</code> with <code>mode="evaluate"</code>; <code>Evaluate</code></td>
+            <td>Runs a caller-supplied Python expression in the server process</td>
+            <td>Do not expose evaluate mode; <code>Evaluate</code> absent from the exact-name list</td>
+        </tr>
+        <tr>
+            <td><code>execute_flow</code> / <code>execute_batch</code> conditions</td>
+            <td>Condition strings are evaluated as Python; nesting multiplies calls past a per-call check</td>
+            <td>Remove the tools; control flow lives in vetted keywords</td>
+        </tr>
+        <tr>
+            <td><code>Should Be True</code>, <code>Run Keyword If</code>, <code>Set Variable If</code>, <code>IF</code>/<code>WHILE</code></td>
+            <td>Read like assertions or control flow, but evaluate expressions</td>
+            <td>Exact-name list; provide narrow assertion keywords instead</td>
+        </tr>
+        <tr>
+            <td><code>Run Keyword</code>, <code>Wait Until Keyword Succeeds</code></td>
+            <td>Take another keyword's name as an argument, hiding the real call</td>
+            <td>Not on the list; never match by prefix</td>
+        </tr>
+        <tr>
+            <td><code>${{...}}</code>, <code>${x.attr}</code>, <code>%{ENV}</code></td>
+            <td>Turn an argument into inline Python, attribute or method access, or an environment read</td>
+            <td>Reject variable syntax outside a short declared set</td>
+        </tr>
+        <tr>
+            <td><code>manage_session</code> import actions; profiles that load <code>OperatingSystem</code> and <code>Process</code></td>
+            <td>Pulls in file, shell and arbitrary-module capability, or loads a Python variable file</td>
+            <td>Create the session from code with a fixed library list; remove the tool</td>
+        </tr>
+        <tr>
+            <td><code>run_test_suite</code> (default <code>full</code>, <code>suite_file_path</code>, forwarded options)</td>
+            <td>Full mode executes any suite file with caller-supplied variables; dry/validate mode also forwards <code>pythonpath</code>, and a dry run still imports libraries</td>
+            <td>Remove it; run only host-generated suites from a host-owned path</td>
+        </tr>
+        <tr>
+            <td><code>get_session_state</code> variables section</td>
+            <td>Returns variable values as plain strings, including any secret you set</td>
+            <td>Force the section list; redact on the parsed JSON</td>
+        </tr>
+        <tr>
+            <td><code>dom:</code> and other script-backed locators; <code>Execute Javascript</code></td>
+            <td>Page content steers the model into running script in the browser</td>
+            <td>Literal <code>css</code>/<code>xpath</code>/<code>id</code>/<code>name</code> locators only</td>
+        </tr>
+        <tr>
+            <td>Keyword precedence (suite and resource over library)</td>
+            <td>A same-named keyword can replace the one you vetted</td>
+            <td>Fixed resources only; nothing the agent writes is imported</td>
+        </tr>
+        <tr>
+            <td><code>Input Text</code> logging</td>
+            <td>Typed values reach the log file at INFO level</td>
+            <td>Credentials only via a vetted keyword that types through the driver</td>
+        </tr>
+        <tr>
+            <td>Unpinned server version</td>
+            <td>New tools and defaults appear without review</td>
+            <td>Pin exactly; a bump is a review</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="warn-box">
+    <p><strong>Defence in depth is not decoration here.</strong> Each control above assumes another might be wrong. If the exact-name list has a mistake, the variable check still blocks the argument form. If a tool you removed is re-added by an upgrade, pinning stops the upgrade. If a secret reaches a result, redaction removes it. No single layer needs to be perfect, but each one needs to be a real wall rather than a request.</p>
+</div>
+
+<h2>Test the Control Through Every Route</h2>
+
+<p>Write one refusal test per route to each capability, not per named risk. The headline risk is evaluate mode, but the same expression is reachable by calling the <code>Evaluate</code> keyword in normal keyword mode, by <code>Run Keyword</code> wrapping it, by <code>Should Be True</code>, or by <code>${{...}}</code> in an argument of an allowed keyword. A test that only passes <code>mode="evaluate"</code> exercises one of those routes.</p>
+
+<p>The table of routes drives the tests:</p>
+
+<pre><code>import pytest
+
+ROUTES = [
+    ("Evaluate",            ["1+1"]),
+    ("evaluate",            ["1+1"]),                         # case
+    ("EVALUATE",            ["1+1"]),
+    ("Run Keyword",         ["Evaluate", "1+1"]),             # name as argument
+    ("Should Be True",      ["1 == 1"]),                      # expression
+    ("Click Element",       ["css:#a", "${{ 1+1 }}"]),        # allowed name, bad arg
+    ("Get Text",            ["%{HOME}"]),                     # env lookup
+    ("BuiltIn.Evaluate",    ["1+1"]),                         # qualified
+]
+
+@pytest.mark.parametrize("keyword,args", ROUTES)
+def test_every_route_is_refused(keyword, args):
+    with pytest.raises(PermissionError):
+        check_call(keyword, args)
+
+def test_a_known_good_call_is_accepted():              # positive control
+    check_call("Click Element", ["css:#submit"])
+</code></pre>
+
+<p>Note the last test. A guard that rejects everything also "passes" every negative test, so every suite of denials needs a positive control that proves the guard still lets the right thing through. The wider lesson, that a green suite can be unable to fail, is the subject of <a href="32-tests-that-cannot-fail.html">the post on hollow tests</a>.</p>
+
+<div class="green-box">
+    <p><strong>Test the capability, not the name you thought of.</strong> For each capability you removed (run Python, read a file, start a process, read the environment, run script in a page) enumerate the routes the framework offers to reach it, and put each route in the table. When a new route appears in a later release, the failing test tells you before an agent does.</p>
+</div>
+
+<h2>What I'd Build Next</h2>
+
+<p>The exact-name list guards the live session, but the end product of an authoring agent is a <code>.robot</code> file that someone will run later, often in a different place with different privileges. The same allowlist that gates the live keyword calls can gate the file: parse the generated suite with Robot's own parser, walk every keyword call and argument, and apply the identical <code>check_call</code>, locator and variable rules before the file is accepted into a repository or a pipeline. A custom Robocop rule is a natural home for it, so the check also runs on hand-written changes.</p>
+
+<p>That turns the allowlist into a single reviewed specification used in three places: at the MCP boundary while the agent works, at commit time on the generated file, and in CI on everything else. The agent can still draft freely, but nothing it drafted becomes executable without passing the same gate a person's change would.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>A test framework is a code-execution engine.</strong> Evaluate, inline Python, extended variable syntax, environment lookups, file and process libraries, and script-backed locators are all documented features. An LLM caller makes them a threat surface; it does not make them bugs.</li>
+        <li><strong>Pattern allowlists fail.</strong> Wildcards admit <code>Wait Until Keyword Succeeds</code> and <code>Should Be True</code>, names are not canonical (case, spaces, underscores), and the arguments are as dangerous as the name. Use exact names, matched after the framework's own normalisation.</li>
+        <li><strong>Remove tools instead of filtering them.</strong> Flow, batch, session-management, scenario-analysis and run-suite tools are the ones that widen the surface. A tool that is not registered cannot be misused.</li>
+        <li><strong>Create the session from code.</strong> The model does not choose which libraries or variables exist.</li>
+        <li><strong>Literal locators, redaction on parsed data, vetted credential keyword.</strong> The model never composes script, never sees the secret, and cannot read one back through a state call.</li>
+        <li><strong>Pin the version.</strong> Every claim here is as of rf-mcp 0.36.0; an upgrade is a review, not a routine bump.</li>
+        <li><strong>Test every route, with a positive control.</strong> One refusal test per named risk is a hollow test; one per route to the capability, plus a call that must pass, is a real one.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">AI Security</span>
+    <span class="tag">MCP</span>
+    <span class="tag">Robot Framework</span>
+    <span class="tag">Test Automation</span>
+    <span class="tag">Least Privilege</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adding Clarifying Questions to an Agent: Five Traps Review Caught Before Ship</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Adding Clarifying Questions to an Agent: Five Traps Review Caught Before Ship">
+    <meta property="og:description" content="A research agent should ask before it spends a full run. The gate that does it is simple; the five traps that review caught before ship were all in how the gate was wired in.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/46-clarifying-questions-side-effects.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/46-clarifying-questions-side-effects.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Adding Clarifying Questions to an Agent: Five Traps Review Caught Before Ship">
+    <meta name="twitter:description" content="A research agent should ask before it spends a full run. The gate that does it is simple; the five traps that review caught before ship were all in how the gate was wired in.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/46-clarifying-questions-side-effects.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/46-clarifying-questions-side-effects.png" alt="Blog cover">
+
+<div class="header-badge">AGENTIC AI</div>
+<h1>Adding Clarifying Questions to an Agent: Five Traps Review Caught Before Ship</h1>
+<p class="subtitle">A research agent should ask "which compounds?" before it spends a multi-step run finding out nobody named any. The gate that does it is simple. The five ways it would have gone wrong were all in how the gate was wired in.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The goal was small and easy to state. A research agent takes a request, plans, calls a dozen tools, and writes up the result. That run is the expensive part of the product. If the request says "run the analysis" and never names what to run it on, the agent has two choices: guess, or burn a full run finding out it cannot proceed. A person would ask. So the agent should ask, once, before it spends anything.</p>
+
+<p>The design went through review twice. The first design, asking through a tool, was rejected in review. The second, a gate between request classification and the agent, was built and then reviewed against the real request handler. That second review found five traps. <strong>All five were caught in review, before the gate shipped.</strong> None of them reached a user. This post is about why they were easy to write, and why none would have been visible from the usual signals: a green test run, a clean log, a plausible-looking response.</p>
+
+<div class="highlight-box">
+    <p><strong>The pattern in one sentence.</strong> An early return from a request handler skips everything the normal path does after the point you returned from, and every one of those skipped things is something the normal path was quietly relying on: releasing resources, persisting state, recording what was spent.</p>
+</div>
+
+<p>If you want the background on how session history and in-flight context work in this kind of agent, <a href="25-agent-context-overflow-in-flight.html">the post on in-flight context overflow</a> covers the loop. The streaming side, where the early return has to emit a complete event stream of its own, is in <a href="33-strands-sse-streaming-traps.html">the post on SSE traps</a>.</p>
+
+<h2>The Design That Was Rejected: Ask Through a Tool</h2>
+
+<p>The obvious way to give an agent a "stop and ask the user" capability is to give it a tool. The model decides the request is underspecified, calls an ask-the-user tool, the runtime surfaces the question, and the loop ends. It is a natural fit for an agent framework, and it was the first thing I designed.</p>
+
+<p>Review rejected it for four reasons, and each one is a property of this particular system rather than of tools in general:</p>
+
+<ul>
+    <li><strong>It did not cover both execution paths.</strong> The service has a single-agent path and a multi-agent path. The callback handler that watches tool calls is only wired into the single-agent one. A tool added to the agent would have asked questions on one path and silently never fired on the other.</li>
+    <li><strong>It needed a way to stop the loop.</strong> Ending an agent run from inside a tool means either raising something that looks like a limit being hit, or returning a fake "tool limit" message. Both are lies told to the loop, and both end up in logs, metrics and the model's own context as if they were true.</li>
+    <li><strong>It left a trailing user-role turn.</strong> An ask expressed as a tool result ends the stored conversation on a user-role message. The user's answer is the next user message, and two consecutive same-role messages are rejected by the model API.</li>
+    <li><strong>It leaked into everything that observes tools.</strong> A tool call shows up in the progress panel, the sources stream, the metrics, the audit trail and any knowledge-graph or chart post-processing that runs on tool outputs. A question is not research activity, and none of those consumers should see it as one.</li>
+</ul>
+
+<p>All four share a root: the question is not something the <em>agent</em> does. It is a decision about whether to start the agent at all. That points at a different place to put it.</p>
+
+<h2>The Shape That Shipped: A Gate Before the Agent</h2>
+
+<p>The gate is a separate, single model call that runs after the request has been routed and before the agent is built. It looks at the latest message, plus a short window of recent text turns for context, and decides one thing: has the user asked for a specific analysis without naming anything for it to run on? If yes, it returns up to three short questions with optional answer chips. If no, or if anything at all goes wrong, the request continues exactly as if the gate did not exist.</p>
+
+<pre><code>request arrives
+  -> validate, auth, load session history once
+  -> reserve daily token budget            (acquires something)
+  -> route: classify the request tier
+  -> GATE  (research routes only, skipped on a resubmit)
+        asks?  -> early return: persist turns, settle budget, send question
+        no/err -> continue
+  -> acquire concurrency slots             (acquires something)
+  -> build agent and run
+  -> persist turns, settle budget, release slots</code></pre>
+
+<p>A few design decisions in that sketch matter later:</p>
+
+<ul>
+    <li><strong>It sits before the concurrency slots.</strong> Asking a question should never hold a slot that a real run could use, so the gate runs first. That choice quietly decides what the early return owes, and it comes back in trap four.</li>
+    <li><strong>It only runs for research-type routes.</strong> The router already spends a model call classifying the request. Adding a second one for simple data lookups costs latency for almost no benefit.</li>
+    <li><strong>It fails open.</strong> A timeout, a busy gate, an exception or a malformed reply all mean "proceed ungated". A failed check must never block a query. Concurrency on the gate itself is bounded, and if it is full the check is skipped rather than queued.</li>
+    <li><strong>It has a loop breaker.</strong> The user's answers are sent back as the original request plus a fixed separator plus the answers. The server recognises the separator and does not gate a resubmit, so a user can never be asked twice about the same request.</li>
+    <li><strong>It must quote the user.</strong> The gate's reply has to include, word for word, the part of the latest message that asks for the analysis. If that quote is not actually inside the latest message, the ask is dropped. This stops the gate from treating an earlier turn in the conversation as the current request.</li>
+    <li><strong>It is told what the tools accept.</strong> The gate prompt includes a catalog of the analysis tools and their inputs, with a rule not to ask about anything the tool fills in by itself or does not take at all. The only thing worth asking for is the subject the analysis runs on.</li>
+</ul>
+
+<div class="green-box">
+    <p><strong>A tool inside the gate is fine.</strong> The gate's own model call returns its questions through a structured tool-use block, because that is a reliable way to get a typed result. That is a tool in a one-shot call that nothing else observes. It is not a tool in the agent's tool list, so none of the rejection reasons above apply to it.</p>
+</div>
+
+<p>That is the whole feature. What follows is what the second review found when it read the gate against the real request handler.</p>
+
+<h2>Trap 1: The Request Body Has No History</h2>
+
+<p>The gate needs conversation context. "Run it on those" is only answerable if the gate can see which compounds "those" refers to. My first draft read the history off the request object, the way the function signature of the handler made it look natural to do.</p>
+
+<p>The request model has exactly three fields: the query, the session identifier and an optional set of scoring weights. There is no history on it. Pydantic ignores unknown fields by default, so a client that did send one would have had it dropped before the handler saw it, and the attribute would not exist. Reading it would have raised an attribute error on every research query. Not on the ambiguous ones. Every one, because the read happens before the gate decides anything.</p>
+
+<pre><code># What the first draft would have done
+history = request.history               # AttributeError: no such field
+
+# What the handler does instead
+history = session_store.get_history(user, session_id)   # authoritative</code></pre>
+
+<p>The server-side session store is the single source of truth for what was said. The fix is to read it there. In the final handler that read happens once per request, early, and the same list is passed to the classifier, the gate and both agent paths, which replaced up to three separate reads. The gate takes the already-loaded history as an argument and only falls back to loading its own if it was not given one.</p>
+
+<p>One detail is worth copying: the gate keeps only the last few messages that carry text, truncated, and skips stored tool-only turns before slicing, so the original request is not pushed out of the window by a long run of tool traffic.</p>
+
+<h2>Trap 2: The UI Would Never Have Sent It Anyway</h2>
+
+<p>This is the same bug seen from the other end, and it is why fixing only the schema would have been wrong. Suppose the request model <em>had</em> grown a history field. The browser client builds its submit body from the query, the session identifier and the optional weights. It does not send history, and it should not: the client holds a rendered view of the chat, not the canonical stored turns, and a client-supplied history is also something a user could edit.</p>
+
+<p>So the field would have existed, been documented, passed a unit test built around a hand-made body, and still arrived empty on the wire. The only reliable path does not depend on either side agreeing: the server reads its own store.</p>
+
+
+<h2>Trap 3: A Dictionary Keyed by Question Text</h2>
+
+<p>The answer chips were the next problem. Each question can come with a few suggested answers: a handful of options for something enumerable, an empty list for something open-ended like an identifier. The first schema for the gate's reply made that a dictionary from question text to a list of options.</p>
+
+<pre><code>// first shape: the model must reproduce the question text exactly, as a key
+{ "questions": ["Which compounds should I analyse?"],
+  "suggestions": { "Which compounds should I analyse?": ["CMPD-0001", "CMPD-0002"] } }</code></pre>
+
+<p>A model asked to emit the same string twice in one reply will, often enough, emit it slightly differently the second time: a dropped question mark, a re-worded clause, different punctuation. When the key and the question do not match, the lookup returns nothing. The user sees the question with no chips, just a bare text box. There is no error, no log line and no failed request. The feature looks like it works, with a quietly worse interface, and nothing in a happy-path test would flag it, because the happy-path test writes the key by hand.</p>
+
+<p>The fix is to stop asking the model to reproduce a string and use position instead. Suggestions become a list of lists, parallel to the list of questions, and the pairing is structural.</p>
+
+<pre><code>{ "questions":   ["Which compounds should I analyse?", "Over what time range?"],
+  "suggestions": [[],                                  ["Last 30 days", "Last year"]] }</code></pre>
+
+<p>The server pairs them by index before it filters anything, so dropping an empty or non-string question cannot shift the options onto the wrong question. Missing entries become empty lists, non-list entries are coerced to empty, and extra entries are ignored. The TypeScript side of the contract is an array of string arrays. The same lesson applies anywhere a model has to repeat a string as a key: <strong>if two parts of a reply must agree, make the structure enforce it, not the model's memory.</strong></p>
+
+<h2>Trap 4: The Budget Reservation That Never Settles</h2>
+
+<p>Every query reserves an estimate against the user's daily token budget before the work starts, using an atomic conditional update so concurrent requests cannot all pass the check at the same balance. When the work finishes, the reservation is settled against the real usage. Reserve first, settle later is a sound pattern, and it has a requirement: <em>every path out of the handler must settle.</em></p>
+
+<p>The gate runs after the reservation and returns before the settle. The reservation is taken in the budget block near the top of the handler, and settlement lives at the end of the agent run. The gate's early return jumped between the two. Nothing in the handler was wrong on its own; the early return just never reached the line that gives the reservation back.</p>
+
+<p>The consequence would have been a slow leak that no single request shows. Each clarification would have left its reservation held against the daily counter, with no agent run to settle it. The arithmetic is simple. If each reservation is a fixed estimate <code>E</code> and the daily limit is <code>L</code>, then <code>L / E</code> clarifications would exhaust a user's day without a single analysis having run, and nothing about any single request would have looked wrong. (That is arithmetic from the design, not a measurement: the leak was found in review and never ran.)</p>
+
+<pre><code># early return, after the fix
+reservation.settle(gate_tokens)   # only if one was taken
+return clarification_stream</code></pre>
+
+<p>Two refinements are worth keeping. First, the settle is guarded by the same condition that guarded the reservation, and goes through the request's single reservation object, so it happens once and is a no-op if nothing was reserved. Second, it settles against what the gate actually spent, not zero. The gate's call is a real model call with real input and output tokens, so those tokens are counted toward the daily total, and recorded against the user in the usage store, but the request is not counted as an answered query. A question is not an answer. The cost-attribution side of this, why a cheap helper call still belongs in the books, is the same argument as the tiering discussion in <a href="4-finops-for-agentic-ai.html">the post on FinOps for agentic AI</a>.</p>
+
+<p>Also note what the gate's placement bought. Because it runs before the concurrency slots are acquired, the early return owes no slot release. If I had put the gate after them, the same review would have asked for that too.</p>
+
+<h2>Trap 5: An Early Return That Persists Nothing</h2>
+
+<p>The last trap is the one a user would have noticed first, and only after the fact. In the normal path, the handler writes the conversation to the session store when the agent finishes: the user's message and the assistant's reply, with a stable message identifier. The gate returns before that point.</p>
+
+<p>The result would have looked fine in the moment. The question card appears, the user types an answer, the answer is sent, the agent runs and replies. Then they reload the page. The session store never saw the original request or the clarification question, so the reloaded chat would have shown an orphaned answer with no question above it and no sign of what it was an answer to. The first message in that conversation would have been the reply to a question that no longer existed.</p>
+
+<p>The review's fix had two parts, and both matter:</p>
+
+<ol>
+    <li><strong>Persist the pair before returning.</strong> The handler saves the user's original message and the clarification text as the assistant turn, in the executor, with a short timeout. A failure here is logged and non-fatal: a save problem must not turn a working question into an error.</li>
+    <li><strong>Make the resubmit self-contained.</strong> The question event carries the original query, and the client composes the follow-up as the original request, the fixed separator, then the numbered answers. Even if the save in step one failed, the follow-up carries everything the agent needs to answer, so the chat still works and the only loss is the reload view.</li>
+</ol>
+
+<p>The second part is a contract between two codebases: the separator the client writes is the string the server checks to break the loop. The client side documents that dependency and pins it with a test, because changing one without the other would silently turn the loop breaker off and the gate would ask again after the user had already answered.</p>
+
+<h2>The Five Traps at a Glance</h2>
+
+<table>
+    <thead>
+        <tr><th>Trap</th><th>Why it was invisible</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>1. History read off the request body</td>
+            <td>The attribute looks natural on a request object. Any test that builds the body by hand and the client schema both agree on the wrong shape.</td>
+            <td>Read the server-side session store; load once per request and pass the list to every consumer.</td>
+        </tr>
+        <tr>
+            <td>2. The UI never sends history</td>
+            <td>Adding the field to the schema would make it pass every test and stay empty on the wire.</td>
+            <td>Same fix: the store is the source of truth, not either side of the request.</td>
+        </tr>
+        <tr>
+            <td>3. Suggestions keyed by question text</td>
+            <td>A paraphrased key returns nothing, no error is raised, and the card just has no chips.</td>
+            <td>Parallel arrays: <code>suggestions[i]</code> belongs to <code>questions[i]</code>, paired before any filtering.</td>
+        </tr>
+        <tr>
+            <td>4. Reservation taken, never settled</td>
+            <td>Each early return would leak a small fixed amount. No single request looks wrong.</td>
+            <td>Settle at the gate's real usage before returning, through the request's single reservation object.</td>
+        </tr>
+        <tr>
+            <td>5. Turns not persisted on the early path</td>
+            <td>The live session works. Only a reload shows an orphaned answer.</td>
+            <td>Persist the pair before returning, and make the resubmit carry the original request and answers.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>The Rule: An Early Return Settles What the Normal Path Settles</h2>
+
+<p>Traps four and five have the same shape, and the gate's placement raised the same question a third time. The normal path, taken from request to response, does a list of things that nobody wrote down as a list, because they all live at different lines in a long function. An early return is a new, shorter path, and the author of the early return is thinking about the question they are asking, not about the lines they are skipping.</p>
+
+<p>The useful discipline is to write that list down once, before writing the return, and walk it:</p>
+
+<pre><code>for each resource the normal path acquires BEFORE this return point:
+    budget reservation        -> settle (with real usage)
+    concurrency slots         -> release, or place the return before them
+    in-flight / lock flags    -> clear
+for each piece of state the normal path writes AFTER this return point:
+    persisted conversation    -> write the turns the user can see
+    usage / cost records      -> record what was really spent
+    trace / span for the turn -> finish it
+what the CLIENT needs on resubmit:
+    everything, in the request itself, in case persistence failed</code></pre>
+
+<p>The gate's response stream follows the same rule. Its output is recorded on the turn's trace like any other reply, it carries a model event and a message identifier before the question, and it ends with a complete event carrying a marker that the turn is waiting on the user. A client that sees a stream with a question but no terminal event would sit on a spinner forever.</p>
+
+
+<h2>Why Review Found What a Green Run Would Not</h2>
+
+<p>None of the five fail loudly in the normal course of testing. A suite that mocks the model and hand-builds request bodies has already decided, in its fixtures, that the history exists, that the model returns the key it was shown, that nobody checks the budget counter after a question, and that nobody reloads the page. The assumptions in the code and the assumptions in the tests are the same assumptions. That is the situation <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a> describes, and the first of these traps is a clean example: the only way to see it is to look at what the real request model contains.</p>
+
+<p>What worked was reading the new path <em>against the existing handler</em>, line by line, and asking of each statement "what does the function do after this that I am about to skip?" That is a code-reading question, not a test-writing one. The tests worth writing are the ones that reading points at: a request with no history, a reply with a paraphrased key, a budget counter checked after a clarification, a reload after one.</p>
+
+<div class="highlight-box">
+    <p><strong>What counts as a good clarifying question.</strong> The gate asks only when the request names an analysis to run and names nothing at all to run it on. If something was named but needs resolving to an identifier, the agent proceeds and states its interpretation. If any parameter other than the subject is open, it picks a sensible default and proceeds. A gate that asks about everything just moves the cost from the model to the user.</p>
+</div>
+
+<h2>What I'd Build Next</h2>
+
+<p>The answer chips are suggested fresh for each question. A natural extension is to let the user's own earlier answers shape them. If someone has answered "which compounds?" with the same short list a few times, the next time that list can be offered first, ahead of generic options. It would be a small change to what the card is given, with no change to the gate's decision about whether to ask, and it would turn a question the user has already answered into a one-click confirmation.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>A question is a decision about starting, not an action of the agent.</strong> A gate before the agent is built covers every execution path, needs no fake limit errors, leaves no trailing user turn and keeps questions out of tool observability. A tool in the agent's list does none of that.</li>
+        <li><strong>History lives on the server.</strong> Do not read conversation context off a request model, and do not trust that a client sends it. Read the session store once per request and pass the list on.</li>
+        <li><strong>Do not make the model repeat a string as a key.</strong> Use parallel arrays so pairing is structural, and pair before you filter.</li>
+        <li><strong>Reserve and settle are a pair on every path.</strong> An early return after a reservation must settle it, with the real tokens spent, through the same object the normal path uses.</li>
+        <li><strong>Persist what the user can see.</strong> Save the turns before returning and make the resubmit self-contained, so a failed save costs a reload view and nothing more.</li>
+        <li><strong>Every early return must settle what the normal path settles.</strong> Write the list of what the normal path acquires and writes, then walk it before you write the return.</li>
+        <li><strong>Read the new path against the old one.</strong> The traps were all in how the gate was wired in, and a mocked test shares the assumptions that hid them.</li>
+    </ul>
+</div>
+
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Clarifying Questions</span>
+    <span class="tag">Code Review</span>
+    <span class="tag">Token Budgets</span>
+    <span class="tag">Session State</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

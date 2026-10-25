@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Guard That Fails Open: Your Policy Proxy Is Only as Strong as Its Exception Path</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="The Guard That Fails Open: Your Policy Proxy Is Only as Strong as Its Exception Path">
+    <meta property="og:description" content="When a mitmproxy addon throws, the request is forwarded anyway. How to make a guard default-deny, classify what the server will run, place allow-exceptions after every deny check, and make config kill switches fail closed.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/38-security-guard-that-fails-open.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/38-security-guard-that-fails-open.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Guard That Fails Open: Your Policy Proxy Is Only as Strong as Its Exception Path">
+    <meta name="twitter:description" content="When a mitmproxy addon throws, the request is forwarded anyway. How to make a guard default-deny, classify what the server will run, place allow-exceptions after every deny check, and make config kill switches fail closed.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/38-security-guard-that-fails-open.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/38-security-guard-that-fails-open.png" alt="Blog cover">
+
+<div class="header-badge">SECURITY</div>
+<h1>The Guard That Fails Open: Your Policy Proxy Is Only as Strong as Its Exception Path</h1>
+<p class="subtitle">When a mitmproxy addon throws, the request is forwarded anyway. How to make a guard default-deny, classify what the server will run, place allow-exceptions after every deny check, and make config kill switches fail closed.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+
+<p>The review question that mattered was not "does the guard block mutations?" It did. It had a long test suite proving so. The question was "what does the guard do when its own code throws?"</p>
+
+<p>The guard in question is an intercepting proxy that sits in front of a shared test environment with a GraphQL API. Automated browser tests go through it. Its job is to forward reads and drop anything that could change state, because that one environment is shared by many test runs. It is written as an addon for mitmproxy: a class with hooks that mitmproxy calls for each request, each CONNECT, each WebSocket message.</p>
+
+<p>While reviewing it, the reviewer read the mitmproxy source to see what happens around those hooks. The finding: an exception in a hook does not stop the request. mitmproxy catches it, logs an addon error, and carries on, so the request is forwarded. Two days later a different bug in the same guard made the same point from the other direction: a newly added "allow this one safe query" exception let a mutation ride along with it, and every test in the suite stayed green.</p>
+
+<p>This post is about both. A guard is judged by its exception path and its exceptions-to-the-rule path, not by the happy path its tests exercise. It ends with the same lesson applied to something much more mundane: a kill switch in a config file.</p>
+
+<div class="highlight-box">
+<p><strong>The one-sentence version.</strong> A guard that is built to block should be written so that forwarding is something the code has to <em>earn</em> on every request, and anything unexpected (a thrown exception, an unreadable body, a parser disagreement) leaves it in the default state, which is blocked.</p>
+</div>
+
+<h2>What the Framework Does When Your Code Throws</h2>
+
+<p>mitmproxy dispatches each event to each addon through a helper called <code>safecall</code> in its addon manager. As the reviewer read the source, that helper catches <code>Exception</code>, logs an "Addon error" message, and returns. The dispatcher wraps every hook in it. This was checked against the library's source on its main branch at the time of the review, and it is the behaviour to design around. In sketch form (my paraphrase, not the library's code):</p>
+
+<pre><code># What the framework does around each of your hooks, in spirit
+def safecall(hook, *args):
+    try:
+        return hook(*args)
+    except Exception:
+        log.error("Addon error")    # then carry on
+        # nothing here stops the request</code></pre>
+
+<p>That is a sensible default for a logging addon or a header rewriter: one buggy addon should not take down the proxy. For a policy addon it is exactly backwards. If the hook raises, the request has not been judged, and the framework forwards unjudged requests.</p>
+
+<p>It also changes which inputs matter. The requests that make a guard throw are the unusual ones. For a GraphQL guard those are things like:</p>
+
+<ul>
+<li>a selection set nested so deeply that the parser hits Python's recursion limit;</li>
+<li>a body that is not valid UTF-8;</li>
+<li>a streamed body whose content is empty or <code>None</code> when the hook reads it;</li>
+<li>a WebSocket frame that is JSON, but not the JSON shape the code assumed.</li>
+</ul>
+
+<p>Those are also exactly the inputs a person probing for a gap would send. The unusual requests are the ones a guard most needs to catch, and under a fail-open framework they are the ones that pass.</p>
+
+<div class="warn-box">
+<p><strong>Where else this shape appears.</strong> Anything with a "catch, log, continue" wrapper around your policy code has the same property: middleware chains, plugin hosts, webhook dispatchers, admission-style hooks with a permissive failure policy. If you do not know what the host does when your handler raises, find out before you rely on the handler to deny. The broader argument for limiting what an agent can reach in the first place is in <a href="6-securing-agentic-ai.html">post 6</a>; this post is about making the enforcement point itself hold up.</p>
+</div>
+
+<h2>Default-Deny With try/finally</h2>
+
+<p>The fix is to invert who has to do something. Instead of "block if the policy says deny", the hook is written as "block unless the policy explicitly said allow, and that decision is made in a <code>finally</code> block so nothing can skip it":</p>
+
+<pre><code>def request(self, flow):
+    allowed = False                      # the default is DENY
+    try:
+        decision = classify(flow)        # may raise, may return early
+        log_decision(decision)
+        if decision.allow:
+            allowed = True               # the ONLY place this becomes True
+    except Exception as exc:
+        # class name only: never str(exc), never bodies, headers or values
+        log_exception_only(type(exc).__name__)
+    finally:
+        if not allowed:
+            flow.response = make_response(403, b"Blocked")</code></pre>
+
+<p>Three details carry the weight.</p>
+
+<p><strong>The flag is set in exactly one place.</strong> Every other path, including the early <code>return</code> for a body that could not be read, falls through <code>finally</code> with the flag still false, and the request is answered by the guard with its own 403 instead of being forwarded. A bug that raises, a bug that returns early, and a legitimate deny all end the same way.</p>
+
+<p><strong>Every hook gets the same treatment.</strong> The guard applies it to the CONNECT hook (a tunnel is only opened to a host and port on the allowed list), to the request hook, and to the WebSocket hook, where the equivalent of killing the flow is dropping the message. Raw TCP and UDP flows are killed outright, because a protocol the guard cannot read is a protocol it cannot judge.</p>
+
+<p><strong>Logging cannot be allowed to prevent the block.</strong> In the hook that has to disable streaming (below), the code kills the flow first and only then tries to log, with the log call in its own <code>try</code>. The comment on that line says why: logging must not be able to prevent it. And when an exception is logged, only its class name and which listener it came from are written. An exception message can contain a fragment of the request, and a guard's log is a place that people read and ship around.</p>
+
+<h2>The Body You Judge Must Be the Body the Server Runs</h2>
+
+<p>A guard that reads the body one way while the server reads it another is not guarding anything. Most of the code in the guard, once the default-deny skeleton is in place, exists to close those gaps by refusing anything it cannot read unambiguously.</p>
+
+<table>
+    <thead>
+        <tr><th>Where the guard and the server could disagree</th><th>What the guard does</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Streaming. With request streaming on, the proxy starts sending a large body upstream before the request hook has seen it all, and the hook sees an empty body.</td>
+            <td>Streaming is switched off per request, in the headers hook, before any body arrives. If that cannot be set, the request is killed. The guard also refuses to start at all if the global large-body streaming option is set, and re-checks that option every time options change.</td>
+        </tr>
+        <tr>
+            <td>Content encoding. A server may decode <code>br</code>, <code>zstd</code>, stacked encodings or sloppy gzip differently from the guard.</td>
+            <td>Only no encoding, or a single strict gzip member, is accepted, decoded with a hard output cap so a small compressed body cannot expand into memory. Everything else, including trailing bytes after the gzip member and truncated streams, is dropped.</td>
+        </tr>
+        <tr>
+            <td>Duplicate or case-variant JSON keys. Two <code>query</code> keys, or <code>query</code> and <code>Query</code>: which one wins depends on the server.</td>
+            <td>The JSON loader rejects, at any depth, a repeated key or two keys equal after case folding. A top-level key that is a case variant of a known payload key is rejected too.</td>
+        </tr>
+        <tr>
+            <td>Ambiguous documents. A GraphQL document that repeats a fragment name, repeats an operation name, or mixes an anonymous operation with others.</td>
+            <td>Refused rather than interpreted. Which definition applies is server-specific (first wins, last wins, or error), so reading it one way would be a guess.</td>
+        </tr>
+        <tr>
+            <td>Pathological documents. Deep nesting, or fragments that expand into millions of nodes.</td>
+            <td>One walk budget per document. Exceeding it, or hitting the recursion limit, makes the document unparseable, and unparseable means dropped.</td>
+        </tr>
+        <tr>
+            <td>Requests that name a stored query by hash instead of sending its text.</td>
+            <td>The guard cannot see what will run, so they are dropped unless the hash maps to text the guard already holds.</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>Notice the common move. In every row the guard does not try to be clever about the odd input. It declines to guess and drops. A dropped legitimate request costs a failing test and a conversation. A mis-read illegitimate one costs the thing the guard was installed to protect.</p>
+
+<p>The decoder deserves one more sentence, because it illustrates the order of operations: the bound is applied while decompressing, not after. A guard that fully decompresses first and checks the size second has handed the sender a way to exhaust the guard's memory.</p>
+
+<h2>Classify What the Server Will Run, Not What the Client Says</h2>
+
+<p>The obvious shortcut for a GraphQL guard is to look at <code>operationName</code>. It is a field in the JSON body, it is right there, and well-behaved clients set it to something descriptive. It is also entirely chosen by the sender and has nothing to do with what the server executes:</p>
+
+<pre><code>{
+  "operationName": "ListWidgets",
+  "query": "mutation ListWidgets { purgeWidgets { count } }"
+}</code></pre>
+
+<p>An allowlist keyed on <code>ListWidgets</code> would wave that through. The rule the guard follows is: parse the document, then classify on what the parse says.</p>
+
+<ul>
+<li><strong>Root fields are the real field names, never aliases.</strong> <code>{ ok: purgeWidgets }</code> is a call to <code>purgeWidgets</code>. The walker expands fragment spreads and inline fragments so a root field cannot hide inside one.</li>
+<li><strong>Any mutation makes the whole request a mutation.</strong> Documents can contain several operations and clients can send a JSON array of payloads (a batch). The guard merges every operation's fields, and if any operation is a mutation, the request is treated as one. A batch with one unparseable item is dropped whole.</li>
+<li><strong>A mutation with no root fields is denied.</strong> "Empty" is not "harmless"; it is "I could not tell".</li>
+<li><strong>Deny lists match on meaning, not exact spelling.</strong> Names on the never-allow list are compared case-folded, and a name containing a delete-style word is refused whatever the allowlist says.</li>
+</ul>
+
+<p>A sketch of the shape of the classifier:</p>
+
+<pre><code>def classify_payloads(payloads):
+    parsed = []
+    for p in payloads:                      # one item, or a whole batch
+        r = parse_document(p)               # None if anything is off
+        if r is None:
+            return DENY("unparseable")      # one bad item drops the batch
+        parsed.append(r)
+
+    is_mutation = any(r.is_mutation for r in parsed)
+    root_fields = [f for r in parsed for f in r.root_fields]   # real names
+
+    if is_mutation and not root_fields:
+        return DENY("empty_mutation")
+    if is_mutation:
+        for f in root_fields:               # every root field must pass
+            if never_allowed(f) or f not in ALLOWLIST:
+                return DENY("not_allowed:" + f)
+        return ALLOW("allowlisted_mutation")
+    return ALLOW("query")</code></pre>
+
+<p>The mutation branch is a loop that must pass for <em>every</em> field. "At least one field is on the list" is the version that fails.</p>
+
+<h2>Allow-Exceptions Belong After Every Deny Check</h2>
+
+<p>The second review finding was not a framework behaviour. It was a change written for a perfectly reasonable reason.</p>
+
+<p>In the strictest configuration, the guard drops queries for a set of user-data root fields, so test runs cannot read user data outside their own. A test needed one narrow exception: a user may look up <em>their own</em> record by id. A coding agent implemented it, and it did what the ticket said. But it was written as an early return, <code>return ALLOW</code> as soon as the own-id lookup was recognised, placed before the strict configuration's other rules ran.</p>
+
+<p>My own probe combined the allowed lookup with a mutation in one document:</p>
+
+<pre><code>mutation {
+  lookupSelf(id: "OWN-ID") { id }   # the allowed exception
+  purgeWidgets { count }            # the thing the guard exists to stop
+}</code></pre>
+
+<p>The exception fired on the first field and the whole document was allowed. The agent's test suite passed completely. Every test of the exception exercised the exception alone; none combined it with a mutation, so nothing in the suite was capable of failing on this case.</p>
+
+<div class="highlight-box">
+<p><strong>The rule that came out of it.</strong> An allow-exception is not a shortcut around the rules. It lives inside the branch for its configuration, after every deny check (the mutation checks, the never-allow list, the operation-type checks), and it narrows exactly one specific deny reason: this lookup, with this argument, resolving to this caller's own id. Nothing else turns a deny into an allow because an exception happens to be satisfied.</p>
+</div>
+
+<p>In today's code the shape is visible in the structure. The mutation check runs first and returns. The exception only exists in the branch that handles queries that were about to be denied for one reason, and it requires that the operation type is exactly a query, that the one blocked root is the lookup in question, and that every occurrence of its argument resolves to the caller's own id. A subscription or a mixed document never reaches it.</p>
+
+<p>When you write or review an exception, probe it with the inputs that attack the assumption it relies on:</p>
+
+<ul>
+<li>the exception <em>plus</em> a mutation in the same document;</li>
+<li>the exception inside a subscription;</li>
+<li>the exception under an alias;</li>
+<li>the exception inside a fragment;</li>
+<li>the exception in a document with mixed root fields;</li>
+<li>the exception with the operation named like a denied canary (next section).</li>
+</ul>
+
+<h2>Prove the Guard Is Alive, and That Its Rules Are Load-Bearing</h2>
+
+<p>Two habits turn "I believe it blocks" into something checkable.</p>
+
+<p><strong>A positive control.</strong> The guard has a canary request that must be dropped in every configuration, even when its root fields would otherwise be allowed, and the test harness sends it and requires that the log shows it dropped. Silence is the problem a canary solves. A guard that is not running, is misrouted, or has quietly started forwarding everything looks identical in a log to a guard with nothing to block, until you ask it to block something you know it should. The same applies to the other dropped cases: the point of logging a decision reason for each drop (unparseable, over the size cap, unsupported encoding, not buffered) is that a drop is attributable to a cause.</p>
+
+<p><strong>Rules that name their own tests.</strong> Many of the guard's checks carry a one-line comment in the form "FAIL if this is removed, this test goes red", and a mutation script removes each check in turn and requires the named test to fail (the traps that make such scripts lie are in <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a>).</p>
+
+<p>The fail-closed path itself has a test: one deliberately makes the classifier raise and asserts the request is killed. A fault-injection switch that makes a hook raise on a chosen request exists for the same reason, and it is itself refused unless an explicit test gate is on, so it cannot become a way to alter behaviour in a real run.</p>
+
+<div class="green-box">
+<p><strong>What each layer proves.</strong> Default-deny makes errors safe. Strict parsing makes disagreements into drops. Parsed classification makes the client's labels irrelevant. Exceptions placed after the deny checks keep convenience from becoming bypass. The canary proves the guard is in the path. The mutation script proves the tests would notice if any of that were removed.</p>
+</div>
+
+<h2>The Same Rule in Configuration: Kill Switches Fail Closed</h2>
+
+<p>The same inversion shows up one level up, in how a service reads its settings, and the failure mode there is just as quiet.</p>
+
+<p>In one agent platform, every process builds the same settings object from one shared config source: the API, the sub-agents, and the scheduled jobs. So a new settings group is imported by all of them. That drives two rules that pull in opposite directions.</p>
+
+<p><strong>Tunables are lenient.</strong> A strict validator on a new numeric field turns one typo into a crash of every process that imports it, including jobs nobody is watching. A timeout written as <code>"65s"</code> instead of <code>65</code> should not take down a scheduled digest. So numeric and string tunables use a "before" validator that logs a warning (naming the setting and the value, cut to 64 characters) and returns the code default. Timeouts and caps must be greater than zero; a retry count may be zero.</p>
+
+<p><strong>Kill switches are the opposite.</strong> A boolean that turns a tool on or off must <em>fail closed</em>. The validator accepts <code>true/false/1/0/yes/no/on/off</code>, case-insensitive. Anything else, such as the typo <code>flase</code>, or an empty string, logs a warning and returns <strong>off</strong>:</p>
+
+<pre><code>TRUE_WORDS  = {"true", "1", "yes", "on"}
+FALSE_WORDS = {"false", "0", "no", "off"}
+
+def kill_switch(name, value):
+    if isinstance(value, bool):
+        return value
+    word = str(value).strip().lower()
+    if word in TRUE_WORDS:
+        return True
+    if word in FALSE_WORDS:
+        return False
+    log.warning("%s=%r is not a valid boolean; failing closed (switched OFF)",
+                name, str(value)[:64])
+    return False        # deliberately NOT the code default, which is True</code></pre>
+
+<p>The last line is the point. For an ordinary tunable the fallback to the code default is the safe choice. For a switch whose default is "on", falling back to the default means a mistyped value leaves the tool running, which is the one outcome the person typing "flase" did not want. The tool then answers with a clear "switched off" message, and the operator fixes the value.</p>
+
+<p>Two follow-through habits come from the same review:</p>
+
+<ul>
+<li><strong>Put the switch at every path that reaches the backend.</strong> One tool had a second entry point that bypassed the switch until a review caught it. A kill switch checked in one of two code paths is a switch that only sometimes works.</li>
+<li><strong>Test the garbage.</strong> A test builds the settings with every variable in the group set to nonsense and asserts that it constructs, that numbers fall back, and that switches are off. Config parity (the code default equals the shipped value) and cross-key invariants (a lock wait must be shorter than the overall deadline) are worth their own tests.</li>
+</ul>
+
+<h2>What I'd Build Next</h2>
+
+<p>The guard already drops what it cannot read. The next thing I want is evidence about how well "what the guard reads" matches "what the server runs", measured rather than argued.</p>
+
+<p>The idea is a differential harness. Generate documents from a small grammar of deliberately awkward shapes: aliases, nested fragments, repeated names, batches, odd encodings, mixed operation types. Send each one two ways: through the guard's parser, and to a disposable copy of the GraphQL server running with its own request logging switched on. For each document, compare the set of root fields the guard says it saw with the set the server actually executed. Any document where the two sets differ is a candidate disagreement, and each one gets added to a corpus with the expected decision, the way the allowlist parser already has a directory of accepted and rejected sample files. Because the corpus only grows, every new bypass idea ends up as a permanent test, and the mutation script can then check that the rule that handles it is load-bearing.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Learn what your host does when your code throws.</strong> mitmproxy's addon dispatcher catches exceptions, logs them and forwards the request. A policy addon therefore fails open unless it handles that itself.</li>
+        <li><strong>Make forwarding something the code earns.</strong> Wrap every hook in <code>try/finally</code> with an <code>allowed = False</code> default that only one explicit path sets to true. Raise, return early, or deny, and the result is the same: blocked.</li>
+        <li><strong>Close the reader-differential gaps by refusing, not guessing.</strong> Turn off streaming for judged requests, accept only encodings you can bound and decode identically, reject duplicate and case-variant keys, refuse ambiguous documents, and drop whatever does not parse.</li>
+        <li><strong>Classify what will run.</strong> Use parsed root fields (never aliases, never the client's operation name), expand fragments, and treat any mutation anywhere in a batch as the whole request being a mutation.</li>
+        <li><strong>Allow-exceptions come after every deny check.</strong> They narrow one specific deny reason and never return early. Probe each with mutation, subscription, alias, fragment and mixed-root variants.</li>
+        <li><strong>Prove it is alive and load-bearing.</strong> Keep a canary that must be logged as dropped, and make each rule name the test that goes red when it is removed.</li>
+        <li><strong>Kill switches fail closed.</strong> Garbage in a boolean switch means off, with a warning. Tunables fall back to defaults with a warning. They are different failure policies for different jobs.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Security</span>
+    <span class="tag">Fail-Closed Design</span>
+    <span class="tag">mitmproxy</span>
+    <span class="tag">GraphQL</span>
+    <span class="tag">Default-Deny</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

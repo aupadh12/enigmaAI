@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Skill Said ON, the Tool Said OFF: When Prose and Behaviour Drift Apart</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="The Skill Said ON, the Tool Said OFF: When Prose and Behaviour Drift Apart">
+    <meta property="og:description" content="An agent reported a setting as on while the tool behind it had sent the opposite. The four-layer fix, why the model trusted the prose, and why a skill must not describe a capability the tool cannot deliver.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/45-skill-text-vs-tool-truth.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/45-skill-text-vs-tool-truth.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Skill Said ON, the Tool Said OFF: When Prose and Behaviour Drift Apart">
+    <meta name="twitter:description" content="An agent reported a setting as on while the tool behind it had sent the opposite. The four-layer fix, why the model trusted the prose, and why a skill must not describe a capability the tool cannot deliver.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/45-skill-text-vs-tool-truth.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/45-skill-text-vs-tool-truth.png" alt="Blog cover">
+
+<div class="header-badge">AGENTIC AI</div>
+<h1>The Skill Said ON, the Tool Said OFF: When Prose and Behaviour Drift Apart</h1>
+<p class="subtitle">An agent reported a setting as on while the tool behind it had sent the opposite. The four-layer fix, why the model trusted the prose, and why a skill must not describe a capability the tool cannot deliver.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The post-deploy check for a replacement skill was not a unit test. It was one real query, run end to end. The skill belonged to a scientific analysis tool that sits behind a third-party API. It had been written for a desktop assistant and stored verbatim, and one of its lines said: <em>always set enhanced scoring to on</em>.</p>
+
+<p>The agent's reply said "Enhanced scoring ON". The report's conclusions went further and described one of the returned result rows as an "enhanced-scoring-based control". Nothing had errored. The job completed and the report rendered.</p>
+
+<p>The tool had hardcoded the setting to <strong>off</strong>. The request it sent never asked for enhanced scoring, and the rows that scoring produces were never returned. The row the report called an enhanced-scoring-based control was real; its origin was not what the report claimed. The agent had reported a setting it never sent, and then built interpretation on top of it. The tier selection in the reply happened to match the request, but only because the agent had passed the default tier itself. Half of the comparison lined up, which is the worst possible outcome for a check: it looked like agreement.</p>
+
+<p>This post is about that gap between what a skill says and what a tool does, why the model believes the prose, and the four-layer fix that closed it. It also touches the sibling failure, a skill that describes a capability the tool cannot currently deliver.</p>
+
+<div class="highlight-box">
+    <p><strong>The failure in one sentence.</strong> When a tool's result does not contain a setting, the only place the model can learn that setting from is the prose it read, and prose written for a different tool is confidently wrong about this one.</p>
+</div>
+
+<h2>Three Places Held the Truth, and They Disagreed</h2>
+
+<p>It is worth laying out where each version of "the setting" lived, because the bug is the disagreement, not any single component.</p>
+
+<table>
+    <thead>
+        <tr><th>Where</th><th>What it said</th><th>Who wrote it, and for whom</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Skill text</td><td>"Always set enhanced scoring on."</td><td>A domain expert, for a desktop assistant</td></tr>
+        <tr><td>Tool code</td><td>Sends the setting as off, always.</td><td>The integration code, which hardcoded the value</td></tr>
+        <tr><td>Agent reply</td><td>"Enhanced scoring ON"</td><td>The model, summarising what it had read</td></tr>
+    </tbody>
+</table>
+
+<p>Each one was individually reasonable. The skill was correct for the context it was written in. The tool did what its code said. The reply was a faithful summary of the only document that mentioned the setting. The system was wrong and every part of it was locally right.</p>
+
+<p>That is why <a href="10-teaching-agent-domain-expertise.html">skills</a> need a different kind of review from code. A skill is prose that gets injected into the model's context at the moment it reasons. If a skill states a parameter, that parameter is now a claim about the tool, and the claim is checkable. Unless you add a step that compares the two, nobody checks it, because the skill lives in object storage and the tool lives in a repository. The same shape of drift appears in the <a href="9-releasing-ai-systems.html">release-checklist post</a>: a runtime-served artefact that nothing in the build pipeline compares against the code it describes.</p>
+
+<h2>Why the Model Believed the Prose</h2>
+
+<p>It is tempting to call this a hallucination. It is more mundane than that. Consider what the model had in front of it when it composed the reply:</p>
+
+<ul>
+    <li>A skill that says the setting is always on.</li>
+    <li>A tool result containing rows, a report link and a status, but <strong>no field that says what settings were sent</strong>.</li>
+</ul>
+
+<p>The tool result was silent about the one thing the user wanted to know. The model had to produce a sentence about run settings, so it used the only evidence available. It did exactly what a careful reader would do with the information provided, and the information was wrong.</p>
+
+<p>Two properties made this hard to catch:</p>
+
+<ul>
+    <li><strong>Static review cannot see it.</strong> The skill text passes its review. The tool passes its tests. There is no file in which the contradiction is written down. It exists only in the interaction between a document and a function, and it only becomes visible when a model reads one and calls the other.</li>
+    <li><strong>The output was plausible.</strong> Wrong settings do not crash anything. The job completed and the report rendered. The answer simply described a run that had not happened. This is the same family as the failures in <a href="26-silent-wrong-data-agent-pipelines.html">the silent-wrong-data post</a>, where nothing errors and the output reads fine: the difference here is that the lie is in the narration rather than in the data.</li>
+</ul>
+
+<div class="warn-box">
+    <p><strong>The half-match trap.</strong> The tiers in the reply were right. That made the first read of the reply look consistent with the request. A "reported vs sent" comparison that passes on two of three fields trains you to stop looking. The check has to compare every setting the reply mentions, not a sample of them.</p>
+</div>
+
+<h2>Layer 1: The Tool Echoes What It Actually Sent</h2>
+
+<p>The first fix is at the source of truth. A tool that accepts settings should return the settings it <em>effectively</em> used, not the ones it was asked for. The distinction matters, because an effective value can differ from the requested one. In this tool the enhanced rows can only come back when a particular run type is part of the request, so asking for the setting alongside only other run types does nothing. The tool now computes the effective value, sends that, and returns that.</p>
+
+<pre><code>def run_analysis(ids, run_types, tiers, enhanced_scoring: bool = True):
+    # The setting only has an effect if the run type that supports it is present.
+    effective = enhanced_scoring and "supporting_type" in run_types
+
+    payload = {"run_types": run_types, "enableEnhancedScoring": effective}
+    rows = call_third_party_api(ids, payload)
+
+    settings = {
+        "run_types": run_types,
+        "tiers": tiers,
+        "enable_enhanced_scoring": effective,    # the value actually sent
+    }
+    returned = count_rows(rows, prefix="Control_Enhanced_")
+    if effective and returned == 0:
+        settings["enhanced_scoring_note"] = "requested, API returned none"
+    elif not effective:
+        settings["enhanced_scoring_note"] = (
+            "Enhanced scoring was NOT requested; no enhanced rows."
+        )
+    return {"rows": rows, "run_settings": settings, ...}</code></pre>
+
+<p>Three details carry the weight here.</p>
+
+<p><strong>The note field.</strong> There are three honest states, not two: requested and returned, requested and nothing came back, and not requested. The middle one is the interesting one. A flag can be sent correctly and the upstream service can still return nothing for it, and without a note the model sees an absence and fills the silence. With the note, the tool tells the model what the absence means.</p>
+
+<p><strong>The setting is part of the dedupe key.</strong> The tool deduplicates identical requests within a session so that a repeated question returns the existing report. If the effective setting is not part of that key, a user who switches it on can get back an earlier report that was run with it off, now described accurately as "the report for this request". The hash includes the effective flag, so the two requests are different requests.</p>
+
+<p><strong>The echo survives reshaping.</strong> If anything downstream reshapes the result, copy the settings block first and never let the reshaping touch it. For older records that lack the key, fill in the conservative value on the way out. The persisted record is the provenance, so it is never the thing that gets changed.</p>
+
+<h2>Layer 2: The Report Row Renders What Was Sent</h2>
+
+<p>The second layer removes the model from a place it never belonged. The tool also produces a downloadable report, and that report has a table of run settings. The row for this setting is now rendered by code from the stored request record:</p>
+
+<pre><code>enhanced = settings.get("enable_enhanced_scoring", False)   # missing key means off
+cell = "true" if enhanced else "false"
+if note := settings.get("enhanced_scoring_note"):
+    cell += " - " + html.escape(note)
+rows.append(f"&lt;tr&gt;&lt;td&gt;Enhanced scoring&lt;/td&gt;&lt;td&gt;{cell}&lt;/td&gt;&lt;/tr&gt;")</code></pre>
+
+<p>Two small decisions are worth copying. First, the row is <em>always</em> rendered. A missing key does not hide the row; it renders as "false", which is also what every record created before the fix actually did. Second, the note is appended to the cell, so a reader who never sees the chat transcript still sees "requested, API returned none" next to the setting. The report is the artefact that gets forwarded, and a forwarded report that says "true" with no returned rows is the same lie in a different place.</p>
+
+<p>This is the same move as in <a href="34-grounded-ai-research-digest.html">the grounded-digest post</a>, where code owns every number: anything the code knows for certain should be rendered by the code, so the model has nothing to get wrong. Run settings are the cleanest possible example. They are a handful of values the tool already holds.</p>
+
+<h2>Layer 3: Every Prompt That Can Answer Needs the Rule</h2>
+
+<p>Layers 1 and 2 give the model correct evidence. They do not stop it from preferring the skill over the evidence, so the third layer is an instruction: <em>state run settings only from the tool result</em>. The rule is short:</p>
+
+<pre><code>Run settings: state tiers and enhanced scoring ONLY as given in the tool
+result's run_settings and its note field, never from the skill text.
+If they are absent, do not state them.</code></pre>
+
+<p>Writing the rule is the easy half. The part that took a second fix was deciding <em>where</em> it goes. The system has a router that decides whether a query is handled by a single agent or by a multi-agent research pipeline, and each path has its own prompts. A rule added to one prompt is a rule for one path. My first prompt fix did not cover the path the failing query really took, which was the single-agent path.</p>
+
+<table>
+    <thead>
+        <tr><th>Path</th><th>Prompt that can answer</th><th>What the rule says there</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Single agent</td><td>The main agent prompt</td><td>State settings only from the tool result; never from the skill</td></tr>
+        <tr><td>Multi-agent: data scout</td><td>The scout prompt</td><td>Pass the settings block and its note through <strong>verbatim, at the top</strong> of the output</td></tr>
+        <tr><td>Multi-agent: synthesizer</td><td>The synthesizer prompt</td><td>State settings only as given in the scout's settings block; if absent, do not state them</td></tr>
+    </tbody>
+</table>
+
+<p>Three prompts carry the rule, and the wording differs on purpose. The scout is the agent that calls the tool, and the synthesizer works from the scout's output, so the scout's job is to pass the settings through untouched and put them first, where a long output cannot bury them. The synthesizer's job is to refuse to say anything the scout did not hand it. A hand-off between agents is a place where a fact can be paraphrased into a different fact, and the cheapest defence is to make the fact a block that is copied rather than a sentence that is rewritten.</p>
+
+<div class="highlight-box">
+    <p><strong>Find the path the query actually takes before editing any prompt.</strong> Do not reason about which path a query ought to take. Read the router, or better, read the trace of the failing query. A prompt fix on the wrong path passes review, passes its tests and changes nothing for the user.</p>
+</div>
+
+<p>There is a trap in how these prompt rules get tested. A unit test can assert that the sentence is present in each prompt, and mine do. That proves the sentence is there. It does not prove the model obeys it, and that is the same hollow-test shape described in <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a>: a check that cannot tell a working rule from an ignored one. The presence tests are useful as a tripwire against someone deleting the rule during a prompt refactor. The evidence that the rule works is layer 4.</p>
+
+<h2>Layer 4: A Post-Deploy "Reported vs Sent" Check</h2>
+
+<p>The bug was found by a real query, and nothing else would have found it. So the last layer is a procedure rather than a piece of code: after any change to a skill, a prompt or a tool that takes settings, run one real query and compare two things for every setting the reply mentions.</p>
+
+<table>
+    <thead>
+        <tr><th>Compare</th><th>Against</th><th>Where to read it</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Settings stated in the chat reply</td><td>Settings the tool actually sent</td><td>The tool call in the trace, or the stored session record</td></tr>
+        <tr><td>Settings in the report's settings table</td><td>Settings the tool actually sent</td><td>The stored request record</td></tr>
+        <tr><td>"Not requested" or "returned none" in the note</td><td>Whether the rows actually exist</td><td>The returned rows themselves</td></tr>
+    </tbody>
+</table>
+
+<p>I read the tool-call input out of the trace in the observability backend described in <a href="23-langfuse-llm-observability.html">the Langfuse post</a>, because the trace records the arguments the tool received, not the arguments the model said it passed. The call record is the evidence; the reply is the thing being checked.</p>
+
+<p>The check belongs in the same checklist as the items from <a href="9-releasing-ai-systems.html">the release post</a>, for the same reason: it verifies a property that no build step can see. A passing deploy, a green test suite and a healthy rollout are all compatible with an agent that narrates a different run from the one it performed.</p>
+
+<h2>When the Tool Is Switched Off</h2>
+
+<p>The mirror image has already been covered twice: <a href="24-agent-memory-self-poisoning.html">an "if no tool result" rule never fires for a model that is sure of itself, so say ALWAYS call</a>, and <a href="22-data-infrastructure-quality-ai-readiness.html">a tool whose source is not loaded should return an explicit not-ingested result rather than an empty one</a>. The point that belongs to this post is about the skill. A skill that describes a capability in the present tense while the tool cannot currently deliver it is itself an invitation to fabricate, because it tells the model what the answer would look like. Mark an unloaded capability as not loaded in the skill's description and in its workflow steps, in the same words the tool's not-available result uses, so that prose and behaviour say the same thing.</p>
+
+<h2>A Pre-Flight Checklist for Any Skill and Tool Pair</h2>
+
+<p>None of this needs infrastructure. It needs a short review at the moment a skill and a tool are first paired, and again whenever either changes.</p>
+
+<ol>
+    <li><strong>List every parameter the skill states or implies.</strong> "Always set X", "use tier 2 only when asked", "include Y by default". For each one, find the line of code that honours it. If you cannot find one, the skill is making a claim the tool does not keep.</li>
+    <li><strong>Check the defaults, not just the signature.</strong> A parameter that exists but defaults to the opposite of what the skill says produces the same bug with a more comfortable code review.</li>
+    <li><strong>Make the tool return the effective settings.</strong> Effective means after any dependency between settings, not as requested. Add a note field for "requested but nothing came back".</li>
+    <li><strong>Render anything the code knows from the code.</strong> Settings tables, counts and status lines should not pass through a model.</li>
+    <li><strong>Put the "settings come from the tool result" rule on every path.</strong> Read the router and the trace of a real failing query to find which prompts can answer.</li>
+    <li><strong>Mark unavailable capabilities as unavailable in the skill.</strong> And make the unavailable tool return an explicit result instead of an empty one.</li>
+    <li><strong>Run one real query after deploy and compare reported to sent.</strong> Read the arguments from the call record, not from the model's description of the call.</li>
+</ol>
+
+<h2>What I'd Build Next</h2>
+
+<p>The skill text and the tool's schema describe the same parameters in two vocabularies. The natural next step is to stop writing that part of the skill by hand. A short "settings and defaults" block could be generated from the tool's own signature and docstring each time the skill is published, so the defaults a model reads are, by construction, the defaults the code applies. The hand-written part of the skill would then be limited to interpretation guidance, which is what a domain expert is actually good at supplying.</p>
+
+<p>The same comparison I run once after a deploy could also run on a small, steady sample of live traces: for each sampled run, compare the settings stated in the reply with the settings in the tool call, and track the mismatch rate as a number over time. A rate of zero is the expected value, and any movement away from it points at the exact deploy or skill edit that introduced it.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>A skill that names a parameter is making a claim about a tool.</strong> Check each claim against the code, including defaults, whenever either side changes.</li>
+        <li><strong>If the tool result is silent, the model will quote the prose.</strong> Have the tool echo the effective settings it sent, plus a note for "requested, nothing returned".</li>
+        <li><strong>Render what the code knows with code.</strong> The report's settings row is built from the stored request, not from the model's summary of it.</li>
+        <li><strong>Find the path the query takes before editing prompts.</strong> The rule must be on every prompt that can answer, and a sub-agent hand-off should copy the settings block, not paraphrase it.</li>
+        <li><strong>A test that finds the sentence is not a test that the model obeys it.</strong> Keep presence tests as a tripwire and rely on a real query for the evidence.</li>
+        <li><strong>Run a "reported vs sent" check after deploy.</strong> Compare every setting the reply mentions with the call record in the trace, because a half-match looks like agreement.</li>
+        <li><strong>A skill must not describe a switched-off capability in the present tense.</strong> Mark it not loaded, in the same words the tool's not-available result uses.</li>
+    </ul>
+</div>
+
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Skills</span>
+    <span class="tag">Tool Design</span>
+    <span class="tag">Prompt Engineering</span>
+    <span class="tag">Grounding</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

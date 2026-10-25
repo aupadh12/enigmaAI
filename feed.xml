@@ -5,8 +5,116 @@
     <link>https://aupadh12.github.io/enigmaAI/</link>
     <description>Notes on cloud platform engineering, GitOps, and agentic infrastructure for pharmaceutical R&amp;D — what actually works.</description>
     <language>en-us</language>
-    <lastBuildDate>Sat, 03 Oct 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 25 Oct 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://aupadh12.github.io/enigmaAI/feed.xml" rel="self" type="application/rss+xml"/>
+
+    <item>
+      <title>Adding Clarifying Questions to an Agent: Five Traps Review Caught Before Ship</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/46-clarifying-questions-side-effects.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/46-clarifying-questions-side-effects.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>A research agent should ask "which compounds?" before it spends a multi-step run finding out nobody named any. The gate that does it is simple. The five ways it would have gone wrong were all in how the gate was wired in.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>The Skill Said ON, the Tool Said OFF: When Prose and Behaviour Drift Apart</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/45-skill-text-vs-tool-truth.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/45-skill-text-vs-tool-truth.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>An agent reported a setting as on while the tool behind it had sent the opposite. The four-layer fix, why the model trusted the prose, and why a skill must not describe a capability the tool cannot deliver.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>Upgrading a Self-Hosted LLM-Observability Stack: The Traps Between Two Major Versions</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/44-upgrading-self-hosted-llm-observability.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/44-upgrading-self-hosted-llm-observability.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>Langfuse v3 to v4 and ClickHouse 24.8 to 26.4 on a single node. A query that was "read-only" and still got killed, a disk that was full of the wrong thing, and the checks that let me empty the old tables only after every historic trace was verified present in the new ones.</description>
+      <category>Observability</category>
+    </item>
+
+    <item>
+      <title>Running a Fleet of AI Coding Agents Without Them Clobbering Each Other</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/43-running-a-fleet-of-coding-agents.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/43-running-a-fleet-of-coding-agents.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>Parallel agents are fast right up until two of them write to the same place. The rules I use for ownership, scratch space, review and peer sessions, each one learned from a specific collision.</description>
+      <category>AI-Assisted Development</category>
+    </item>
+
+    <item>
+      <title>Human Approval for Agent Actions: Interrupts, Not Turn Re-Runs</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/42-human-approval-agent-interrupts.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/42-human-approval-agent-interrupts.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>How an agent asks permission in the middle of a tool call, survives the user walking away, and resumes exactly once, instead of ending the turn and running it again after the click.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>From Regex-Parsed Verdicts to Native Structured Outputs</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/41-native-structured-outputs-for-agents.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/41-native-structured-outputs-for-agents.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>A reviewer agent's verdict was recovered with regexes because the models rejected forced tool choice. Then the schema request I had recorded as rejected started to work. What I shipped, how I probed it, and why a capability matrix needs a date on it.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>When a Tool Result Is Too Big for the Context Window</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/40-tool-results-too-big-for-context.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/40-tool-results-too-big-for-context.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>Store the full result, keep a whole-record preview in the context, and hand the model a reference it can open. How that works for list results, for the saved conversation, for the model request and across agent hand-offs.</description>
+      <category>Agentic AI</category>
+    </item>
+
+    <item>
+      <title>Letting an LLM Drive Your Test Framework Is Letting It Run Code</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/39-llm-driving-test-framework-runs-code.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/39-llm-driving-test-framework-runs-code.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>What an agent can make a test-framework MCP server do beyond testing a page, from reading the public rf-mcp source (as of 0.36.0) and Robot Framework documentation, and the controls that close each path.</description>
+      <category>AI Security</category>
+    </item>
+
+    <item>
+      <title>The Guard That Fails Open: Your Policy Proxy Is Only as Strong as Its Exception Path</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/38-security-guard-that-fails-open.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/38-security-guard-that-fails-open.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>When a mitmproxy addon throws, the request is forwarded anyway. How to make a guard default-deny, classify what the server will run, place allow-exceptions after every deny check, and make config kill switches fail closed.</description>
+      <category>AI Security</category>
+    </item>
+
+    <item>
+      <title>Your Policy Is What the Cluster Stored, Not What You Wrote</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/37-kubernetes-policy-stored-not-written.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/37-kubernetes-policy-stored-not-written.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>A Kyverno policy lost its negation anchors to a bare YAML null while every check passed. How to compare the stored object to Git, probe each rule kind, and tell a node replacement from a rollout.</description>
+      <category>GitOps</category>
+    </item>
+
+    <item>
+      <title>Same Model, Different Answers: Moving a Research Pipeline into a Production Service</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/36-research-model-to-production-drift.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/36-research-model-to-production-drift.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>The weights matched and the tiling matched, yet the contours did not. Dependency pins as part of the model, a framework default that changed under a checkpoint, reading a multi-gigabyte checkpoint without downloading it, tokens that expire mid-job, and output formats that only the consumer can judge.</description>
+      <category>MLOps</category>
+    </item>
+
+    <item>
+      <title>The Request Never Arrived: How Async Python Services Freeze While Health Checks Stay Green</title>
+      <link>https://aupadh12.github.io/enigmaAI/blogposts/35-async-python-service-freezes.html</link>
+      <guid>https://aupadh12.github.io/enigmaAI/blogposts/35-async-python-service-freezes.html</guid>
+      <pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate>
+      <description>A spreadsheet upload that hung and restarted its pod, a lock that deadlocked its own thread, an access log that cannot see hung requests, and why a frozen worker inside a two-worker pod passes every health check.</description>
+      <category>Architecture</category>
+    </item>
 
     <item>
       <title>An AI-Written Weekly Digest Where Code Owns Every Number</title>

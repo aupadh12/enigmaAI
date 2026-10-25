@@ -7,16 +7,16 @@
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/3-multi-agent-collaboration.html</loc><lastmod>2026-10-03</lastmod></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/4-finops-for-agentic-ai.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/5-benchmarking-llms-in-the-enterprise.html</loc></url>
-  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html</loc></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/6-securing-agentic-ai.html</loc><lastmod>2026-10-25</lastmod></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/7-kubernetes-to-managed-agent-runtime.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/8-data-pipeline-for-agents.html</loc></url>
-  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html</loc></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/9-releasing-ai-systems.html</loc><lastmod>2026-10-25</lastmod></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/10-teaching-agent-domain-expertise.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/11-observability-for-agents.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/12-cross-session-agent-memory.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/13-agent-feedback-loop.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/14-billion-row-data-pipeline.html</loc></url>
-  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/15-gpu-pathology-ai-eks.html</loc></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/15-gpu-pathology-ai-eks.html</loc><lastmod>2026-10-25</lastmod></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/16-multi-tenant-finops.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/17-eks-vs-managed-runtime.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/18-aws-datasync-cross-account-s3.html</loc></url>
@@ -24,16 +24,28 @@
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/20-argocd-multisource-helm-gitops.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/21-cross-account-cloudwatch-region-trap.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/22-data-infrastructure-quality-ai-readiness.html</loc></url>
-  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/23-langfuse-llm-observability.html</loc></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/23-langfuse-llm-observability.html</loc><lastmod>2026-10-25</lastmod></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/24-agent-memory-self-poisoning.html</loc></url>
-  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/25-agent-context-overflow-in-flight.html</loc></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/25-agent-context-overflow-in-flight.html</loc><lastmod>2026-10-25</lastmod></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/26-silent-wrong-data-agent-pipelines.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/27-finops-pipeline-silent-day-loss.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/28-opus-5-bedrock-migration.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/29-ai-coding-assistant-usage-analytics.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/30-agent-as-tool-hierarchical-agents.html</loc></url>
-  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/31-llm-refusal-is-a-200.html</loc></url>
-  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/32-tests-that-cannot-fail.html</loc></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/31-llm-refusal-is-a-200.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/32-tests-that-cannot-fail.html</loc><lastmod>2026-10-25</lastmod></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/33-strands-sse-streaming-traps.html</loc></url>
   <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/34-grounded-ai-research-digest.html</loc></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/35-async-python-service-freezes.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/36-research-model-to-production-drift.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/37-kubernetes-policy-stored-not-written.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/38-security-guard-that-fails-open.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/39-llm-driving-test-framework-runs-code.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/40-tool-results-too-big-for-context.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/41-native-structured-outputs-for-agents.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/42-human-approval-agent-interrupts.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/43-running-a-fleet-of-coding-agents.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/44-upgrading-self-hosted-llm-observability.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/45-skill-text-vs-tool-truth.html</loc><lastmod>2026-10-25</lastmod></url>
+  <url><loc>https://aupadh12.github.io/enigmaAI/blogposts/46-clarifying-questions-side-effects.html</loc><lastmod>2026-10-25</lastmod></url>
 </urlset>

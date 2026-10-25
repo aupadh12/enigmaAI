@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Request Never Arrived: How Async Python Services Freeze While Health Checks Stay Green</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="The Request Never Arrived: How Async Python Services Freeze While Health Checks Stay Green">
+    <meta property="og:description" content="A spreadsheet upload that hung and restarted its pod, a lock that deadlocked its own thread, an access log that cannot see hung requests, and why a frozen worker inside a two-worker pod passes every health check.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/35-async-python-service-freezes.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/35-async-python-service-freezes.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Request Never Arrived: How Async Python Services Freeze While Health Checks Stay Green">
+    <meta name="twitter:description" content="A spreadsheet upload that hung and restarted its pod, a lock that deadlocked its own thread, an access log that cannot see hung requests, and why a frozen worker inside a two-worker pod passes every health check.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/35-async-python-service-freezes.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/35-async-python-service-freezes.png" alt="Blog cover">
+
+<div class="header-badge">PLATFORM ENGINEERING</div>
+<h1>The Request Never Arrived: How Async Python Services Freeze While Health Checks Stay Green</h1>
+<p class="subtitle">A spreadsheet upload that hung and restarted its pod, a lock that deadlocked its own thread, an access log that cannot see hung requests, and why a frozen worker inside a two-worker pod passes every health check.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The symptom, as it first reached me, was short: a spreadsheet upload hangs, and the pod restarts. The endpoint accepted a file of cost-allocation rules, parsed it, and wrote a small JSON document to disk. After the upload, the page never came back, the container was restarted by its liveness probe, and the access log showed no trace of a request that had hung. It looked like the request had never arrived.</p>
+
+<p>I found a cause quickly: the handler was declared <code>async def</code> but its body was entirely blocking work. I fixed that, declared it done, and was wrong. The fix was correct and insufficient, and in one scenario it would have made the failure strictly worse. A second review found the real cause underneath it, a lock that deadlocked its own thread.</p>
+
+<p>This post is about the failure family that sits behind that story: a Python service whose event loop, or one of its worker processes, stops making progress while every external signal says it is healthy. The previous posts in this series covered the simplest member of the family, a synchronous model call inside an async handler that <a href="25-agent-context-overflow-in-flight.html">pushed a pod past its liveness window</a>, and the monitoring angle of <a href="11-observability-for-agents.html">pods killed mid-request</a>. What follows is the rest: the deadlock that sync code can hide, the access-log blind spot, the half-dead pod, how to test one worker at a time, and the idle timers that cut silent routes.</p>
+
+<div class="highlight-box">
+    <p><strong>The common thread.</strong> Every failure below has the same shape: the thing that reports health is not the thing that does the work. A probe answers from a thread, a log line is written after the work finishes, a load balancer counts bytes rather than progress. When the work stops, those signals either keep saying "fine" or go silent in a way that looks like nothing happened.</p>
+</div>
+
+<h2>First Cause: a Blocking Body in an async Handler</h2>
+
+<p>FastAPI runs an <code>async def</code> endpoint directly on the event loop. Anything blocking inside it stops the whole worker, not just that request: a spreadsheet parse in pandas or openpyxl, an <code>fcntl.flock</code> call, a write to an object-storage-backed mount. While that body runs, the worker cannot answer its health endpoint. Give the probe a short timeout and a handful of consecutive failures, and the kubelet sends SIGTERM to a container that is in the middle of a request.</p>
+
+<p>That also explains the "never arrived" feeling. The process dies mid-request, so the request is never logged as finished. The fix for this layer is mechanical: declare the endpoint with plain <code>def</code>, so FastAPI runs it in its threadpool, and read the upload with <code>file.file.read()</code> instead of <code>await file.read()</code>. Starlette already rewinds every file part after parsing the form, so no explicit seek is needed; I confirmed that in the installed library rather than trusting memory.</p>
+
+<p>The verification I like for this class is structural, and cheap: import the routers and assert that no <code>APIRoute</code> endpoint is a coroutine function unless it genuinely awaits.</p>
+
+<pre><code>import inspect
+from fastapi.routing import APIRoute, iter_route_contexts
+
+ALLOWED_ASYNC = {"/health"}      # reviewed: these only await
+
+def test_no_async_endpoint_does_blocking_io(app):
+    checked = 0
+    for rc in iter_route_contexts(app.routes):
+        route = rc.original_route
+        if not isinstance(route, APIRoute):
+            continue
+        checked += 1
+        if rc.path in ALLOWED_ASYNC:
+            continue
+        assert not inspect.iscoroutinefunction(route.endpoint), (
+            f"{rc.path}: async def endpoint - if it blocks, it freezes the worker"
+        )
+    assert checked, "walked no routes - the test is hollow"</code></pre>
+
+<p>On FastAPI 0.14x and later, <code>app.routes</code> holds one wrapper per included router, so walk the flattened routes and assert that you checked some. A loop over <code>app.routes</code> that filters on <code>isinstance(route, APIRoute)</code> can silently skip every included route and still pass.</p>
+
+<p>Treat that test as a gate with an allowlist, not a rule that async is forbidden. Endpoints that really only await belong on the loop. The point is that every <code>async def</code> in the list has been looked at by a human who asked "does anything in here block?"</p>
+
+<h3>Offloading only the cheap part</h3>
+
+<p>The structural test does not catch a subtler variant, which I found in two places. One report endpoint wrapped the final render in <code>run_in_executor</code> but loaded a large number of data files off a mounted bucket on the loop first. The async wrapper bought nothing and still blocked the loop for the expensive part. Its sibling endpoint did identical work as a plain <code>def</code> and was, by accident, the better-behaved of the two.</p>
+
+<p>Another route did <code>await asyncio.to_thread(fetch)</code> to get a stored message file from object storage, and then, back on the loop, parsed a message of up to about 11 MB, base64-encoded its images, and ran a regular expression across the result. Only the I/O had been threaded. The fix is to move all the CPU work into one pure function and thread the whole thing:</p>
+
+<pre><code>def build_preview(raw: bytes) -&gt; str:      # pure: bytes in, string out
+    ...                                     # parse, encode, regex - no I/O, no loop
+
+html = await asyncio.to_thread(build_preview, raw)</code></pre>
+
+<p>Pure functions are easy to test for loop-safety with a spy. Call <code>asyncio.get_running_loop()</code> inside the function and assert that it raises <code>RuntimeError</code>. If it raises, the function is running on a worker thread, not on the loop. That test fails the day someone "simplifies" the code back onto the loop.</p>
+
+<h2>The Fix That Would Have Made It Worse</h2>
+
+<p>Here is where my first diagnosis went wrong. Changing the endpoint from <code>async def</code> to <code>def</code> does not remove the blocking work. It moves it onto a threadpool thread. If that work is merely slow, you have fixed the problem. If it is stuck forever, you have just moved a deadlock out of sight of the one mechanism that would have noticed it.</p>
+
+<p>Before the change, a deadlocked handler froze the loop, the probe failed, the container restarted, and the system healed itself, noisily. After the change, the deadlocked thread sits in the pool, the loop stays responsive, <code>/health</code> answers, and liveness never fires. A self-healing crash loop becomes a permanent silent hang that only a manual pod delete fixes. The rule I took from it: never ship an async-to-sync change without first establishing that nothing underneath can deadlock.</p>
+
+<p>And something could. The module guarded its read-modify-write cycle with a context manager that held a <code>threading.Lock</code>, and then called <code>load()</code> and <code>save()</code> inside the guarded block. Both of those helpers acquired the same lock again, on the same thread.</p>
+
+<pre><code>_lock = threading.Lock()          # non-reentrant
+
+@contextlib.contextmanager
+def guard():
+    with _lock:                   # acquired once ...
+        fd = take_cross_process_flock()
+        yield
+        release(fd)
+
+def load():
+    with _lock:                   # ... and again, same thread: blocks forever
+        ...
+
+def save(data):
+    with _lock:
+        ...
+
+with guard():
+    data = load()                 # deadlock</code></pre>
+
+<p>A non-reentrant lock acquired twice by one thread blocks that thread forever. The details make it worse than a plain hang. By the time the thread blocks, it already holds the cross-process file lock, so the sibling worker process in the same pod would also wait on it the next time it tried to save. The target JSON file had never once been written, which is the quiet clue: the feature had never worked end to end.</p>
+
+<p>The fix was one word, <code>threading.RLock()</code>, plus a comment explaining why it must stay reentrant. The way to prove it is to reproduce the lock topology in a unit test and watch both sides: with <code>Lock</code> the worker thread never returns; with <code>RLock</code> it completes.</p>
+
+<div class="warn-box">
+    <p><strong>"The sibling handler works" proves nothing if nobody has run it.</strong> Two endpoints doing the same job, one apparently healthy, is only evidence if the healthy one has been exercised with real input. The same lesson shows up in the <a href="32-tests-that-cannot-fail.html">post on tests that cannot fail</a>: a check you have never seen go red is not a check.</p>
+</div>
+
+<h2>The Access Log Said It Never Arrived</h2>
+
+<p>I had also misread the one piece of evidence that could have pointed at the second cause. The endpoint did appear in the access log, as a few earlier requests that had completed with 400 responses. I took the absence of any successful or hung entry to mean the request never reached the service. It had reached the service. It simply could not be logged, because of where the log line is written.</p>
+
+<pre><code>@app.middleware("http")
+async def access_log(request, call_next):
+    response = await call_next(request)      # a hung request never returns from here
+    record(request.url.path, response.status_code)
+    return response</code></pre>
+
+<p>Middleware like this writes its line only after <code>call_next</code> returns. A request that deadlocks inside the handler never returns, so it never appears. A request that is killed with its pod never appears either. "The request never arrived" and "the request never completed" produce identical logs. If you want to tell them apart, the middleware has to write twice: once on arrival, with an in-flight marker, and once on completion. Then a request that has an arrival line and no completion line is exactly the one you are looking for.</p>
+
+<p>The wider lesson is about what a log is evidence of. A line written after the work tells you about work that finished. For failures where the work does not finish, absence from that log carries no information.</p>
+
+<h2>Two Workers, One Half-Dead Pod</h2>
+
+<p>Many Python API images run uvicorn with more than one worker process, partly to use more than one core and partly for resilience. The resilience argument has a catch. I checked the following in the installed uvicorn source and observed it in a running pod: the parent supervisor pings each worker and the worker answers from a daemon thread. A blocked event loop does not stop that thread, so the supervisor happily reports the worker alive and never restarts it. Separately, the kubelet's health probe goes to the pod's shared listening socket, where the <em>other</em> worker is free to accept it.</p>
+
+<p>The result is a half-dead pod. One worker is wedged, with its event loop frozen, while the other one answers every probe. The pod stays Ready. It becomes NotReady only if the second worker is also busy long enough to miss probes. The wedged worker never recovers on its own, and every user whose connection landed on it stalls for as long as it stays frozen. Everything on the dashboard says the pod is fine, because half of it is.</p>
+
+<table>
+    <thead>
+        <tr><th>Layer</th><th>What it checks</th><th>Why a frozen worker passes</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Process supervisor</td><td>Worker answers a ping</td><td>The reply comes from a daemon thread, not the loop</td></tr>
+        <tr><td>Kubelet liveness / readiness</td><td>HTTP health endpoint on the pod</td><td>The sibling worker accepts the probe</td></tr>
+        <tr><td>Service endpoints</td><td>Pod is Ready</td><td>Pod stays Ready while one worker is wedged</td></tr>
+        <tr><td>Access log</td><td>Completed requests</td><td>Hung requests are never written</td></tr>
+    </tbody>
+</table>
+
+<h3>Connections do not spread evenly</h3>
+
+<p>It would be some comfort if the damage were spread evenly, so that a single frozen worker meant exactly half of all users. It is not. Keep-alive connections arriving on a shared listening socket are often pinned unevenly across the workers. In one pod I measured the split: of eight pinned connections, one sat on one worker and seven on the other. If the frozen worker is the lightly loaded one, few people notice. If it is the one holding most connections, nearly everyone does, and the pod still looks healthy.</p>
+
+<h2>Testing One Worker at a Time</h2>
+
+<p>This is where an ordinary liveness test lies to you. If you pin some connections, freeze a worker with a slow request, and measure the health endpoint, a pass can simply mean that every one of your connections happened to land on the healthy worker. I wanted a harness that could not pass for that reason, so it works in a specific order:</p>
+
+<ol>
+    <li><strong>Pin keep-alive connections</strong> to the health endpoint from inside the container, and map each connection to the worker process that owns it. The mapping goes client port, to server-side socket inode (from the kernel's TCP table), to the process whose file descriptors include that inode.</li>
+    <li><strong>Keep opening connections until every worker owns at least one.</strong> Without this, a pass is meaningless.</li>
+    <li><strong>Poll the health endpoint on every pinned connection</strong> several times a second and record latency, while a separate connection sends the one slow request and records which worker served it.</li>
+    <li><strong>Judge only the connections that belong to the worker that served the slow request.</strong> The other worker is reported as background.</li>
+</ol>
+
+<pre><code># idea: which worker process owns this loopback connection?
+inode = server_side_socket_inode(client_port)       # from /proc/net/tcp*
+for pid in worker_pids():
+    if inode in socket_inodes(pid):                 # from /proc/&lt;pid&gt;/fd
+        return pid</code></pre>
+
+<p>The verdicts matter as much as the mechanics. A harness that can only say pass or fail will eventually report a pass it has not earned, so this one has a third outcome:</p>
+
+<table>
+    <thead>
+        <tr><th>Exit</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>0</td><td>Pass, and discriminating: the other worker stayed responsive</td></tr>
+        <tr><td>3</td><td>Pass but ambiguous: both workers were slow, so the mapping is not proven</td></tr>
+        <tr><td>1</td><td>Fail: no block seen on a build that should show one, or a block seen on a build that should be clean</td></tr>
+        <tr><td>2</td><td>Void: a worker had no pinned connection, a connection reconnected or died, or the slow request did not finish normally. Never a pass, never a fail</td></tr>
+    </tbody>
+</table>
+
+<p>It has two modes. The control mode runs against a build that is known to have the bug and demands that the harness detect it; if it cannot see a bug that is there, its clean result on the fixed build means nothing. The clean mode runs against the fixed build and requires the owning worker's health latency to stay under a limit. In the live control run, a single slow request froze its worker's health endpoint for 12.73 seconds across every connection that worker owned, while the other worker kept answering in a millisecond. That one measurement is the whole phenomenon, with numbers on it.</p>
+
+<p>Before running the real test there is a free dry run that only does the mapping and sends nothing slow. It tells you whether both workers are even coverable in that pod. A harness that cannot map connections to workers should refuse to run, not guess.</p>
+
+<div class="highlight-box">
+    <p><strong>Design rule for any liveness test.</strong> It must be able to fail. Prove it by running it against a build with the bug (it must fail or detect), then against the fix (it must pass), and give it a "void" outcome for runs where the conditions were not met. Otherwise a quiet pod and a broken harness look identical.</p>
+</div>
+
+<h2>Timeouts and the Load Balancer's Idle Timer</h2>
+
+<p>Timeouts decide how long a freeze lasts: with the SDK's defaults of a 60-second read timeout and up to five attempts, one slow synchronous call can hold a worker for about five minutes, which is why the client timeout and retry budget are now set explicitly (see <a href="25-agent-context-overflow-in-flight.html">the context-overflow post</a>). A second clock runs outside your process.</p>
+
+<p>A Network Load Balancer drops a TCP connection that has been silent for 350 seconds, and 350 seconds is its default. If the service behind it sends no bytes for longer than that on a route, the client sees a dropped connection, even though the server is working and the proxies in between have much longer timeouts configured.</p>
+
+<p>This is not a hypothetical edge. A draft-generation route sends nothing until the model has finished, and a long draft can take minutes. The read timeout on its Bedrock client therefore defaults to 330 seconds, 20 seconds under the load balancer's clock. A longer timeout would not buy more time; it would just turn a clean error into a hung request that the client has already abandoned. The value lives in configuration, is clamped to a sane range, and falls back to the default if given garbage.</p>
+
+<p>For routes that stream, the fix is the opposite: send bytes. The streaming endpoints emit an SSE comment frame, <code>: keepalive</code>, every 25 seconds whenever the underlying generator has been quiet, so a long post-processing step cannot look like an idle connection. The <a href="33-strands-sse-streaming-traps.html">SSE traps post</a> covers the event stream itself. The keepalive wrapper has one subtle requirement that is easy to get wrong:</p>
+
+<pre><code>pending = None
+try:
+    while True:
+        if pending is None:
+            pending = asyncio.ensure_future(inner.__anext__())
+        done, _ = await asyncio.wait({pending}, timeout=25)
+        if not done:
+            yield ": keepalive\n\n"      # inner step is still running; keep waiting on it
+            continue
+        try:
+            item = pending.result()
+        except StopAsyncIteration:
+            return
+        finally:
+            pending = None
+        yield item
+finally:                                  # client disconnect, error, or normal end
+    if pending is not None and not pending.done():
+        pending.cancel()
+        await asyncio.wait({pending})     # let the cancelled step unwind first
+    await inner.aclose()                  # so the inner generator's cleanup runs</code></pre>
+
+<p>The wrapper uses <code>asyncio.wait</code> with a timeout, not <code>asyncio.wait_for</code>. <code>wait_for</code> cancels the awaited task when the timeout fires, which would cancel the inner step you are trying to keep alive. <code>asyncio.wait</code> just reports that the task is not done and leaves it running, so the wrapper can emit a frame and go back to waiting on the same pending step. No inner step is ever lost or restarted, and on a client disconnect the pending task is cancelled and the inner generator is closed so its cleanup runs.</p>
+
+<div class="green-box">
+    <p><strong>Clocks to line up, from the outside in.</strong> Load balancer idle timer, then reverse-proxy read timeout, then application read timeout, then the SDK client's read timeout and retry budget, then the liveness window. Any silent route needs its shortest clock to be one you chose.</p>
+</div>
+
+<h2>A Checklist Before You Trust a Green Health Check</h2>
+
+<ol>
+    <li><strong>Walk every <code>async def</code> endpoint.</strong> Assert in a test that none of them does blocking I/O, or keep an explicit allowlist of those that only await.</li>
+    <li><strong>Check that CPU work is threaded, not just I/O.</strong> Move parsing, encoding and regex work into a pure function and run the whole function off the loop. Prove it with a loop-detection spy.</li>
+    <li><strong>Before changing async to sync, read for deadlocks.</strong> Look for any non-reentrant lock held across a call that takes the same lock again, and for locks held while taking a file lock.</li>
+    <li><strong>Reproduce the lock topology</strong> in a test that fails on the old code and passes on the new.</li>
+    <li><strong>Make logs honest about hung requests.</strong> Write on arrival as well as completion, or track in-flight requests.</li>
+    <li><strong>Test liveness per worker.</strong> Map connections to worker processes, require every worker to be covered, and include a void outcome.</li>
+    <li><strong>Set client timeouts and retry budgets deliberately</strong>, and compute the worst-case blocking time.</li>
+    <li><strong>Know the idle timers on the path</strong> and either keep silent routes under them or send keepalive bytes.</li>
+</ol>
+
+<h2>What I'd Build Next</h2>
+
+<p>The per-worker harness proves a build is clean by borrowing a real slow request to freeze a worker. The next thing I would like is a deliberately harmless "freeze on demand" route that exists only in test builds: it blocks the loop for a duration the caller specifies and does nothing else. With a known freeze length, the same drill can run against any service without finding a naturally slow request, and the harness can assert a precise relationship between the freeze and the owning worker's health latency, while the sibling worker stays near its baseline. It would turn the technique from a one-off investigation into a reusable template for every multi-worker service.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>An <code>async def</code> with a blocking body freezes the whole worker.</strong> Use plain <code>def</code> for blocking handlers, and thread all of the work, not just the I/O.</li>
+        <li><strong>An async-to-sync change can turn a self-healing crash loop into a silent hang.</strong> Look for deadlocks first, because a stuck thread no longer fails the health check.</li>
+        <li><strong>A non-reentrant lock re-acquired on the same thread blocks it forever.</strong> A guard that calls helpers taking the same lock needs a reentrant lock, and a test that reproduces the topology.</li>
+        <li><strong>An access log written after <code>call_next</code> cannot see a hung request.</strong> "Never arrived" and "never completed" look identical unless you also log arrival.</li>
+        <li><strong>In a multi-worker pod, one frozen worker is invisible.</strong> The supervisor pings from a thread, the sibling answers the probe, and connections pin unevenly.</li>
+        <li><strong>A liveness test must map connections to worker processes</strong> and have a void outcome, or a pass may only mean the probes landed on the healthy worker.</li>
+        <li><strong>Timeouts decide how long a freeze lasts.</strong> Choose them, and keep silent routes below the load balancer's idle timer or send keepalive bytes.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Platform Engineering</span>
+    <span class="tag">FastAPI</span>
+    <span class="tag">asyncio</span>
+    <span class="tag">Kubernetes Probes</span>
+    <span class="tag">Reliability</span>
+</div>
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

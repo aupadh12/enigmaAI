@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>When a Tool Result Is Too Big for the Context Window</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="When a Tool Result Is Too Big for the Context Window">
+    <meta property="og:description" content="Store the full result, keep a whole-record preview in the context, and hand the model a reference it can open. How that works for list results, for the saved conversation, for the model request and across agent hand-offs.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/40-tool-results-too-big-for-context.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/40-tool-results-too-big-for-context.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="When a Tool Result Is Too Big for the Context Window">
+    <meta name="twitter:description" content="Store the full result, keep a whole-record preview in the context, and hand the model a reference it can open. How that works for list results, for the saved conversation, for the model request and across agent hand-offs.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/40-tool-results-too-big-for-context.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/40-tool-results-too-big-for-context.png" alt="Blog cover">
+
+<div class="header-badge">AGENTIC AI</div>
+<h1>When a Tool Result Is Too Big for the Context Window</h1>
+<p class="subtitle">Store the full result, keep a whole-record preview in the context, and hand the model a reference it can open. How that works for list results, for the saved conversation, for the model request and across agent hand-offs.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+
+<p>Post <a href="25-agent-context-overflow-in-flight.html">#25</a> showed the conversation manager trimming oversized tool results, so that one long run would not drag every earlier result into every later model call. That was the right protection for the window. It also left a question I had been avoiding: what does the user get when they ask for more data than a window can hold?</p>
+
+<p>The request that forced the question was an ordinary one. A user wanted a list-style tool to return up to a thousand rows, and every row when asked. A thousand structured records is far more than belongs in a prompt. Whatever the cap decided, the model would be answering from part of the data while the user believed it was answering from all of it. And the number it would report was the worse problem: a count taken from the rows that fit is the size of the preview, not the size of the result. It is the same family of error as the counter that measured writes instead of entities in post <a href="26-silent-wrong-data-agent-pipelines.html">#26</a>.</p>
+
+<p>So the design question changed. It stopped being "how big should the cap be" and became "where does the full result live, and what does the model hold instead?" The answer I settled on is to pass big results <strong>by reference</strong>.</p>
+
+<div class="highlight-box">
+    <p><strong>The pattern in one sentence.</strong> The full result goes to a per-user object in storage. The context gets a contiguous preview made of whole records, a true total from the source, flags that say exactly what was and was not shown, and a reference the model can open when it needs every row. The user gets a link.</p>
+</div>
+
+<p>This post walks through that pattern in four places: list results, the saved conversation, the model request itself, and the hand-off between agents. It ends with a sidebar about a list read that quietly hid chats, because it is the same size problem arriving from the other direction.</p>
+
+<h2>Why Raising the Cap Is Not an Escape</h2>
+
+<p>The tempting answer to "the cap is too small" is a bigger cap. It fails for reasons that have nothing to do with the model call.</p>
+
+<ul>
+    <li><strong>The chat is stored as one item.</strong> Each conversation lives in a single DynamoDB item, and DynamoDB items cannot exceed 400 KB. I keep a fixed margin under that limit for attribute overhead, so a result that is merely "large" competes with every other turn for the same space. An item over the hard limit does not degrade; the write fails.</li>
+    <li><strong>Every later turn re-sends it.</strong> History is part of the next request. A big result is paid for again by each follow-up question, which is the quadratic bill described in post <a href="25-agent-context-overflow-in-flight.html">#25</a>.</li>
+    <li><strong>More inline is not better inline.</strong> I kept the inline part deliberately small, on the bet that a few dozen well-chosen records give a cleaner answer than thousands skimmed, with the complete set a click away.</li>
+</ul>
+
+<div class="warn-box">
+    <p><strong>A bigger number feels like a fix.</strong> Raising the limit moves the failure from the model call to the session write, and it leaves the re-billing untouched. The decision that matters is not the size of the cap but whether the full result still exists somewhere the user and the model can reach.</p>
+</div>
+
+<h2>Export by Reference: Anatomy of a List Result</h2>
+
+<p>Every tool that can return a list uses one shared writer. Rows are streamed from the query (on a server-side cursor when the source is a database) into a spooled temporary file as CSV. While the rows go by, the writer also builds the inline preview. When the rows run out there is one upload, and the tool returns a payload with four kinds of information:</p>
+
+<table>
+<tr><th>Part</th><th>What it carries</th><th>Why it exists</th></tr>
+<tr><td>Contiguous inline prefix</td><td>The first rows, in query order, until the first row that does not fit the budget</td><td>The model can read and quote real records, and "the first rows of the result" is a true description of what it holds</td></tr>
+<tr><td>True total</td><td>The database's own count of matching rows, taken before the row limit</td><td>Counts come from the source, never from what happened to fit</td></tr>
+<tr><td>Flags</td><td>One for "the CSV is short of the total", one for "the inline part is short of the CSV"</td><td>The model can say precisely what the user is looking at</td></tr>
+<tr><td>Link and export id</td><td>Placed first in the payload</td><td>It must survive being copied between agents (see below)</td></tr>
+</table>
+
+<p>A result then looks like this, with <code>N</code> the number of matches and <code>k</code> the number of rows that fit inline:</p>
+
+<pre><code>{
+  "download_url": "&lt;link to the per-user CSV&gt;",
+  "total_matching": N,
+  "rows_exported": N,
+  "rows_inline": k,
+  "truncated": false,
+  "inline_truncated": true,
+  "data": [ ...the first k rows... ]
+}</code></pre>
+
+<h3>The true total comes from the database</h3>
+
+<p>The total is a window function, evaluated over the full match before <code>LIMIT</code> is applied. Every row carries it; the writer reads it off the first row and strips it from the output.</p>
+
+<pre><code>SELECT id, score, status,
+       COUNT(*) OVER () AS _total   -- over the whole match, before LIMIT
+FROM   results
+WHERE  ...
+ORDER  BY ...
+LIMIT  :n;</code></pre>
+
+<p>The agent is also told, in the tool description and in the instructions for the agent that writes the answer, to report counts from the total and never from the number of inline rows. A rule in the prompt is not enough on its own, but it is cheap, and it matches what the payload makes easy.</p>
+
+<h3>Contiguous means no gaps</h3>
+
+<p>The inline prefix stops at the first row that does not fit. It does not skip that row and keep packing smaller ones behind it.</p>
+
+<pre><code>def inline_prefix(rows, budget, serialize=json.dumps):
+    kept, used = [], 0
+    for row in rows:
+        size = len(serialize(row)) + 2        # the ", " between list items
+        if used + size &gt; budget:
+            break                              # first misfit ends the prefix
+        kept.append(row)
+        used += size
+    return kept</code></pre>
+
+<p>Packing is tempting because it shows more rows. It also means the model sees rows 1 to 30, then 33 and 34, and happily describes a contiguous run it never had. Two details keep the budget honest: the size is measured with the same serialiser used for the final payload, so the budget is counted in the bytes the model will actually receive, and the preview is a prefix of the query order, so "the first rows" stays true.</p>
+
+<h3>What the two flags buy</h3>
+
+<p>The CSV holds up to the row limit the caller asked for, so the first flag says whether the file itself is short of the total, for example because the request asked for fewer rows than matched. The second says whether the inline preview is short of the file. With both, the model can say "these are the first few dozen rows; the download holds the rows you asked for, out of a larger total" instead of guessing which of the three numbers it is looking at.</p>
+
+<h2>The CSV Is a Download, So It Gets a Download's Security</h2>
+
+<p>Once a result becomes a file that people click on, the questions change from "is it too big" to "who may fetch it, and what happens when they open it".</p>
+
+<ul>
+    <li><strong>Identity comes from the request, not from the model.</strong> The writer takes the owner from the authenticated request context. The model never passes an identity argument, so it cannot be talked into exporting to someone else. With no authenticated user there is no export at all, because nobody could download it.</li>
+    <li><strong>The key is under the owner.</strong> The object key contains the lower-cased owner identity, and the download route builds the key from the caller's own identity. Someone else's export id simply resolves to nothing. It is a 404, not a 403, so the route never confirms that an id exists.</li>
+    <li><strong>The id is validated before it touches a key.</strong> A strict 32-character hex pattern, nothing else.</li>
+    <li><strong>The role check happens at download time.</strong> The producing tool is recorded as object metadata when the file is written. The route runs that tool through the same role gate the tool itself is subject to, using the caller's <em>current</em> roles. A role revoked after the file was written takes effect when the link is clicked. An unrecognised tool type is refused, so a new tool has to be added to the allow-list on purpose.</li>
+    <li><strong>Cells are guarded against formula injection.</strong> Data that came from external sources can start with a character a spreadsheet treats as a formula. The writer prefixes such string cells with a literal quote. Numbers stay numbers, so a negative value is not turned into text.</li>
+</ul>
+
+<pre><code>def formula_guard(cell: str) -&gt; str:
+    # =, +, -, @, TAB and CR start a formula in most spreadsheet apps
+    if cell and cell[0] in "=+-@\t\r":
+        return "'" + cell
+    return cell</code></pre>
+
+<div class="green-box">
+    <p><strong>A reference is not a capability.</strong> Holding an export id grants nothing by itself. Every request re-derives the owner from the session, looks under that owner's prefix only, and re-checks the producing tool against the caller's current access. The same rule applies when the model, not a person, is the one presenting the reference.</p>
+</div>
+
+<h2>Giving the Conversation the Same Treatment</h2>
+
+<p>List tools are the easy case because they know they are producing rows. A schema dump, a search result or a status listing can be just as large, and nobody writing those tools thought about it. So the same idea is applied generically, by a hook that runs after every data tool call:</p>
+
+<ol>
+    <li>If the call succeeded and the result is above a small floor of about a kilobyte, the full result is written to storage under the owner and the session, with the producing tool recorded as object metadata. Images are dropped from the copy.</li>
+    <li>A second content block carrying a data reference is appended to the result. The first block is never touched, because several parsers read only the first block.</li>
+    <li>The hook is an async callback and the upload runs in a bounded worker pool. The framework awaits only async callbacks; a synchronous one runs on the event loop, and blocking storage calls there are how a service ends up killed by its own liveness probe (the failure mode post <a href="25-agent-context-overflow-in-flight.html">#25</a> describes). The hook never raises, so an export problem cannot fail a tool call.</li>
+    <li>The preview is computed from the full result <strong>at the moment the tool returns</strong>, not later from the message list. The message list is mutated in place by the conversation manager after the loop, so anything derived from it afterwards is derived from an already changed object.</li>
+</ol>
+
+<p>When the turn is saved, the stored copy of a large result is the preview plus a marker block:</p>
+
+<pre><code>[full result stored: ref &lt;id&gt;, &lt;bytes&gt; bytes,
+ available until &lt;date&gt;; open it with the analysis tool]</code></pre>
+
+<p>Two properties make the marker safe to rely on. It is written only for a copy that is <strong>confirmed</strong> in storage: persistence waits, off the event loop and for a bounded time, for the upload behind each result, and a pointer to nothing is worse than no pointer. And it carries a date, derived from the retention setting, so a marker is trusted only while that date has not passed.</p>
+
+<h3>Cutting a preview without breaking the data</h3>
+
+<p>A preview that ends in the middle of a record is another way to hand the model broken data. For JSON results the preview is cut at the last complete element of the shallowest open array that holds a comma, which is normally the list of rows. The open brackets are then closed, so the result parses and consists of whole records.</p>
+
+<pre><code>TOKEN = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"|"|[\[\]{},]')
+
+def cut_at_record_boundary(head: str):
+    stack = []                       # [closer, position of the last comma at this level]
+    for m in TOKEN.finditer(head):
+        tok = m.group()
+        if tok == '"':               # unterminated string: stop here
+            break
+        if tok in "{[":
+            stack.append(["}" if tok == "{" else "]", None])
+        elif tok in "}]":
+            if stack:
+                stack.pop()
+        elif tok == "," and stack:
+            stack[-1][1] = m.start()
+    # prefer the shallowest open array holding a comma: the cut falls between rows
+    pick = next((i for i, (c, p) in enumerate(stack) if c == "]" and p is not None), None)
+    if pick is None:
+        pick = next((i for i, (c, p) in enumerate(stack) if p is not None), None)
+    if pick is None:
+        return None
+    return head[: stack[pick][1]] + "".join(c for c, _ in reversed(stack[: pick + 1]))</code></pre>
+
+<h3>Opening the reference</h3>
+
+<p>When the model needs every row, it passes the reference to an analysis tool that runs a script in a sandbox against the stored copy, so it analyses or charts the exact data instead of retyping a preview. The reference carries the session segment, so the lookup goes straight to one object. It is parsed with a strict pattern, resolved under the caller's own prefix only, and the producing tool is re-checked against the caller's current access before the sandbox is allowed to read it. A string supplied by a model is input like any other.</p>
+
+<h2>A Safety Net Before the Model Call</h2>
+
+<p>In mid-October a single status-listing tool returned about 14.7 MB. The request carrying it was rejected as too long: roughly 8 million tokens against a 1-million-token window. Nothing sat between that tool result and the model call. The cap from post <a href="25-agent-context-overflow-in-flight.html">#25</a> runs after the loop, and the delegate agents run without a trimming conversation manager, so there was no bound to hit.</p>
+
+<p>The guard that followed uses the same by-reference idea, as a wrapper around the model-invocation step:</p>
+
+<ul>
+    <li>While the estimated request fits, it does nothing at all and returns the very same context object.</li>
+    <li>When the estimate passes a configurable share of the window (85% by default), it writes the full text of the <strong>largest</strong> tool results to storage, confirms the writes, and hands the model a whole-element prefix plus the stored-result marker.</li>
+    <li>If the model still raises an overflow error, it offloads more and retries the call exactly once.</li>
+</ul>
+
+<p>Three details are worth copying.</p>
+
+<p><strong>The estimate is deliberately pessimistic.</strong> It divides bytes by a bytes-per-token ratio of 1.84, which is what the incident measured for JSON-heavy output (that 14.7 MB came to about 7.97 million tokens). Prose is closer to 4 bytes per token. Using the low JSON ratio over-counts prose, so the guard may act a little early and never late.</p>
+
+<p><strong>The replacement text is stable.</strong> Each offloaded result's replacement is computed once per run and cached, the set of offloaded results only grows, and the replacement is byte-identical on every later model call. That keeps the prefix the provider caches stable, which matters because a guard that rewrites history differently on each call would turn every call into a cache miss. Largest-first, with the tool-use id as tie-break, keeps the choice deterministic.</p>
+
+<p><strong>It works on a copy.</strong> The middleware receives a deep copy of the messages. The live message list, and everything built from it (charts and tables in the UI, the grounding check, knowledge-graph harvesting), still sees the full result.</p>
+
+<h2>The Link Has to Survive the Hand-Off</h2>
+
+<p>A big result rarely reaches the user from the agent that fetched it. In a multi-agent flow a delegate fetches, another agent analyses, and a final agent writes the answer. Each hand-off is a place for the link, the total or the flags to be paraphrased away. Four things keep them intact:</p>
+
+<ol>
+    <li><strong>The delegate is told to copy the fields verbatim, at the top.</strong> The instructions for the data-fetching delegate say to pass the link, total and flags through unchanged before any table or summary. A hand-off that is later shortened for the next stage keeps its beginning, so the top is where the fields have to be.</li>
+    <li><strong>The reference block is separated before any size budget is applied.</strong> The data reference is split off the result body and carried as its own field, so no later budget on the body can touch it.</li>
+    <li><strong>The final writer is told what to do with it.</strong> Its instructions say to render the download link verbatim as a link, to take counts from the total, and never to imply that the inline rows are all the rows.</li>
+    <li><strong>Reference rather than retelling.</strong> When the delegate's own text is shortened for the final writer, the full text is stored, under the same ownership and role checks as the CSV, and a reference to it is attached to the response next to the answer. It reaches the user without passing through the model.</li>
+</ol>
+
+<h2>Sidebar: A List Read That Hid Chats</h2>
+
+<p>The same size problem showed up on the read side. A user reported that chats were "not saved after a certain date". The writes were fine. The sidebar was showing 40% of one heavy user's chats.</p>
+
+<p>The cause was the page size of the list call. A DynamoDB <code>Query</code> or <code>Scan</code> returns at most 1 MB per page, and that limit is measured on the items read <strong>before</strong> <code>ProjectionExpression</code> is applied. Projecting only the sort key does not shrink the page. Chat items can be large, so one page covered only a handful of them, and the code never looked at <code>LastEvaluatedKey</code>. Because the sort key was a random identifier, the hidden chats were scattered alphabetically, which looked like a gap in dates.</p>
+
+<pre><code>items, kwargs = [], {"KeyConditionExpression": "pk = :pk", ...}
+while True:
+    page = table.query(**kwargs)
+    items.extend(page["Items"])
+    if "LastEvaluatedKey" not in page:
+        break
+    kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+# filter hidden and expired chats AFTER every page has been read</code></pre>
+
+<p>Two lessons came out of it. When users say records are missing, compare a paginated count against what the endpoint returns before touching the write path. And filter after you have read every page: a <code>FilterExpression</code> is applied per page after the read, so a short or even empty page does not mean you are done; keep following <code>LastEvaluatedKey</code> either way. Filtering client-side after the last page keeps the loop simple.</p>
+
+<h2>Where the Limits Hide</h2>
+
+<table>
+<tr><th>Place</th><th>The limit</th><th>What by-reference does there</th></tr>
+<tr><td>Model context</td><td>The window, plus re-billing on every call</td><td>Prefix plus marker in context; full copy opened on demand</td></tr>
+<tr><td>Session store</td><td>400 KB per DynamoDB item</td><td>Saved turn holds a preview and a marker, not the result</td></tr>
+<tr><td>Agent-to-agent hand-off</td><td>Whatever the next stage will accept</td><td>Link and total first, reference split off the body</td></tr>
+<tr><td>List reads</td><td>1 MB per Query/Scan page</td><td>Follow <code>LastEvaluatedKey</code>; filter after the last page</td></tr>
+<tr><td>Spreadsheet on the user's desk</td><td>Cells that look like formulas</td><td>Quote-prefix string cells</td></tr>
+</table>
+
+<h2>What I'd Build Next</h2>
+
+<p>Today the model sees a preview and a total. The next step is a short, code-computed profile of the full result stored beside the preview: column names and types, minimum and maximum for numeric columns, distinct counts for categorical ones, and null rates. It would be accumulated in the same pass that writes the CSV, so it costs one extra accumulator per column and no second read. With it the model would know the shape of the part it cannot see, whether the first rows are typical or the tail looks different, without opening the file. It also keeps the rule from post <a href="34-grounded-ai-research-digest.html">#34</a>: code owns every number, and the model writes the words around them.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Ask where the full result lives, not how big the cap is.</strong> Store the full result per user, and give the context a preview and a pointer.</li>
+        <li><strong>Keep the preview contiguous and made of whole records.</strong> Stop at the first row that does not fit, and cut JSON between rows so it still parses.</li>
+        <li><strong>Take the total from the source.</strong> Use <code>COUNT(*) OVER ()</code> or its equivalent, and add flags that say what each number covers.</li>
+        <li><strong>Treat the export as a download.</strong> Identity from the request, key under the owner, strict id validation, role check at download time, formula guard on string cells.</li>
+        <li><strong>Write a marker only for a confirmed copy,</strong> and make it carry an expiry date.</li>
+        <li><strong>Capture the preview at the moment the tool returns,</strong> before anything mutates the message list.</li>
+        <li><strong>Put the link first and split it off the body</strong> so it survives every agent hand-off.</li>
+        <li><strong>Page every list read.</strong> A 1 MB page is measured before projection, so large items turn a missing loop into missing data.</li>
+    </ul>
+</div>
+
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Tool Results</span>
+    <span class="tag">Context Window</span>
+    <span class="tag">Object Storage</span>
+    <span class="tag">DynamoDB</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

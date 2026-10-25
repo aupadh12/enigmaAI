@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Policy Is What the Cluster Stored, Not What You Wrote</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Your Policy Is What the Cluster Stored, Not What You Wrote">
+    <meta property="og:description" content="A Kyverno policy lost its negation anchors to a bare YAML null while every check passed. How to compare the stored object to Git, probe each rule kind, and tell a node replacement from a rollout.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/37-kubernetes-policy-stored-not-written.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/37-kubernetes-policy-stored-not-written.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Your Policy Is What the Cluster Stored, Not What You Wrote">
+    <meta name="twitter:description" content="A Kyverno policy lost its negation anchors to a bare YAML null while every check passed. How to compare the stored object to Git, probe each rule kind, and tell a node replacement from a rollout.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/37-kubernetes-policy-stored-not-written.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/37-kubernetes-policy-stored-not-written.png" alt="Blog cover">
+
+<div class="header-badge">KUBERNETES</div>
+<h1>Your Policy Is What the Cluster Stored, Not What You Wrote</h1>
+<p class="subtitle">A Kyverno policy lost its negation anchors to a bare YAML null while every check passed. How to compare the stored object to Git, probe each rule kind, and tell a node replacement from a rollout.</p>
+
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The first deploy of a new admission policy went out and the GitOps dashboard was green, with one exception. Every other resource was Synced. The policy itself was OutOfSync, and it stayed that way.</p>
+
+<p>The policy was meant to pin the shape of every Job that one service account could create. A server-side dry-run of the manifest had succeeded. The policy reported Ready. A probe Job running as root was denied, exactly as intended. By every check I had run, the policy was enforcing.</p>
+
+<p>It was not. The cluster had stored a weaker policy than the one in Git. Its negation anchors, the rules that say a field <em>must not exist</em>, were gone, and the only visible symptom was that single OutOfSync badge.</p>
+
+<p>This post is about that gap: the difference between the manifest you wrote and the object the API server actually stored. It also covers a second, unrelated incident from the same day, where "every pod restarted" turned out to describe something other than the deploy. Both come down to one habit: <strong>verify the stored or observed object, never the manifest you believe produced it.</strong></p>
+
+<div class="highlight-box">
+    <p><strong>The short version.</strong> A YAML <code>null</code> inside a custom resource can be pruned by the API server when the object is stored. In a Kyverno policy that silently deletes every negation anchor. The fix is a quoted string. The lesson is bigger than the fix: compare what the cluster stored to what Git says, and probe each kind of rule against the live admission path.</p>
+</div>
+
+<h2>What the Policy Was For</h2>
+
+<p>An API service needed permission to create Kubernetes Jobs so that long-running work could run outside the request path. Kubernetes RBAC can say <em>who</em> may create Jobs in a namespace. It cannot say anything about what is inside the pod spec of those Jobs. An account that can create Jobs can, as far as RBAC is concerned, create a Job that mounts a host path or runs as root.</p>
+
+<p>The usual answer is admission control. A namespaced Kyverno <code>Policy</code> matches Job creation by that one service account and validates the pod template against a fixed pattern: values that must match, and fields that must be absent.</p>
+
+<p>Two forms in Kyverno's pattern language matter here. A plain key must exist and match. A negation anchor, <code>X(key)</code>, says the key must not exist at all.</p>
+
+<p>The negation anchor is the one that bit. This is what I wrote, in generic form:</p>
+
+<pre><code>pattern:
+  spec:
+    template:
+      spec:
+        securityContext:
+          runAsNonRoot: true
+        X(volumes):</code></pre>
+
+<p>An empty value in YAML is a <code>null</code>. It reads naturally: "the key <code>volumes</code> has no value". It is also wrong.</p>
+
+<h2>What the API Server Did With My Null</h2>
+
+<p>Custom resources are stored under a schema, and the Kubernetes documentation on CustomResourceDefinitions is explicit about nulls: for fields that do not declare themselves nullable, a <code>null</code> value is pruned before defaulting happens. As I read it, that matches what I saw. Kyverno's own documentation writes the negation anchor with the <em>string</em> <code>"null"</code>, and that is the form that survives storage. A bare YAML null does not.</p>
+
+<p>The policy I applied had several negation anchors. The policy the cluster stored had none of them. Every other rule in the pattern was intact. The policy was still valid. It was simply weaker.</p>
+
+<p>That is the part worth sitting with. <strong>Validation checks that an object is well-formed, not that it still means what you meant.</strong> A policy with fewer rules is just as well-formed as one with all of them.</p>
+
+<h2>Why Every Check Still Passed</h2>
+
+<p>I had four independent signals that the policy worked, and none of them could see the problem.</p>
+
+<table>
+    <thead>
+        <tr><th>What I checked</th><th>Why it passed anyway</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Server-side dry-run apply of the policy</td>
+            <td>The server accepted the pruned object. A policy with fewer rules is valid.</td>
+        </tr>
+        <tr>
+            <td>Controller reports the policy ready</td>
+            <td>Ready describes the policy resource, not whether it still contains every rule you wrote.</td>
+        </tr>
+        <tr>
+            <td>A probe Job running as root was denied</td>
+            <td>The root check is a plain key with a value, not a negation anchor. It survived pruning, so the probe proved nothing about the rules that were lost.</td>
+        </tr>
+        <tr>
+            <td>A unit test that built the expected Job and matched it against the policy file</td>
+            <td>It parsed the same Git file that held the nulls. A test that reads the manifest agrees with the manifest.</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The last row deserves a second look. The test re-implemented the anchor semantics and read the pattern <em>from the policy file</em>, which is a good way to keep the Job builder and the policy in step. But a negation check only asks whether the key is present in the Job, so it behaved identically whether the file said <code>null</code> or <code>"null"</code>. It was a test that could not fail for this class of bug, a close cousin of the patterns in <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a>.</p>
+
+<p>The only signal that worked was the one nobody wrote a check for: Argo CD compared the manifest in Git with the live object and reported a difference. If your GitOps tool tells you one resource differs while everything around it is green, believe it before you believe your own probes. (The layout of those Applications is covered in <a href="20-argocd-multisource-helm-gitops.html">the Argo CD post</a>; here the point is only that the comparison caught what the tests could not.)</p>
+
+<div class="warn-box">
+    <p><strong>A pattern worth recognising.</strong> The same family of problem showed up on a different controller in <a href="15-gpu-pathology-ai-eks.html">the GPU-on-EKS post</a>: a field the installed version of an operator's schema did not know was pruned at admission, with no error, and the resource looked healthy while a setting was simply gone. Schema pruning is quiet by design. Plan for it.</p>
+</div>
+
+<h2>The Fix Is One Pair of Quotes</h2>
+
+<pre><code># Before: pruned when the policy object is stored
+X(volumes):
+
+# After: a string, which survives
+X(volumes): "null"</code></pre>
+
+<p>I changed every negation anchor to the quoted form. I also wrote out, explicitly, the default fields that Kyverno fills in on admission (the admission and background switches, the failure action and similar), so that the Git copy and the stored copy have the same shape and a comparison between them is not full of noise. Then it synced.</p>
+
+<p>The sync was the easy part. The work was proving that it had worked.</p>
+
+<h2>Compare the Stored Object, Not the Manifest</h2>
+
+<p>A server-side dry-run with JSON output returns the object as the server would persist it, after pruning and defaulting. That is the object to compare against Git:</p>
+
+<pre><code># What the server would store
+kubectl apply --dry-run=server -f policy.yaml -o json \
+  | jq -S '.spec' &gt; stored.json
+
+# What I wrote
+yq -o=json '.spec' policy.yaml | jq -S . &gt; written.json
+
+diff written.json stored.json</code></pre>
+
+<p>On the broken version, that diff would list every negation anchor as present on the left and absent on the right. On the fixed version, with the defaults written out, it should come back empty, and any lines left over are defaults you have not written out yet. A clean diff is the check I had been missing: it compares what I meant with what the cluster holds, not what I meant with what I meant.</p>
+
+<p>The same idea belongs in the test suite, where it is cheap. I added a guard that loads the policy and fails if any value in the spec is a null, and also asserts that the number of negation anchors has not dropped below the number I wrote:</p>
+
+<pre><code>def walk(node, path=""):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield from walk(v, f"{path}/{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from walk(v, f"{path}[{i}]")
+    else:
+        yield path, node
+
+def test_policy_has_no_prunable_nulls():
+    spec = yaml.safe_load(POLICY.read_text())["spec"]
+    assert [p for p, v in walk(spec) if v is None] == []
+    anchors = [p for p, _ in walk(spec) if "/X(" in p]
+    assert len(anchors) &gt;= EXPECTED_ANCHORS</code></pre>
+
+<p>The second assertion is the one that keeps the first honest. If someone deletes a negation anchor outright, "no nulls" still passes. A floor on the anchor count turns a silent deletion into a red test.</p>
+
+<div class="green-box">
+    <p><strong>Two comparisons, two jobs.</strong> The static guard catches the known failure at review time, for free. The stored-versus-Git diff catches the failure you have not thought of yet, because it does not depend on knowing what went wrong. Keep both.</p>
+</div>
+
+<h2>Probe One Rule Per Anchor Type</h2>
+
+<p>Comparing specs shows that the rules are stored. It does not show that they enforce. For that, send real requests through the real admission path, and make sure the probes cover each <em>kind</em> of rule, not just the one that is easiest to trip.</p>
+
+<table>
+    <thead>
+        <tr><th>Rule kind</th><th>Example in the pattern</th><th>Probe that must be denied</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Required key with a value</td>
+            <td><code>runAsNonRoot: true</code></td>
+            <td>The valid Job with that value flipped</td>
+        </tr>
+        <tr>
+            <td>Negation anchor</td>
+            <td><code>X(volumes): "null"</code></td>
+            <td>The valid Job plus a hostPath volume</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The mechanics matter as much as the list. The probe is a copy of a Job the real code builds, with exactly one defect added. That way the only reason for a denial is the defect, and the baseline Job, unmodified, must be admitted. If the baseline is denied, every real Job is denied too, and you want to find that out before users do.</p>
+
+<pre><code># 1. The unmodified, correctly shaped Job: must be ADMITTED
+kubectl create --dry-run=server \
+  --as=system:serviceaccount:team-a:runner \
+  -n team-a -f good-job.json
+
+# 2. Same Job, one defect (a host-path volume): must be DENIED,
+#    and the message must name the rule
+kubectl create --dry-run=server \
+  --as=system:serviceaccount:team-a:runner \
+  -n team-a -f bad-job-hostpath.json</code></pre>
+
+<p>Two details in that snippet are load-bearing. First, the <code>--as</code> flag. The policy matches on the service account that creates the Job, so a probe sent as an administrator never matches the policy and sails through, which looks exactly like a policy that does nothing. Impersonate the account the policy is written for. Second, "must name the rule". A denial is only evidence for your policy if the message says your policy denied it.</p>
+
+<p>After the fix, the real probes ran against the live cluster. The correctly shaped Job was admitted, and a probe with one forbidden field added (a hostPath volume) was denied by the policy. That is exactly the case the broken version would have let straight through: the plain-key rules survived pruning, so a root-user probe could never have told the two versions apart.</p>
+
+<h2>The Probe That Somebody Else Denied</h2>
+
+<p>The tempting probe is the laziest one: a Job running a tiny public image. It is denied, which feels like a pass.</p>
+
+<p>But the denial comes from a different admission controller. A separate image-source admission policy rejects images that do not come from the approved internal repository, and it rejects such a probe on that basis. The denial message comes from that policy, not from the policy under test, so the probe says nothing about whether the policy would have caught the Job.</p>
+
+<p>The fix is a rule for designing probes in any cluster with more than one admission layer:</p>
+
+<ul>
+    <li><strong>Make the probe pass every other gate.</strong> Use an image that the image-source policy allows, so the only thing wrong with the probe is the one thing you are testing.</li>
+    <li><strong>Read who denied it.</strong> The message names the policy and rule. If it names a different controller, you have learned about that controller, not about yours.</li>
+    <li><strong>Test the baseline first.</strong> A correct Job being admitted proves the probe path works end to end.</li>
+</ul>
+
+<p>This is now a step in the release checklist (the <a href="9-releasing-ai-systems.html">release post</a> covers how that list is kept honest), including an explicit instruction to probe a negation anchor, with a note on why.</p>
+
+<h2>"Every Pod Restarted" Was Not a Rollout</h2>
+
+<p>The same day produced a second false alarm, and the cure was the same habit.</p>
+
+<p>After the deploy, every pod in the namespace had a fresh start time. That included an authentication proxy and a side service, which a normal image bump does not touch. "Everything restarted" is the kind of observation that makes you suspect the deploy, a bad probe, or a crash loop.</p>
+
+<p>Three things did not fit that story:</p>
+
+<ul>
+    <li>Every <code>restartCount</code> was 0. Containers had not crashed or been restarted in place.</li>
+    <li>The ReplicaSet hashes were the same ones the deploy had produced, so no new rollout had happened since.</li>
+    <li>The pods were new objects rather than restarted containers, which is why their start times were fresh.</li>
+</ul>
+
+<p>The explanation was in the cluster events. Karpenter had replaced four drifted nodes inside roughly four minutes. When Karpenter disrupts a node for drift, it provisions a replacement, then drains the old node, evicting the pods so their ReplicaSets recreate them elsewhere. Evicted and recreated pods look like a rolling restart if you only look at start times. A PodDisruptionBudget on each service kept at least one replica serving during the replacement.</p>
+
+<table>
+    <thead>
+        <tr><th>Question</th><th>Real rollout</th><th>Node replacement by Karpenter</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Pod start time</td>
+            <td>New</td>
+            <td>New</td>
+        </tr>
+        <tr>
+            <td><code>restartCount</code></td>
+            <td>0 on new pods</td>
+            <td>0 on new pods</td>
+        </tr>
+        <tr>
+            <td>ReplicaSet hash and creation time</td>
+            <td>New ReplicaSet, created when the deploy ran</td>
+            <td>No new ReplicaSet; pods are newer than the one that owns them</td>
+        </tr>
+        <tr>
+            <td>Touches workloads the release did not change</td>
+            <td>No</td>
+            <td>Yes, anything on the replaced nodes</td>
+        </tr>
+        <tr>
+            <td>Cluster events</td>
+            <td>Scaling events on the Deployment</td>
+            <td>Disruption events naming drifted nodes</td>
+        </tr>
+    </tbody>
+</table>
+
+<p>The triage is three reads: the ReplicaSet creation time and hash against the deploy, the restart counts, and the cluster events filtered for disruption. A start time alone says only that a pod is new. It does not say why.</p>
+
+<p>The wrong conclusion here would have been expensive in a quiet way. Blaming the release for restarts it did not cause sends people hunting through application logs for a crash that never happened. And the right conclusion changes how you read a deploy window: a request in flight on a drained pod is cut when the termination grace period runs out, so a node replacement and a rollout can look alike to a user, even though only one of them came from your release.</p>
+
+<h2>The Habit Behind Both Stories</h2>
+
+<p>These look like different incidents. One is a manifest that lost its meaning in storage. The other is a restart that did not come from the deploy. In both, the belief ("I applied a policy with extra rules", "the release restarted my pods") was formed from the <em>input</em>, and the evidence that contradicted it was sitting in the <em>output</em>.</p>
+
+<table>
+    <thead>
+        <tr><th>You believe</th><th>Look at instead</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>"The policy I wrote is the policy that is enforced"</td>
+            <td>The stored spec, from a server-side dry-run with JSON output, diffed against Git</td>
+        </tr>
+        <tr>
+            <td>"The policy denies bad Jobs"</td>
+            <td>A live request per rule kind, as the right identity, with the denial message naming your rule</td>
+        </tr>
+        <tr>
+            <td>"The dry-run succeeded, so it is applied correctly"</td>
+            <td>The returned object, not the exit code</td>
+        </tr>
+        <tr>
+            <td>"My test reads the policy and passes"</td>
+            <td>Whether the test could fail if the stored policy differed from the file</td>
+        </tr>
+        <tr>
+            <td>"Everything restarted, so the deploy did it"</td>
+            <td>ReplicaSet hash, restart counts and disruption events</td>
+        </tr>
+        <tr>
+            <td>"One resource is OutOfSync, probably noise"</td>
+            <td>A diff of that resource, before anything else</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>What I'd Build Next</h2>
+
+<p>A natural test corpus for a policy like this is a list of single-defect mutations of the known-good Job: add a hostPath volume, flip a security flag, and so on. The next step is to make that same list do double duty: run it in unit tests, and run it against the cluster after every sync of the policy.</p>
+
+<p>The design is a post-sync hook that takes each mutation, sends it as a server-side dry-run as the target service account, and passes only if the denial names the expected rule. A final case sends the unmodified Job and expects admission. Because the list is shared, a new rule gets one new mutation and is checked both in review and against the real admission path. And because the hook asserts on the rule name in the denial message, it would also catch a second admission controller quietly taking over a denial that your policy should be producing.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>A policy is what the cluster stored.</strong> A bare YAML <code>null</code> in a custom resource can be pruned on storage. For Kyverno negation anchors, write <code>X(key): "null"</code> as a string.</li>
+        <li><strong>Valid is not intact.</strong> A server-side dry-run and a "ready" status confirm the object is well-formed, not that every rule you wrote is still there.</li>
+        <li><strong>Diff the stored spec against Git.</strong> Use a server-side dry-run with JSON output, and write the controller's default fields into the manifest so the diff is quiet when things are right.</li>
+        <li><strong>Add a static guard with a floor.</strong> Fail on any null in the spec, and fail if the count of negation anchors drops.</li>
+        <li><strong>Probe each kind of rule, as the right identity.</strong> One defect per probe, a baseline that must be admitted, and a denial message that names your rule.</li>
+        <li><strong>Make probes pass every other gate.</strong> A denial from a different admission controller says nothing about yours.</li>
+        <li><strong>Believe the one OutOfSync resource.</strong> A GitOps diff caught what the tests and the probes could not.</li>
+        <li><strong>"Every pod restarted" is not "a rollout happened".</strong> Check the ReplicaSet hash, the restart counts and the disruption events before blaming the release.</li>
+    </ul>
+</div>
+
+
+<div class="tag-list">
+    <span class="tag">Kubernetes</span>
+    <span class="tag">Kyverno</span>
+    <span class="tag">Admission Control</span>
+    <span class="tag">Argo CD</span>
+    <span class="tag">Karpenter</span>
+    <span class="tag">GitOps</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

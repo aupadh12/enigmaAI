@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Same Model, Different Answers: Moving a Research Pipeline into a Production Service</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Same Model, Different Answers: Moving a Research Pipeline into a Production Service">
+    <meta property="og:description" content="The weights matched and the tiling matched, yet the contours did not. Dependency pins as part of the model, a framework default that changed under a checkpoint, reading a multi-gigabyte checkpoint without downloading it, tokens that expire mid-job, and output formats that only the consumer can judge.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/36-research-model-to-production-drift.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/36-research-model-to-production-drift.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Same Model, Different Answers: Moving a Research Pipeline into a Production Service">
+    <meta name="twitter:description" content="The weights matched and the tiling matched, yet the contours did not. Dependency pins as part of the model, a framework default that changed under a checkpoint, reading a multi-gigabyte checkpoint without downloading it, tokens that expire mid-job, and output formats that only the consumer can judge.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/36-research-model-to-production-drift.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+
+<img class="cover-image" src="covers/36-research-model-to-production-drift.png" alt="Blog cover">
+
+<div class="header-badge">ML Engineering</div>
+<h1>Same Model, Different Answers: Moving a Research Pipeline into a Production Service</h1>
+<p class="subtitle">The weights matched and the tiling matched, yet the contours did not. Dependency pins as part of the model, a framework default that changed under a checkpoint, reading a multi-gigabyte checkpoint without downloading it, tokens that expire mid-job, and output formats that only the consumer can judge.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+
+
+<p>I put the production segmentation worker next to the reference workflow pipeline that the research team uses for the same model. Both run the same tissue-segmentation weights, with the same tiling and the same smoothing of the stitched predictions. The question was simple: should they agree? One comment in the reference pipeline's container definition recorded that they might not. On their two platforms the class heatmap and its argmax were identical. After that point, a different, unpinned OpenCV had reshaped or dropped about 13% of the contours.</p>
+
+<p>That comment reorganised how I think about moving research code into a service. The model was not the thing that differed. The weights were byte-identical and the per-pixel output matched. The difference lived in the unglamorous code between "class mask" and "polygons a viewer can draw", and it was controlled by a line in a dependency list. This post is about that class of drift, and about the other places where the same model can give different answers once it is wrapped in a queue, a container and a viewer integration.</p>
+
+<div class="highlight-box">
+    <p><strong>The 13% is the reference pipeline's own finding.</strong> I did not re-measure it on the service. I took their measurement as the reason to match their pin exactly, and the rest of this post follows from treating the pin as part of the model.</p>
+</div>
+
+<h2>Same Weights, Same Tiling, Different Contours</h2>
+
+<p>Segmentation models output a per-pixel score for each class. Everything a downstream user sees is derived from that: the class mask is vectorised into contours, small ones are filtered by area, and the survivors are simplified into annotation polygons. Contour extraction and area calculation are library code, and library code has versions. A minor-version change in a computer-vision library is allowed to change how a contour is traced, how a degenerate one is handled, or how an area is computed near a threshold. None of that is a bug in the library. All of it changes your output.</p>
+
+<p>The trap is where you look. If you compare two implementations by their model outputs, they agree, and you conclude that the port is faithful. The divergence only appears when you compare the artefact the user receives. The reference team found it because they compared contours against the platform they had validated on, not the raw prediction.</p>
+
+<p>Before this comparison the production worker had an older minor version of the library than the reference image. It now pins the reference pipeline's exact version, along with the imaging library, and its image build fails if they are not what the pin says. Here is the shape of the audit, in the order I would run it again.</p>
+
+<table>
+    <thead>
+        <tr><th>Layer</th><th>What can differ between research and service</th><th>How it shows up</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Post-processing libraries</td>
+            <td>Computer-vision and imaging library minor versions</td>
+            <td>Same prediction, different contours. No error, no warning</td>
+        </tr>
+        <tr>
+            <td>Numerical stack</td>
+            <td>Array library major version pulled in by a transitive install</td>
+            <td>Import errors, or subtly different dtypes and promotion rules</td>
+        </tr>
+        <tr>
+            <td>Base image</td>
+            <td>A mutable tag whose content changed after the reference was built</td>
+            <td>"Same image name" with different contents</td>
+        </tr>
+        <tr>
+            <td>Framework defaults</td>
+            <td>Model-loading behaviour changed in a framework release</td>
+            <td>The checkpoint loads in research and is refused in the service</td>
+        </tr>
+        <tr>
+            <td>Output encodings</td>
+            <td>Byte-level formats read by third-party consumers</td>
+            <td>The consumer rejects the file, or accepts it and draws nothing</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Pin Last, Then Assert</h2>
+
+<p>Pinning a version in a requirements file is not the same as getting that version in the image. The base image brings its own packages. A later install of something unrelated can pull in a different release of a library you thought you had fixed. The reference pipeline's container definition handles this in a way worth copying: it installs the pins early, installs everything else, then re-installs the critical pins as the last step and asserts the result in the same layer.</p>
+
+<pre><code># Early: fix the numerical stack before anything else can move it
+RUN pip install --no-cache-dir "numpy==X.Y.Z"
+
+# ... other installs, private packages, source checkouts ...
+
+# Reinstall in case anything above upgraded it
+RUN pip install --no-cache-dir "numpy==X.Y.Z"
+
+# Last: the libraries that shape the output. Nothing after this may override them.
+RUN pip install --no-cache-dir \
+      "opencv-python-headless==A.B.C" \
+      "pillow==P.Q.R" \
+ &amp;&amp; python -c "import cv2; assert cv2.__version__ == 'A.B.C'" \
+ &amp;&amp; python -c "import PIL; assert PIL.__version__ == 'P.Q.R'"</code></pre>
+
+<p>The assertion is the important part. It turns "I believe the image has the right version" into a build failure when it does not. The same logic applies one level down: the service's base image is pinned by content digest rather than by tag, because the tag the reference pipeline had used had since been re-pushed with newer content. A tag is a mutable pointer, and a model whose behaviour depends on its environment cannot be defined in terms of one.</p>
+
+<p>The wider point connects to <a href="26-silent-wrong-data-agent-pipelines.html">the earlier post on silent wrong data</a>: most of this raises no exception. The only signals are numbers that are slightly off, and you only see them if you chose to compare. Dependency pinning belongs in the same category as the checkpoint itself: it is part of the model's definition.</p>
+
+<h2>A Framework Default Changed Under the Checkpoint</h2>
+
+<p>The base image used for the newer checkpoint ships a deep-learning framework release with a stricter default for loading serialised checkpoints. Recent releases refuse, by default, to unpickle arbitrary objects, which is a sensible security default for untrusted files. This checkpoint is not just a dictionary of tensors. It is a pickled dictionary that also carries training metadata, so the default load is refused.</p>
+
+<p>There are two honest ways to respond. One is to opt out of the safe default and accept the pickle, which is a deliberate decision that the file comes from a trusted catalogue. The other is to restructure the artefact. The service takes the first route, writes the decision down in a comment at the call site, and puts guards around it rather than leaving the load bare:</p>
+
+<pre><code>weights = torch.load(path, map_location="cpu", weights_only=False)  # trusted catalogue only
+
+if "model_config" not in weights:
+    raise KeyError("not a segmentation checkpoint of the expected family")
+
+# What the checkpoint says about itself must agree with the runtime config
+mismatched = {k: (weights.get(k), v) for k, v in expected.items()
+              if k in weights and weights[k] != v}
+if mismatched:
+    raise ValueError(f"checkpoint disagrees with config (ckpt, config): {mismatched}")</code></pre>
+
+<p>The second guard is the one that earns its keep. A checkpoint carries its own account of how it was built. If that account disagrees with the configuration the service is about to run it under, the right behaviour is a loud failure at load time, not a quiet run that produces plausible, wrong output on the first slide.</p>
+
+<h2>Looking Inside a Multi-Gigabyte Checkpoint Without Downloading It</h2>
+
+<p>Sometimes you need to know what a checkpoint contains before you decide how to load it: the metadata it declares, the names and shapes of its tensors. The checkpoint is shipped inside a zip archive in object storage, and unpacked it is more than 4 GB. Downloading it to a workstation to read a few kilobytes of structure is the wrong trade.</p>
+
+<p>Two properties make a cheaper route possible. A zip archive stores its table of contents at the end, so a reader that can seek can list members and fetch one without touching the rest. And a serialised tensor is a small recipe (storage reference, offset, shape, strides) followed by raw bytes elsewhere in the file. If you read only the recipes, you learn every shape without reading one weight.</p>
+
+<p>Object storage supports ranged GET requests, so a small file-like wrapper whose <code>read</code> issues a range request gives a standard zip reader the seekable file it expects. For the checkpoint file inside that archive, which is itself a zip, stream-decompress just the head until the pickle entry appears. Then unpickle with a custom class resolver that never imports the real classes:</p>
+
+<pre><code>class RangeFile(io.RawIOBase):
+    def readinto(self, buf):
+        end = min(self.pos + len(buf), self.size) - 1
+        data = s3.get_object(Bucket=BUCKET, Key=KEY,
+                             Range=f"bytes={self.pos}-{end}")["Body"].read()
+        buf[:len(data)] = data
+        self.pos += len(data)
+        return len(data)
+
+class ShapeOnly(pickle.Unpickler):    # a sketch: RangeFile also needs seekable()/seek()/tell()
+    def persistent_load(self, pid):
+        return InertStub(pid)     # tensor storages are referenced by persistent IDs
+
+    def find_class(self, module, name):
+        if name in ("_rebuild_tensor_v2", "_rebuild_tensor"):
+            return lambda storage, offset, size, *a, **k: TensorStub(size)
+        if (module, name) == ("collections", "OrderedDict"):
+            return collections.OrderedDict
+        return InertStub          # everything else: a stub that runs no code</code></pre>
+
+<p>Two things make this reasonable to run on a file you have not inspected. Every class the pickle asks for resolves to an inert stub or a plain container, so no object constructor from the file runs; keep that allowlist tiny, because allowing arbitrary built-ins would hand the pickle <code>eval</code>. And tensor rebuilds are replaced by a function that records only the size, so no weight is ever materialised. For this checkpoint the whole inspection transferred about 25 MB, against more than 4 GB for the checkpoint. It is a good tool to keep around for any large artefact you need to reason about before loading.</p>
+
+<h2>A Token That Expires Before the Job Finishes</h2>
+
+<p>The service is a small handler that listens for analysis requests from a commercial digital-pathology platform's viewer, queues them for GPU workers, and reports results back when the workers finish. The viewer issues each request with a short-lived auth token, and a whole-slide inference job can outlive it.</p>
+
+<p>The first design fetched what it needed from the viewer at the end, when it was time to report. That works for short jobs and fails for long ones, with an authorisation error at the very last step, after the expensive work is done and its results are safely stored. One thing the completion step needed was the slide's pixel extent, which the viewer would only give to a holder of a valid token.</p>
+
+<p>The fix is a rule I now apply generally: <strong>fetch what you will need later while the credential is fresh, and store it.</strong> After enqueuing a job, the handler immediately fetches the slide's dimensions with the fresh token, with a short timeout, and saves them on the job's record. The completion step then resolves the value in order of preference: bounds supplied explicitly on the request, then the cached value, then a value the worker wrote from the slide file itself, and only as a last resort a live call to the viewer, which for a long job would fail with a clear error rather than a confusing one. The eager fetch is non-fatal, because the later steps have fallbacks.</p>
+
+<p>The second half of the fix is about what to do when delivery fails after the work succeeded. The job record already says the work is done. If reporting then throws, the handler must not mark the job failed, because that would create a record that disagrees with reality and that no recovery path would ever look at. Instead it returns without marking the job as notified, and a recovery scan on the next reconnect picks it up again. Because the dimensions are already cached, the retry succeeds.</p>
+
+<h2>Output Formats: Test Against the Consumer</h2>
+
+<p>The last family of differences is the one that looks most like plain bugs. A research pipeline writes files for people. A service writes files for another program, and that program has opinions the documentation did not mention. Three examples, kept at the level of principle.</p>
+
+<p><strong>Encoding must match exactly.</strong> The viewer imports a configuration file through a .NET XML importer. It rejected plain ASCII and it rejected a byte-order mark; only the exact byte encoding it expected worked. "It is valid XML" is not the same as "the importer will read it".</p>
+
+<p><strong>The spec said polygon; the consumer wanted something else.</strong> Annotations are geometry sent in a binary well-known format. A polygon encoding carries a ring count before the point count. The receiving parser expected the simpler line encoding and read the ring count as the number of points, then consumed the first coordinate bytes as garbage. The result was an error in the viewer and an invisible overlay. Encoding each ring as a closed line string, which the receiving parser reads correctly, fixed it. The lesson is not about this particular format. It is that two parsers can both claim to accept "a polygon" and disagree on the bytes.</p>
+
+<p><strong>"Success" is not a rendering test.</strong> A green status from an integration endpoint tells you the payload arrived; it says nothing about whether the other side understood it. Here the only real signal was whether the overlay drew in the viewer. Any output format with a downstream consumer needs a test that opens the result in that consumer, or in a faithful stand-in for it. Reading the specification is not a substitute.</p>
+
+<p>For the file formats used to draw raster overlays, and the other traps of running this class of workload on GPU nodes, see <a href="15-gpu-pathology-ai-eks.html">the earlier post on digital pathology AI on Kubernetes</a>. I will not repeat them here.</p>
+
+<h2>What I'd Build Next</h2>
+
+<p>Every one of these drifts was found by someone choosing to compare two things. I would like that comparison to be a property of the output rather than an act of diligence. The idea is a provenance stamp: every result the service writes carries a small fingerprint of the environment that produced it, including the image digest, the versions of the handful of libraries that shape the output, and a content hash of the checkpoint. When two runs of the same slide disagree, the first question, whether the environments differed, becomes a lookup instead of an investigation.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Dependencies are part of the model.</strong> The same weights and the same tiling can still produce different contours, because the step from class mask to polygons goes through library code that changes between minor versions.</li>
+        <li><strong>Compare the artefact the user receives.</strong> Identical per-pixel predictions told the reference team nothing about whether the delivered polygons matched.</li>
+        <li><strong>Pin last, then assert.</strong> Re-install the output-shaping libraries as the final step of the image build and fail the build if the versions are wrong. Pin base images by digest, not by tag.</li>
+        <li><strong>Read framework default changes as a design prompt.</strong> If a safe default now refuses your checkpoint, make the exception deliberate, document it at the call site, and validate what the checkpoint says about itself against the runtime configuration.</li>
+        <li><strong>Inspect big artefacts with ranged reads.</strong> A seekable wrapper over range requests plus an unpickler that stubs every class lets you read metadata and tensor shapes from a few tens of megabytes instead of several gigabytes.</li>
+        <li><strong>Fetch eagerly when a credential will expire.</strong> Take what the completion step needs while the token is fresh, store it, and keep a fallback chain. If delivery fails after the work succeeded, leave the job re-drivable rather than marking it failed.</li>
+        <li><strong>Test output formats against the consumer.</strong> Encodings, geometry layouts and "success" statuses are only as good as the parser on the other side.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">ML Engineering</span>
+    <span class="tag">Reproducibility</span>
+    <span class="tag">Dependency Pinning</span>
+    <span class="tag">Docker</span>
+    <span class="tag">PyTorch</span>
+    <span class="tag">OpenCV</span>
+    <span class="tag">Nextflow</span>
+    <span class="tag">Digital Pathology</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Human Approval for Agent Actions: Interrupts, Not Turn Re-Runs</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Human Approval for Agent Actions: Interrupts, Not Turn Re-Runs">
+    <meta property="og:description" content="How an agent asks permission in the middle of a tool call, survives the user walking away, and resumes exactly once, instead of ending the turn and running it again after the click.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/42-human-approval-agent-interrupts.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/42-human-approval-agent-interrupts.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Human Approval for Agent Actions: Interrupts, Not Turn Re-Runs">
+    <meta name="twitter:description" content="How an agent asks permission in the middle of a tool call, survives the user walking away, and resumes exactly once, instead of ending the turn and running it again after the click.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/42-human-approval-agent-interrupts.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/42-human-approval-agent-interrupts.png" alt="Blog cover">
+
+<div class="header-badge">AGENTIC AI</div>
+<h1>Human Approval for Agent Actions: Interrupts, Not Turn Re-Runs</h1>
+<p class="subtitle">How an agent asks permission in the middle of a tool call, survives the user walking away, and resumes exactly once, instead of ending the turn and running it again after the click.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>The approval design in my plan came down to one sentence. When a script in the agent's sandbox needs to download something and the sandbox refuses it, end the turn with a message that lists the blocked sites; if the user approves, run the whole turn again with those sites allowed. It needed no pause inside the agent loop, and on paper it worked.</p>
+
+<p>While evaluating an agent-to-UI protocol, I read its section on interrupts: a run pauses and hands the client an interrupt with an id, a schema for the answer and an expiry; the client resumes the same run with a response. Put next to my plan, the difference was obvious. My design did not pause anything. It threw away a half-finished turn, including the tool results, the model's reasoning and whatever the earlier steps had cost, and then paid for all of it a second time. I rewrote the plan around the interrupt.</p>
+
+<p>This post is about what an interrupt-based approval looks like once it is built: where the SDK does the work, where it hands you sharp edges, and what the storage layer has to guarantee. The title says "interrupts, not turn re-runs", but the sharpest lesson hides in a related fact: <strong>even with interrupts, something still re-runs. It is the body of the tool that asked.</strong></p>
+
+<div class="highlight-box">
+    <p><strong>The short version.</strong> The agent calls an approval tool. The tool raises an SDK interrupt, so the loop pauses and a structured card reaches the user. The approval lives in a durable record, not in process memory. On resume the tool runs again from the top and must recognise that it is being resumed. Four rules keep that safe: the approval tool runs alone in its batch, unattended runs get a deterministic deny, every record has a logical expiry and a physical one, and a resume is a conditional claim with a lease.</p>
+</div>
+
+<h2>A Download Nobody Could Predict</h2>
+
+<p>The agent can write and run analysis scripts in a sandbox. Most need nothing from the outside world; some need a reference file from a public site, or a package that is not pre-installed. The host is known only when the script runs: the model picks a URL while writing it, or the script follows a redirect to a mirror nobody listed. The sandbox refuses downloads from hosts that are not approved, so the run fails and somebody has to decide whether that host is acceptable.</p>
+
+<p>That kills the usual way of handling agent permissions. A tool allowlist answers "may this agent call this tool?" by name, before the call. Here the tool is the same every time (run a script) and the thing needing a decision is a value inside the run: which host, for what reason, approved by whom, for how long. A static list cannot decide that.</p>
+
+<p>So the shape of the feature is a conversation with the user in the middle of a turn:</p>
+
+<ol>
+    <li>The script runs and the sandbox refuses a download. The refused hosts are recorded for this turn.</li>
+    <li>The agent calls the approval tool, naming what it needs and why in one sentence.</li>
+    <li>The user sees a card: the sites, the URLs, any packages to install, the reason. They approve or deny.</li>
+    <li>The agent continues, either with the data or without it.</li>
+</ol>
+
+<p>Step 3 is where the design question lives. What is the agent doing while the user decides? <a href="25-agent-context-overflow-in-flight.html">Post #25</a> is about how much state a single in-flight turn accumulates. That accumulated state is exactly what a re-run throws away and then pays to rebuild, which is the argument against my first design.</p>
+
+<h2>The Design I Rejected: End the Turn, Run It Again</h2>
+
+<p>The plan I rejected looked like this:</p>
+
+<pre><code>turn 1:  user asks -> agent runs script -> sandbox refuses host
+         agent ends the turn: "I need access to host X. Approve?"
+(user approves in the UI)
+turn 2:  the same question is sent again, with host X now approved
+         agent runs the whole thing from the start</code></pre>
+
+<p>On paper it has real virtues. There is no pause to implement and nothing to snapshot. The approval is just data that the second turn happens to read. Why not?</p>
+
+<ul>
+    <li><strong>It pays twice.</strong> Every tool call, model call and token before the blocked download is spent again.</li>
+    <li><strong>The second run is not the first run.</strong> The model is not deterministic. A re-run can pick a different URL or plan, so the user approved one thing and the agent does another.</li>
+    <li><strong>It splits one answer across two turns,</strong> which then have to be stitched into a chat history that reads sensibly on reload.</li>
+    <li><strong>Approval becomes a text exchange.</strong> Nothing structured to validate, expire or revoke.</li>
+</ul>
+
+<p>An interrupt fixes the first three by keeping one run alive across the pause, and the fourth by making the question an object with an id and a response schema.</p>
+
+<h2>What an Interrupt Actually Does</h2>
+
+<p>In the SDK a tool can call an interrupt function. The call does not return a value the first time. It raises, the agent loop stops cleanly, and the caller receives the interrupt. Later the caller resumes the agent with the user's response, and the tool is invoked again; this time the interrupt call returns the response.</p>
+
+<p>That last clause hides the trap. <strong>Resuming does not continue the tool from the line where it paused. It runs the tool body again from the top, and the interrupt call is the only line that behaves differently.</strong> Everything above it runs a second time: validation, lookups, merges. If that code is not idempotent, the resume is wrong in subtle ways.</p>
+
+<p>Here is the concrete failure. The first call validates its inputs, merges in the hosts the sandbox refused this turn, drops anything already approved, and raises the interrupt. The user approves, and the approval is written to the store. Now the body re-runs: it merges the refused hosts again, finds every one of them already approved, and concludes "nothing to ask". After a deny it would be worse, reporting the opposite of what the user decided.</p>
+
+<p>The fix is to let the tool know it is being resumed and give it a branch that does nothing but turn the stored card and the user's response into a result:</p>
+
+<pre><code>@tool(context=True)
+def request_approval(reason: str, urls: list[str] | None, tool_context):
+    card = current_request().resume_card       # set by the API on a resume
+
+    # RESUME: the body re-runs from the top. Answer ONLY from the stored
+    # card and the user's response. Never validate or merge again.
+    if card and own_interrupt_answered(tool_context):
+        answer = tool_context.interrupt("approval", reason=card_as_reason(card))
+        return outcome_from(card, answer)       # approved / declined
+
+    # FIRST CALL: validate, merge what the sandbox refused, drop what is
+    # already approved, then ask.
+    card = build_card(reason, urls, refused_this_turn())
+    if not current_request().can_ask_a_human:
+        return deny("nobody can answer in this run")
+    answer = tool_context.interrupt("approval", reason=card)   # raises until answered
+    return outcome_from(card, answer)</code></pre>
+
+<p>Two details are easy to miss. The resume branch applies only to the call whose own interrupt was answered; a second, new approval request in the same turn is a fresh question and takes the normal path. And where the SDK's internals were the only way to ask, the fallback direction was chosen deliberately: if the state is unreadable, assume the resume card is this call's, because "never merge again" is the safe mistake.</p>
+
+<p>The tool also never takes the user's identity, the approved set or the "can a human answer" flag from its arguments. They come from the request context the API set up, the rule from <a href="6-securing-agentic-ai.html">post #6</a>: a model-controlled argument is not an identity.</p>
+
+<h3>Empty calls and the "already approved" loop</h3>
+
+<p>A review caught a bug in the empty case before it shipped. A call that names nothing and finds nothing the sandbox refused this turn has nothing to approve, but the draft would have fallen through to "already approved". Because nothing yet filled the per-turn record of refused hosts, every argument-less call after a blocked run would have got that answer, and the model would loop: re-run the script, hit the same refusal, call the tool again. The fix was to return an input error telling the model to name the URLs or packages, or to run the step first so the blocked sites are recorded.</p>
+
+<h2>The Approval Tool Must Run Alone</h2>
+
+<p>Models often emit several tool calls in a single step. That is fine when each call is independent. It is a problem with an interrupt in the batch.</p>
+
+<p>Consider a step with two calls: the approval request and a second tool that uses the thing being approved. The SDK pauses on the interrupt, but the other call is queued in the same batch. When the user answers, the batch resumes and the queued call executes, even if the answer was no. The interrupt gated one tool; nothing stopped its neighbour.</p>
+
+<p>The rule is that the approval tool must be the only tool that runs in its batch, and it is enforced by a hook, not by a prompt. The hook inspects the assistant message before the batch runs, keeps the first approval call and cancels everything else in the batch with a short text the model can act on:</p>
+
+<pre><code>def decide_batch(message):
+    uses = tool_uses(message)
+    first = next((u for u in uses if u["name"] == APPROVAL_TOOL), None)
+    if first is None:
+        return {}                                  # no approval call: cancel nothing
+    cancel = {}
+    for u in uses:
+        if u is first:
+            continue
+        cancel[u["toolUseId"]] = (
+            "merged into the first approval request" if u["name"] == APPROVAL_TOOL
+            else "call the approval tool on its own")
+    return cancel
+
+# before each tool call: if this call's id is in `cancel`, set cancel_tool = text</code></pre>
+
+<p>The decision depends on the message alone. That matters because the same event fires again on resume, with the finished results merged in, and the hook has to come to the same conclusion both times. A hook that kept mutable state about "which call already ran" would disagree with itself after a resume. The tool's description also tells the model to call it alone, but the description is advice and the hook is enforcement.</p>
+
+<h2>Unattended Runs Get a Deterministic Deny</h2>
+
+<p>Not every run has a person watching. A scheduled or background run, or a script executing without a chat attached, cannot show a card, and an interrupt there would wait for an answer nobody can give. The API sets a capability flag on the request context, and the tool checks it before building the card. If nobody can answer, it returns an access-denied error at once, names what was blocked, and tells the model to continue without that data:</p>
+
+
+<pre><code>if not current_request().can_ask_a_human:
+    return deny("download approval cannot be asked in this run (nobody can "
+                "answer); the launch-time lists apply. Blocked: " + subject_text
+                + ". Continue without that data and say so.")</code></pre>
+
+<p>Two properties are worth copying. The answer is the same every time for the same situation, so tests can assert it. And the text gives the model a legitimate path: a bare "denied" invites retries and workarounds, while "continue without that data and say so" does not. Tool results are the model's ground truth for the turn (<a href="33-strands-sse-streaming-traps.html">post #33</a> covers how they travel through the stream), and what the model writes about them can outlive the turn, as <a href="24-agent-memory-self-poisoning.html">post #24</a> showed with memory. The wording of a deny is part of the design.</p>
+
+<h2>Approvals Are Pointers, Not Sessions</h2>
+
+<p>When the loop pauses, the process that served the request may be gone before the user clicks: a deploy, a restart or a different replica answering are all normal. So nothing the resume needs can live in memory. The API writes it down before showing the card, in two parts.</p>
+
+<ul>
+    <li><strong>A snapshot of the paused agent</strong>, written to object storage. This is what lets the resume continue the same run rather than start a new one.</li>
+    <li><strong>A pointer record</strong> in a key-value table, one open request per chat. It holds the interrupt id, a hash of the secret the client must present to resume, the card, the state (pending, claimed, done, expired), the snapshot location, and the expiry fields.</li>
+</ul>
+
+<p>The order is deliberate. If the pointer were written first, a crash between the two writes would leave a card that points at nothing. If the snapshot write fails or is too large, no pointer and no card are created and the turn ends with an ordinary message. The worst case is a missing offer, not a broken one.</p>
+
+<pre><code>write snapshot   -> confirmed object-store PUT
+write pointer    -> conditional put, only if there is no open request for
+                    this chat (absent, or done, or expired, or past its expiry)
+emit card        -> only after both succeeded</code></pre>
+
+<p>A few details in the pointer are less obvious than they look.</p>
+
+<ul>
+    <li><strong>Two expiries, on purpose.</strong> The logical expiry is read by every check and decides whether the request is still answerable. The physical TTL is what the database uses to delete the record; it deletes late, so every read also filters on it. The TTL is the logical expiry plus a retention window, so a request that just expired is reported as expired rather than unknown.</li>
+    <li><strong>The logical expiry is clamped below the snapshot lifecycle.</strong> An object-storage rule deletes old snapshots. A request that could outlive its snapshot would offer a resume that cannot work, so the window is clamped under that rule.</li>
+    <li><strong>The client's secret is stored as a hash.</strong> The resume must present a random bearer value; only its SHA-256 is kept, and reading the open request issues a fresh value, so an old copy stops working.</li>
+    <li><strong>Optional bulk is omitted whole, never cut.</strong> The pointer is kept under the database's 400 KB item limit with margin. If the optional "first answer" text would push it over, the field is dropped entirely instead of sliced, because a sliced answer would be wrong in a way nobody notices, and the full text is saved elsewhere anyway.</li>
+</ul>
+
+<h2>Resuming Exactly Once: Claims and Leases</h2>
+
+<p>The user clicks Approve. Two tabs might both send it, a retry might follow a flaky network, or the first resume might die halfway. The store has to make "who may resume this" a single atomic decision that survives the failure of the winner.</p>
+
+<p>The resume endpoint runs a fixed sequence, and no step before the claim takes ownership; a failed check refuses or expires the request:</p>
+
+<ol>
+    <li>Parse and validate the body.</li>
+    <li>Read the pointer and compare the interrupt id and the hashed secret. Refuse an unknown or expired request.</li>
+    <li>Read the stored chat history. If the chat was hidden, or a new turn was saved since the card was shown, expire the request rather than resume into a conversation that has changed.</li>
+    <li>Reserve the same budget and concurrency slots a normal question takes.</li>
+    <li>Re-check the user's current roles against the tools in the paused batch. If the user lost access since the card was shown, expire the request.</li>
+    <li>Claim it.</li>
+</ol>
+
+<p>The claim is one conditional write that succeeds only if everything below is true at once:</p>
+
+<pre><code>claim  IF  hash matches AND id matches
+       AND (state = pending OR (state = claimed AND lease expired))
+       AND not expired AND claim_count = what I read
+       SET state = claimed, worker = me, lease = now + L, claim_count += 1</code></pre>
+
+<p>Two concurrent clicks race on that write and exactly one wins; the loser gets "resume in progress".</p>
+
+<p>The winner runs the resumed agent while a heartbeat task renews the lease on its own small executor. If the worker dies, the lease runs out and the next click can resume the request. Two guards stop that from looping: the claim counter has a cap, so a card that keeps killing its workers is denied and expired, and the heartbeat has a hard stop, so a stuck worker cannot hold a lease past the resume's deadline.</p>
+
+<p>Once a resume finishes, the pointer is marked done and records where the final answer is stored. A second Approve for the same card is therefore harmless: the endpoint sees the state is done and replays the stored answer instead of running anything. That is the idempotency a payment API gives a retried request, applied to a chat turn.</p>
+
+<p>A resumed turn may need another approval (the run is unblocked, then hits a second host). That new card does not create a second pointer. It replaces the open request in place, under a new interrupt id and a fresh secret, with the claim counter reset, in a single write conditional on the caller still holding the claim. If the claim was lost in the meantime, the chained card is not written.</p>
+
+<h2>What an Approval Is, and Taking It Back</h2>
+
+<p>An approval is a row per approved site or package, keyed by user and chat, stamped with the id of the card that created it, and given its own TTL. It covers the rest of that chat, not the whole account and not all time. A few choices follow from that.</p>
+
+<ul>
+    <li><strong>What can be requested is narrow.</strong> Only http and https URLs, no credentials in the URL, no IP literals, no internal-looking names. Query strings and fragments are stripped before a URL is stored or shown, because they can carry tokens.</li>
+    <li><strong>What the user can edit is narrower.</strong> The package list, nothing else. Editing sites or URLs would turn the card into a request the agent never made.</li>
+    <li><strong>A deny removes rows,</strong> only those carrying that card's id, so it never undoes another card's approval.</li>
+    <li><strong>Approvals are revocable.</strong> A user can delete one approved site or package for the chat, effective from the next turn. A flag in agent memory cannot do that; a row can.</li>
+    <li><strong>An administrator-maintained list</strong> of pre-approved sites and packages can short-circuit the card. If everything the agent named is approved or on that list, the tool answers "already approved: run it".</li>
+</ul>
+
+<h2>What the SDK's Built-in Human-in-the-Loop Gives You</h2>
+
+<p>The SDK ships its own human-in-the-loop intervention, so before keeping the custom tool I read it. In Strands Agents 1.61 it is a gate that runs before each tool call.</p>
+
+<table>
+    <thead>
+        <tr><th>Question</th><th>The built-in intervention</th><th>What this feature needed</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>What decides if approval is needed?</td><td>The tool name, via an allow list. Supports "all except these". An optional model-driven risk classifier decides for the rest.</td><td>The host the run is about to reach, which is known only at run time.</td></tr>
+        <tr><td>If the classifier fails?</td><td>Fail closed: any error or malformed result means approval is required.</td><td>Same principle.</td></tr>
+        <tr><td>What does the user see?</td><td>A plain-text prompt: tool name and full JSON input.</td><td>A structured card: sites, URLs, packages, reason.</td></tr>
+        <tr><td>Where is trust kept?</td><td>When trust is enabled, in agent state: it lasts as long as that state does, with no per-item expiry or revoke.</td><td>Durable rows, revocable per site.</td></tr>
+        <tr><td>On resume?</td><td>The gate runs before the tool, so the tool body does not re-run.</td><td>(Our tool body does re-run: see above.)</td></tr>
+        <tr><td>Deny?</td><td>The call is cancelled with a text result.</td><td>Same, plus removal of stored rows.</td></tr>
+    </tbody>
+</table>
+
+<p>My read: the built-in gate is the right tool when the decision is a function of the tool name. "Writing to this table always needs a person" is a one-line allow list, with the pause and resume plumbing included. It is the wrong tool when the decision depends on something that only appears at run time, when the approval must outlive the process, or when the user needs more than a JSON dump. Its one real advantage, that the tool body does not run twice, did not outweigh those, so the custom tool stayed.</p>
+
+<h2>An Interrupt Contract Worth Copying</h2>
+
+<p>The agent-UI protocol described the contract between a paused run and the person answering it, and it was the most useful thing I read during the redesign. The shipped wire shapes follow it:</p>
+
+<table>
+    <thead>
+        <tr><th>Field</th><th>Why it exists</th><th>How it shows up here</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Interrupt id</td><td>The answer must name the question it answers.</td><td>An opaque, unguessable id minted by the server. A mismatch is refused as unknown.</td></tr>
+        <tr><td>Response schema</td><td>The client and server agree on what a valid answer is before it is sent.</td><td>A boolean for approved, plus an optional package list. Nothing else is accepted.</td></tr>
+        <tr><td>Status on the answer</td><td>Resolved and cancelled are different events.</td><td>A cancelled answer is treated as a deny, never as an approval.</td></tr>
+        <tr><td>Expiry</td><td>A question that never expires is a standing authorisation.</td><td>An absolute time on the card, enforced by a logical field on the record.</td></tr>
+        <tr><td>Idempotent replay</td><td>Answers get retried.</td><td>A done request replays the stored answer. Nothing runs twice.</td></tr>
+        <tr><td>State before the pause</td><td>The resume needs what the run knew.</td><td>The snapshot is confirmed before the pointer exists.</td></tr>
+    </tbody>
+</table>
+
+<p>One part of the protocol I did not take as written. It allows a resume to carry an answer for every open interrupt at once. Because the approval tool runs alone in its batch, there is at most one open interrupt per chat, and the endpoint requires exactly one answer entry; zero or several are rejected as incomplete rather than guessed at. With several parallel interrupts the protocol's rule is the right one. Adopt the rule your batches can actually produce.</p>
+
+<p>Where the tool interprets a response, it fails closed. Only an explicit approval counts: a missing field, a cancelled status or an unknown shape all mean "no". The cheapest bug in an approval path is a parser that defaults to yes.</p>
+
+<h2>What I'd Build Next</h2>
+
+<p>Two ideas follow from the shape of what exists. The first is a second front end. The card, the response schema and the expiry belong to the protocol, not the web UI, so a client in a team chat tool could render the same interrupt and send the same resume without touching the backend.</p>
+
+<p>The second is using the SDK's built-in intervention where it fits. Name-based confirmations such as "this action always needs a person" are a one-line configuration there. The interesting version keeps this design's durable store and structured card behind it, so the gate decides by tool name while the approval stays a revocable row with an expiry.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Pause, don't re-run the turn.</strong> A replay pays twice and may not repeat the same plan. An interrupt keeps one run alive across the wait.</li>
+        <li><strong>The tool body re-runs on resume.</strong> Give it an explicit resume branch that answers only from the stored card and the user's response.</li>
+        <li><strong>Run the approval tool alone,</strong> enforced by a hook that decides from the message alone, so a neighbouring call cannot run after a deny.</li>
+        <li><strong>Unattended means deny,</strong> deterministically, with text that tells the model what to do next.</li>
+        <li><strong>Write down what the resume needs, in order:</strong> snapshot, pointer, card. Keep a logical expiry for decisions and a physical TTL for deletion.</li>
+        <li><strong>Make resume a claim:</strong> one conditional write, a renewed lease, a cap on claims, and a replay path for a request that is already done.</li>
+        <li><strong>Store approvals as rows</strong> scoped to user and chat, stamped with the card that created them, revocable.</li>
+        <li><strong>Pick the SDK's gate by what decides.</strong> A tool name: use the built-in. A run-time value, a durable record or a structured card: build the tool.</li>
+        <li><strong>Parse answers fail-closed.</strong> Only an explicit approval is a yes.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Human-in-the-Loop</span>
+    <span class="tag">Strands Agents</span>
+    <span class="tag">Interrupts</span>
+    <span class="tag">DynamoDB</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

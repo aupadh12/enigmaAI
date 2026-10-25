@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>From Regex-Parsed Verdicts to Native Structured Outputs</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="From Regex-Parsed Verdicts to Native Structured Outputs">
+    <meta property="og:description" content="A reviewer agent's verdict was recovered by regex because Claude models on Bedrock rejected forced tool choice. A schema request I had recorded as rejected later worked: how I probed it, shipped it behind switches, and why a capability matrix needs a date.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/41-native-structured-outputs-for-agents.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/41-native-structured-outputs-for-agents.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="From Regex-Parsed Verdicts to Native Structured Outputs">
+    <meta name="twitter:description" content="A reviewer agent's verdict was recovered by regex because Claude models on Bedrock rejected forced tool choice. A schema request I had recorded as rejected later worked: how I probed it, shipped it behind switches, and why a capability matrix needs a date.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/41-native-structured-outputs-for-agents.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/41-native-structured-outputs-for-agents.png" alt="Blog cover">
+
+<div class="header-badge">AGENTIC AI</div>
+<h1>From Regex-Parsed Verdicts to Native Structured Outputs</h1>
+<p class="subtitle">A reviewer agent's verdict was recovered with regexes because the models rejected forced tool choice. Then the schema request I had recorded as rejected started to work. What I shipped, how I probed it, and why a capability matrix needs a date on it.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>In late September I sent the same Converse request to four Claude 5.x models on Amazon Bedrock. The request carried a <code>textFormat</code> JSON schema inside <code>outputConfig</code>, and all four answered with a validation error: <code>output_config.format: Extra inputs are not permitted</code>. I wrote that result into <a href="31-llm-refusal-is-a-200.html">the refusal post</a> as a row in a table, and concluded that on the 5.x tier there was no supported way to make the model emit a schema, so the answer was prose plus a parser.</p>
+
+<p>On 20 October I sent the same field again, against two of those models, and valid JSON came back. An AWS announcement about structured outputs for Claude models on Bedrock was dated the day before. I cannot tell you what changed on the service side, only that a row in my own published table had stopped being true.</p>
+
+<p>This post is about what I built once it was true: a reviewer agent whose verdict used to be recovered by regex now comes back as schema-constrained JSON, with thinking intact, behind a switch that falls back to the old path. It is also about the part I would stress most. The expensive mistake here would not have been a bug in the parser. It would have been trusting a table that was three weeks old.</p>
+
+<div class="highlight-box">
+    <p><strong>The short version.</strong> The Converse <code>outputConfig.textFormat</code> request was rejected on Sonnet 5, Sonnet 5.5, Opus 5 and Opus 5.5 in late September, and accepted on the models I re-probed in the third week of October. A capability matrix is a dated measurement. Re-probe it before you build on it, and again before you build on someone else's copy of it, including your own old blog post.</p>
+</div>
+
+<h2>Why the Verdict Was Regex-Parsed</h2>
+
+<p>The reviewer agent sits at the end of a research pipeline. It reads a synthesised answer and the tool evidence behind it, and returns a verdict (pass, pass with caveats, needs revision, reject), a grounding status, lists of unsupported claims, and a short summary. Downstream code branches on the verdict, and a pass-with-caveats adds a caveat line to the answer.</p>
+
+<p>The first structured version used the framework's structured-output feature. In Strands Agents you pass a Pydantic model, the framework exposes it to the model as a tool, and if the model ends its turn with plain text instead of calling that tool, the framework forces the call on the next request by setting a tool choice. That last step is the problem. My probes in late September showed that forced tool choice is rejected on these models. The error is a 400:</p>
+
+<pre><code>ValidationException: tool_choice: type "tool" and "any" are not supported for this model.</code></pre>
+
+<p>So the structured-output feature worked exactly when it was not needed. If the model called the tool on its own, you got a validated object. If it answered in prose, the framework reacted by sending the one request the model rejects, and the prose answer surfaced as an exception wrapped inside the framework's event-loop exception.</p>
+
+<p>The shipped workaround was recovery. Catch that failure, look through the exception chain for the validation error, then walk the conversation backwards for the newest assistant message that is text-only and carries a verdict line, and parse it with one hardened parser. A few rules in that parser were worth the effort:</p>
+
+<ul>
+    <li><strong>Last match wins.</strong> A reviewer quoting an earlier "VERDICT: REJECT" from the text it is reviewing must not beat its own final line.</li>
+    <li><strong>Normalise aliases, not meanings.</strong> "PASS WITH CAVEATS" and "needs-revision" map to the canonical words. A value that is not exactly one of the allowed verdicts is returned as-is so the caller takes its "unrecognised" branch rather than guessing.</li>
+    <li><strong>Empty means unavailable.</strong> No verdict line at all is a distinct outcome, and the user sees "review unavailable" instead of a silent pass.</li>
+</ul>
+
+<p>It worked, and every run was counted by how its verdict was obtained. But it was a parser for a failure mode, and every such parser is a place where a model's formatting choice becomes your bug.</p>
+
+<h2>Two Probes, Three Weeks Apart</h2>
+
+<p>The published row in the refusal post said the Converse text-format option was rejected on the 5.x tier. That was an accurate record of what I measured in late September. It was also being used, by me, as a reason not to look again. When the AWS structured-outputs announcement appeared, it was a source worth three minutes of re-checking. I ran the probe with the same schema shape I had intended to use, against the two primary models the pipeline calls:</p>
+
+<table>
+    <thead>
+        <tr><th>Model</th><th>Late September</th><th>Around 20 October</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Opus 5.5</td><td>Rejected</td><td>Accepted: valid JSON on 3 of 3 cases, reasoning block present on 3 of 3</td></tr>
+        <tr><td>Sonnet 5.5</td><td>Rejected</td><td>Accepted: valid JSON on 3 of 3 cases (the probe response carried no reasoning block)</td></tr>
+        <tr><td>Opus 5</td><td>Rejected</td><td>Accepted in a follow-up probe: valid JSON with a reasoning block</td></tr>
+        <tr><td>Sonnet 5</td><td>Rejected</td><td>Not re-probed</td></tr>
+        <tr><td>Sonnet 4.6, Haiku 4.5</td><td>Accepted</td><td>Not re-probed</td></tr>
+    </tbody>
+</table>
+
+<p>The last two rows are the honest part of the table. I only know about the models I asked again. If I had updated the post by rewriting "rejected" to "accepted" across the board, I would have replaced one stale generalisation with another.</p>
+
+<div class="warn-box">
+    <p><strong>A capability matrix is a measurement with a date.</strong> Model cards, release notes and your own probe notes all describe a moment. The Opus 5.5 model card still listed structured outputs as unsupported when I checked it in early October, and a request the service rejected in September was being accepted in the third week of October. Put the probe date next to every entry, and treat anything older than your last model or SDK change as a hypothesis.</p>
+</div>
+
+<p>If you read the refusal post in the last few weeks, its structured-output row describes the late-September result. This post is the update.</p>
+
+<h2>What "Native" Structured Output Actually Is</h2>
+
+<p>The mechanism is constrained decoding. You give the service a JSON schema, and it restricts which tokens the model may emit so that the final text is guaranteed to parse against that schema. The Converse API exposes it as <code>outputConfig.textFormat</code> with a <code>jsonSchema</code> structure. The schema has to be in a strict subset, and the AWS documentation page I worked from lists the rules that mattered to me:</p>
+
+<ul>
+    <li><code>additionalProperties: false</code> on every object.</li>
+    <li>No recursive schemas, and no <code>minimum</code> / <code>maximum</code>, <code>minLength</code> / <code>maxLength</code> or <code>oneOf</code>.</li>
+    <li>The compiled schema is cached for 24 hours; a new schema shape pays a compile on first use.</li>
+    <li>It is not compatible with citations.</li>
+    <li>Refusals and <code>max_tokens</code> can still produce output that does not conform.</li>
+</ul>
+
+<p>That last bullet shapes the whole design. "Guaranteed to parse" has two asterisks: the model can decline, and the model can run out of tokens in the middle of an object. Both of those are normal outcomes for a reviewer that thinks before it answers, so the code that reads the result still needs a plan for non-conforming text. I come back to that below.</p>
+
+<p>The request itself is small:</p>
+
+<pre><code>response = bedrock.converse(
+    modelId=MODEL_ID,
+    system=[{"text": SYSTEM_PROMPT}],
+    messages=[{"role": "user", "content": [{"text": TASK}]}],
+    outputConfig={
+        "textFormat": {
+            "type": "json_schema",
+            "structure": {"jsonSchema": {
+                "name": "ReviewVerdict",
+                "description": "The reviewer's verdict",
+                "schema": json.dumps(strict_schema),   # a JSON string, not a dict
+            }},
+        }
+    },
+)</code></pre>
+
+<p>Two details are easy to miss. The schema goes in as a JSON-encoded string, not a nested object. And the Pydantic model's own JSON schema is not in the strict form out of the box, so I ran it through the framework's strict-schema helper, which converts it to the form Bedrock accepts. Strands passes extra keyword arguments to the Converse request, so the same dictionary rides along on the model object:</p>
+
+<pre><code>model = BedrockModel(
+    model_id=MODEL_ID,
+    additional_args={"outputConfig": output_config},   # lands at the top level of the Converse request
+)
+agent = Agent(model=model, tools=tools)
+result = agent(prompt)          # note: no structured_output_model argument</code></pre>
+
+<p>The last line is the point. Leaving out <code>structured_output_model</code> means the framework never enters its forced-tool mode, so the 400 from the previous section cannot happen. The schema applies to the model's final text turn.</p>
+
+<h2>What the Probe Showed</h2>
+
+<p>The probe used three reviewer cases: a well-supported synthesis, one that overreached beyond its evidence, and one with a fabricated citation. All ran at high effort. I was looking at four things.</p>
+
+<ul>
+    <li><strong>Validity.</strong> Opus 5.5: valid on 3 of 3. Sonnet 5.5: valid on 3 of 3. The verdicts matched what each case was built to provoke.</li>
+    <li><strong>Thinking.</strong> On Opus 5.5 the reasoning block was returned on 3 of 3 with the Converse field. This was the open question that mattered most, because the reviewer's value depends on it thinking before it judges. The Sonnet 5.5 probe responses carried no reasoning block.</li>
+    <li><strong>Tool use.</strong> With a dummy tool and the schema both on the request, the model called the tool first (the first turn was a tool call only, with no forced JSON) and the final turn was a valid review with reasoning. The schema constrains the last text answer; it does not block tools.</li>
+    <li><strong>Size.</strong> Output was about a quarter shorter than the prose review (roughly 720 to 825 tokens against about 1,000 to 1,070). The compiled schema added about 1,580 input tokens per call, measured on a short probe prompt. That is a fixed cost, so what matters is its share of your real prompt.</li>
+</ul>
+
+<p>The same field also worked on the older model I use as the refusal fallback, on the streaming Converse API (the one the agent framework uses), and alongside a prompt-cache checkpoint, where a repeat call read the cached prefix the first call wrote. The refusal path is covered in <a href="31-llm-refusal-is-a-200.html">the refusal post</a>.</p>
+
+<p>"Thinking kept" is a claim I only make for this path, and only as far as the runs go. It does not carry over to a differently shaped request just because the schema is the same.</p>
+
+<h2>Gate Through the Code You Will Ship</h2>
+
+<p>The probe used a toy prompt and a script. The reviewer in production has a real prompt, a real tool list, a refusal fallback and a framework wrapper between my code and Bedrock. A probe proves the service accepts the shape. It does not prove my code builds that shape.</p>
+
+<p>So before enabling anything I ran a gate that went through the shipped code path, the same run function and model-building hook the service uses, with a handful of live calls:</p>
+
+<ul>
+    <li>Schema mode, four cases (supported, overreach, fabricated citation, and one that needed tool calls): a valid review in the final message on 4 of 4, a reasoning block on 4 of 4, the tool case made its tool calls before answering, and the fabricated-citation case did not come back as a pass.</li>
+    <li>Tool mode with the rewritten prompt, two runs: both structured.</li>
+</ul>
+
+<p>The prompt needed a rewrite for the new path: the old prompt told the model to call a dedicated review tool, which in schema mode names a tool that does not exist. That is the kind of failure a script-level probe cannot see.</p>
+
+<h2>Rungs, Not a Cliff</h2>
+
+<p>"The output is guaranteed to parse" is a statement about the happy path. The reader of the output is still code, and it still needs defined behaviour for everything else. The schema-path reader is a short ladder, tried in order:</p>
+
+<pre><code>def read_review(text):
+    stripped = strip_code_fence(text)
+    # 1. The schema held: validate it, render it to the labelled text downstream expects.
+    try:
+        review = ReviewVerdict.model_validate_json(stripped)
+        return "structured", review, render(review)
+    except ValidationError:
+        pass
+    # 2. Truncated or invalid JSON: the verdict is the FIRST field in the schema,
+    #    so a regex can still read it from a cut-off object.
+    if (v := first_json_verdict(text)) in ALLOWED_VERDICTS:
+        return "text_recovered", None, labelled(v, text)
+    # 3. Prose that happens to carry labelled lines: the old hardened text parser.
+    if parse_labelled_verdict(text) in ALLOWED_VERDICTS:
+        return "text_recovered", None, text
+    # 4. Nothing readable. Never hand raw JSON downstream as if it were a review.
+    return "failed", None, UNAVAILABLE_PREFIX + one_line(text)</code></pre>
+
+<p>Four choices in there deserve a sentence each.</p>
+
+<p><strong>Order the schema fields for failure.</strong> The verdict is the first field. A response cut off by <code>max_tokens</code> is the likeliest non-conforming output from a thinking model, and with the verdict first, a truncated object still contains the one value downstream code branches on. The reasons behind that failure mode, thinking tokens spending the same budget as the answer, are in <a href="28-opus-5-bedrock-migration.html">the Opus 5 migration post</a>.</p>
+
+<p><strong>Refusals are not parsed.</strong> If the stop reason is a refusal, a content filter or a guardrail intervention, the text is not a review even if it contains the word "reject". The run is counted as failed and the caller's refusal handling reads the stop reason, which is the whole argument of <a href="31-llm-refusal-is-a-200.html">the refusal post</a>.</p>
+
+<p><strong>Be lenient on formatting, strict on vocabulary.</strong> The validators accept "PASS WITH CAVEATS" or "partial" and normalise them before the allowed-values check, and they cut an oversized field, with a visible truncation marker, instead of rejecting it. Both rules exist for one reason: a validation failure makes the framework feed the error back to the model and retry, which costs time and money to fix a cosmetic problem. The constrained decoder guarantees the shape. It cannot guarantee the business rules, because the strict subset has no minimum, maximum or length. Ranges live in the Pydantic model, where a bad value can be clamped or dropped instead of failing the call.</p>
+
+<p><strong>The output still reads like the old output.</strong> The reviewer service renders the validated object back into the labelled-section text that the rest of the pipeline has always consumed, and adds the structured object as an extra key on the result. During a rolling deploy an old caller ignores the extra key and an upgraded caller reading an old pod's text uses the parser. No existing field changes shape, so mixed-version fleets keep working.</p>
+
+<h2>Shipping It Behind Switches</h2>
+
+<p>The new path is on only when three things are all true: a master switch is on, the mode is set to schema (the alternative is the tool path), and the per-model catalog says the model about to be built has a probed Converse schema path. One function answers that question, and it is called twice with the same model id: when the model object is built, and when the run starts.</p>
+
+<pre><code>def schema_path_active(model_id: str) -> bool:
+    try:
+        return (settings.enabled
+                and settings.mode == "schema"
+                and catalog.supports(model_id, api="converse"))
+    except Exception:
+        return False        # a broken check means "use today's path", never a failed call</code></pre>
+
+<p>Everything about that function is deliberately boring:</p>
+
+<ul>
+    <li><strong>It fails to the old behaviour.</strong> A mis-set mode value logs a warning and means "tool". A broken catalog lookup means "no schema". An unknown model id has an empty capability set.</li>
+    <li><strong>The catalog is per model, not per family.</strong> An entry says "this model has a path that was probed live". It does not say "5.x supports it". A new model id gets no schema until someone probes it, which is the lesson of the first half of this post written into the data structure.</li>
+    <li><strong>It is asked again on every rebuild.</strong> When the refusal fallback swaps in a second model, the model-building hook runs again for that model id and decides again. The fallback model got its own probe for exactly that reason, and the extra request fields are merged into the existing keyword arguments one level deep, never replacing them.</li>
+    <li><strong>A rejected schema is surfaced.</strong> If the service ever answers the schema request with a 400, the run records a failure and raises. It does not quietly retry without the schema. This is the same rule as in the Opus 5 post: a defect in the request must be visible, not rewritten into a substitution.</li>
+    <li><strong>Rollback is one switch.</strong> Set the mode back to "tool" and restart the reviewer, and the previous recovery path is live again. Nothing was deleted to make room for the new one.</li>
+</ul>
+
+<p>The counter that records how each verdict was obtained gained one dimension, the path (schema or tool), next to the existing outcome. Adding a dimension to a CloudWatch metric starts a new series; the old single-dimension series simply stops receiving data. Before shipping I checked that no alarm or dashboard was reading the old series. The general point is worth making explicit: a harmless-looking extra label breaks any query that filtered on the old label set, and the break is silent.</p>
+
+<h2>The Same Wall, Seen Twice</h2>
+
+<p>The strict subset has no free-form objects, and that limit showed up in two places.</p>
+
+<p>The first was a planner that asks the model for a multi-step plan, where each step has a <code>params</code> field: a dictionary of arbitrary parameters for whichever tool the step names. A free-form dictionary cannot be expressed in the strict subset. The schema I shipped declares <code>params</code> as a string whose description says "the tool parameters as a JSON object encoded as a string", and the reader decodes that string back into a dictionary after validating the rest. If the schema reading does not hold (a fenced reply, a truncated one, a string that does not decode), the old parse of the same text runs. The schema path can therefore only add successes. A short addendum tells the model how to fill the field, and is added to the prompt only while the schema is active for the model being built.</p>
+
+<p>The second was a different feature, which I only observed. When I enabled the framework's strict mode on tool definitions for a full tool list, Bedrock rejected the request with a 400 naming the first tool that had a free-form dictionary parameter: <code>additionalProperties: true not supported</code>. Same subset, same limit, reached from the tool side instead of the output side.</p>
+
+<div class="highlight-box">
+    <p><strong>Where free-form data goes.</strong> Anything in a constrained-decoding schema must have a declared shape. Where the shape is genuinely open, encode it as a string and decode it yourself, or leave it out of the schema and keep an unconstrained fallback parse. Do not make an open field look typed just to satisfy the validator.</p>
+</div>
+
+<h2>What Changed in Practice</h2>
+
+<table>
+    <thead>
+        <tr><th></th><th>Tool call plus recovery</th><th>Schema in the request</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>Primary mechanism</td><td>Model calls a tool, framework validates</td><td>Constrained decoding on the final turn</td></tr>
+        <tr><td>Plain-text answer</td><td>Triggers a forced tool choice, which the model rejects (400)</td><td>Constrained to the schema on the final turn</td></tr>
+        <tr><td>Where regexes still run</td><td>Every time the model answers in prose</td><td>Truncated or otherwise non-conforming final text (refusals are read by stop reason, not parsed)</td></tr>
+        <tr><td>Thinking</td><td>Present</td><td>Present on Opus 5.5 (3 of 3, then 4 of 4 through the shipped code)</td></tr>
+        <tr><td>Output size</td><td>Longer prose</td><td>JSON, plus a fixed schema overhead on input</td></tr>
+        <tr><td>Rollback</td><td>n/a</td><td>One mode switch and a restart</td></tr>
+    </tbody>
+</table>
+
+<p>The regex did not disappear. It moved from the main path to the edges, and a counter says how often each rung is used, so a model update that starts truncating shows up as a shift in rung distribution rather than a vague complaint about verdicts.</p>
+
+<h2>What I'd Build Next</h2>
+
+<ul>
+    <li><strong>A scheduled capability canary.</strong> A tiny job that sends one minimal schema request to each model in the catalog and records accepted or rejected, with a timestamp. The catalog entries would carry a "last verified" date, and the table in this post would stop being something I update by hand when I happen to notice.</li>
+    <li><strong>A schema compile check in CI.</strong> Every Pydantic model destined for constrained decoding goes through the strict-schema helper in a test, and the test fails if the output contains a keyword the strict subset rejects. That moves "someone added a free-form field" from a runtime 400 to a failing test.</li>
+    <li><strong>Rung distribution as a regression signal.</strong> Compare the share of structured, recovered and failed outcomes before and after a model or SDK change, as part of the evaluation run.</li>
+</ul>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>A capability matrix is a dated measurement.</strong> The request I recorded as rejected in late September was accepted in the third week of October. Re-probe before you trust a table, your own included, and write the date next to each entry.</li>
+        <li><strong>Only restate what you re-checked.</strong> I re-probed three models and left the rest marked as not re-probed rather than flipping the whole row.</li>
+        <li><strong>Forced tool choice was the wrong lever on these models.</strong> A framework structured-output feature built on it fails on exactly the turn where the model did not already comply. Passing the schema in the request and not asking the framework to force a tool avoids that failure entirely.</li>
+        <li><strong>Check that thinking survives.</strong> For a reviewer, reasoning before judgement is the point. I verified it on the exact request shape I shipped, and I only claim it for that shape.</li>
+        <li><strong>Gate through the shipped code, not a probe script.</strong> The probe proves the service accepts the shape. The gate proves your code builds it, with your prompt, your tools and your fallback.</li>
+        <li><strong>Constrained decoding guarantees shape, not outcome.</strong> Refusals and truncation still produce non-conforming text. Put the field you branch on first, parse in rungs, and never pass raw JSON downstream as if it were a review.</li>
+        <li><strong>Per-model catalog, fail-closed switches.</strong> Capabilities belong to model ids, a broken check means the old path, and rollback is one setting.</li>
+        <li><strong>Open-ended fields need an escape hatch.</strong> A free-form dictionary cannot live in a strict schema. Encode it as a string and decode it, with the old parse as a fallback.</li>
+        <li><strong>A new metric dimension starts a new series.</strong> Check what was reading the old one before you add a label.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Agentic AI</span>
+    <span class="tag">Structured Outputs</span>
+    <span class="tag">Amazon Bedrock</span>
+    <span class="tag">Claude</span>
+    <span class="tag">Strands Agents</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

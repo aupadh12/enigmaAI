@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrading a Self-Hosted LLM-Observability Stack: The Traps Between Two Major Versions</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Upgrading a Self-Hosted LLM-Observability Stack: The Traps Between Two Major Versions">
+    <meta property="og:description" content="Langfuse v3 to v4 and ClickHouse 24.8 to 26.4 on a single node: a read-only query that got killed, a disk full of system logs, and the checks that verified historic traces before the old tables were emptied.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/44-upgrading-self-hosted-llm-observability.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/44-upgrading-self-hosted-llm-observability.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Upgrading a Self-Hosted LLM-Observability Stack: The Traps Between Two Major Versions">
+    <meta name="twitter:description" content="Langfuse v3 to v4 and ClickHouse 24.8 to 26.4 on a single node: a read-only query that got killed, a disk full of system logs, and the checks that verified historic traces before the old tables were emptied.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/44-upgrading-self-hosted-llm-observability.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/44-upgrading-self-hosted-llm-observability.png" alt="Blog cover">
+
+<div class="header-badge">OBSERVABILITY</div>
+<h1>Upgrading a Self-Hosted LLM-Observability Stack: The Traps Between Two Major Versions</h1>
+<p class="subtitle">Langfuse v3 to v4 and ClickHouse 24.8 to 26.4 on a single node. A query that was "read-only" and still got killed, a disk that was full of the wrong thing, and the checks that let me empty the old tables only after every historic trace was verified present in the new ones.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>While I was still reviewing the upgrade plan, a reviewer agent ran a query against the observability database. It was read-only in every sense that matters to a code reviewer: a <code>SELECT</code>, no writes, no DDL. It scanned two weeks of root spans, used <code>FINAL</code> to get deduplicated rows, and read the <code>input</code> column to look at what the agent had been asked. The database hit its memory limit at roughly 90% of the pod's allowance, and the server's overcommit tracker killed the query.</p>
+
+<p>The query died, which was the good outcome. What I could not rule out was that it had squeezed live trace ingestion for a few seconds on the way. On a single-node ClickHouse that shares one small memory budget between the reader and the writer, "read-only" describes the SQL, not the load.</p>
+
+<p>That incident set the tone for everything after it. This post is about the upgrade of a self-hosted Langfuse (v3 to v4) and the ClickHouse underneath it (24.8 to 26.4), now complete, and the traps between the two versions. An internal agent platform that sends OTLP traces was the only producer. The scope of the claim I will make is narrow and I will repeat it where it matters: <strong>historic traces were verified present in the new tables (unique-count equality plus a per-month anti-join, zero missing) before the old tables were emptied.</strong> That is a statement about a verification, not about the whole migration being free of surprises. There were several.</p>
+
+<div class="highlight-box">
+    <p><strong>What this is not.</strong> It is not a tour of v4: <a href="23-langfuse-llm-observability.html">the earlier Langfuse post</a> covers what the platform surfaces, and <a href="11-observability-for-agents.html">the observability-layers post</a> covers where tracing stops and metrics begin. This one is the operational side.</p>
+</div>
+
+<h2>Why This Upgrade Was Not a Version Bump</h2>
+
+<p>Langfuse v4 moves to an observations-first data model: a new, wide, mostly immutable table that removes joins and read-time deduplication. Table loads that took seconds take milliseconds, and the documentation promises dashboards at least ten times faster on long ranges. v3 receives security patches until the end of January 2027, so staying put had a deadline.</p>
+
+<p>The price sits in the requirements: <strong>ClickHouse 25.12 or newer</strong> (26.4 recommended) when I was on 24.8, a jump with no documented downgrade path, so <em>rollback is a snapshot restore, not an image revert</em>; the <strong>latest v3 first</strong> with every background migration finished; a <strong>backfill</strong> that roughly triples the Langfuse data footprint; and <strong>read APIs that disappear</strong>, since the v1 endpoints that list traces and daily metrics return 404 once the old write path is off. The table near the end maps each step to its risk and control.</p>
+
+<h2>Trap 1: "Read-Only" Needs a Memory Cap</h2>
+
+<p>The fix after the opening incident was a rule applied to every human, script and agent that touches the database: <strong>every query gets a hard per-query memory ceiling, and no <code>FINAL</code> over wide time ranges.</strong> The ceiling was about an eighth of the pod's memory limit at the time (the limit was raised later, see Trap 3).</p>
+
+<pre><code>-- Every ad-hoc query against the analytics store carries a cap.
+SELECT count()
+FROM traces
+WHERE timestamp &gt; now() - INTERVAL 1 DAY
+SETTINGS max_memory_usage = 500000000;   -- ~1/8 of the pod limit at the time
+
+-- Prefer metadata and counts over scanning wide columns.
+SELECT table, sum(bytes_on_disk) AS bytes
+FROM system.parts
+WHERE active
+GROUP BY table
+ORDER BY bytes DESC
+SETTINGS max_memory_usage = 500000000;</code></pre>
+
+<p>Prefer <code>system.parts</code> and plain counts over scanning <code>input</code> or <code>output</code>, the widest columns in an LLM trace store, and put the rule into every prompt that might let an agent touch the database, because an agent will not infer it. It is the lesson of <a href="25-agent-context-overflow-in-flight.html">the in-flight context overflow post</a> again: the danger is an unbounded operation on a shared resource.</p>
+
+<div class="warn-box">
+    <p><strong>A cap protects the writer, not just the reader.</strong> When ingestion and ad-hoc queries share one server, a query with no ceiling is a denial-of-service on your own traces. The cap belongs in the runbook for the upgrade itself, because the upgrade is when people run the most queries.</p>
+</div>
+
+<h2>Trap 2: The Disk Was Full of the Wrong Thing</h2>
+
+<p>The plan assumed the backfill would need disk, and the first instinct was to grow the volume. I audited the disk first. The disk was just over half full, and the Langfuse data itself was a small slice of that. ClickHouse's own <strong>system logs were about 16 times the size of the Langfuse data</strong>: the server text log alone was roughly half of all system-log volume, followed by query logs, processor profiles, internal span logs and metric logs. They were also growing steadily, enough to fill the disk within a few months regardless of the upgrade.</p>
+
+<p>Two consequences:</p>
+
+<ul>
+    <li>The backfill's tripling of Langfuse data was only about a quarter of the free space. It fit without any growth.</li>
+    <li>Growing the volume was not even available: the storage class did not allow volume expansion. The right fix was to stop hoarding the logs, not to buy more disk for them.</li>
+</ul>
+
+<p>So the first change was a retention policy for the system log tables, written as its own step <em>before</em> the ClickHouse image bump, so a config mistake would be isolated from a version mistake. It was a single drop-in file under <code>config.d</code>, mounted with <code>subPath</code>. That detail matters: mounting a ConfigMap over the whole directory hides the stock files in it, including the one that sets the listen address.</p>
+
+<pre><code>&lt;clickhouse&gt;
+  &lt;query_log&gt;
+    &lt;ttl&gt;event_date + INTERVAL 14 DAY DELETE&lt;/ttl&gt;
+  &lt;/query_log&gt;
+  &lt;text_log&gt;
+    &lt;level&gt;warning&lt;/level&gt;
+    &lt;ttl&gt;event_date + INTERVAL 14 DAY DELETE&lt;/ttl&gt;
+  &lt;/text_log&gt;
+  &lt;!-- nothing reads this one; remove it instead of giving it a TTL --&gt;
+  &lt;opentelemetry_span_log remove="1"/&gt;
+&lt;/clickhouse&gt;</code></pre>
+
+<h3>The engine trap</h3>
+
+<p>A system-log section whose stock configuration already declares an <code>&lt;engine&gt;</code> must never also get a <code>&lt;ttl&gt;</code>. ClickHouse refuses to start on that conflict. I found this by reading the stock <code>config.xml</code> of both the running version and the target version (by running the target image locally and printing the file) before writing anything. A section that has an engine has two honest options: replace the engine element in full with the TTL inside it, or leave the section alone and trim it by hand. Where nothing reads the table, removal is simplest.</p>
+
+<p>One deliberate exception to "trim everything": the query log stays. Langfuse v4 reads it for usage detection, so deleting it would change application behaviour, not just reclaim space.</p>
+
+<h3>The flush trap</h3>
+
+<p>Putting a TTL in config does not mean the TTL is on the table. With the default setting that controls preparing system-log tables at startup switched off, ClickHouse renames and re-creates a system log table only <strong>on its first flush</strong>. A log that is rarely written would still carry its old definition indefinitely, silently without a TTL. The gate therefore was:</p>
+
+<ol>
+    <li>Run <code>SYSTEM FLUSH LOGS</code> once, deliberately.</li>
+    <li>Enumerate every <code>system.*_log</code> table from <code>system.tables</code> (excluding the renamed ones and the removed one), and read <code>SHOW CREATE TABLE</code> for each. The TTL must be in the stored definition, not just in my file.</li>
+    <li>Confirm the renamed old tables exist (the original data, kept for now) and that the server's error log shows the rename lines and no rename exception.</li>
+    <li>Prove the removal took effect: the removed log's newest timestamp stops moving.</li>
+</ol>
+
+<p>It is the same rule as <a href="37-kubernetes-policy-stored-not-written.html">the stored-policy post</a>, in a different system: check the object the server stored, not the file you wrote. After the 26.4 bump the same check ran again, because 26.x changes some log tables' columns and triggers a second rename to a new numbered table.</p>
+
+<p>Only then did I drop the renamed old tables (except the renamed query-log copies, which stayed until after the cutover because v4 reads them for usage detection) and the removed one. Disk use fell by roughly 85%. It was the cheapest thing in the whole upgrade and bought the most room.</p>
+
+<h2>Trap 3: A Rollback You Can Execute</h2>
+
+<p>Because the ClickHouse jump has no downgrade path, and because <strong>once the new version has started on a data volume, reverting the image line in Git is not a rollback</strong> (the old version cannot read parts the new one wrote), the rollback is a snapshot restore. I took volume snapshots of the data and log volumes and a database snapshot of the Postgres side before touching anything, and I wrote the restore runbook <em>before</em> the first change, because a runbook written during an incident is a guess.</p>
+
+<p>The runbook is mostly a list of ways to make a bad day worse, with a control for each:</p>
+
+<ul>
+    <li><strong>The reclaim policy was <code>Delete</code>.</strong> Deleting a claim whose volume has that policy deletes the underlying disk. Patch the volume to <code>Retain</code> first and verify it, so a wrong step is undoable.</li>
+    <li><strong>The parent GitOps application self-heals.</strong> Scaling to zero is useless if Argo CD puts the replicas back, and pausing only the child is not enough because its parent reverts the patch. Pause the parent first and record both sync policies.</li>
+    <li><strong>The restored volume must be in the same availability zone.</strong> The original volume had a zone node affinity.</li>
+    <li><strong>A restore loses everything ingested since the snapshot</strong>, and must match the Langfuse version running against it. The runbook says that in its first lines rather than letting it surprise someone.</li>
+</ul>
+
+<p>I never had to run it. Its value was that every later step could be judged against a concrete answer to "what happens if this fails": either a cheap forward fix, or a restore with known costs.</p>
+
+<h3>Rehearse the start, not just the data</h3>
+
+<p>Before the 26.4 image went live I rehearsed an in-place start in a local container, on a throwaway data directory built from the live table definitions and the new retention file, using the same non-root user as production and a root-owned data directory, which is where "works on my laptop" upgrades usually fail. I also read the backward-incompatible change list against my config and checked the default user's grants with <code>SHOW GRANTS</code>. The plan assumed a grant would be needed, but that user comes from a read-only users file where SQL grants are impossible, and the read showed none were missing.</p>
+
+<p>I also roughly doubled the database's memory limit and set the request equal to it; resident memory after the start settled around 15% of the cap.</p>
+
+<h2>Trap 4: Two Thirds of Trace Roots Had No Attribution</h2>
+
+<p>The platform sends traces over OTLP with the ingestion-version header that selects the real-time v4 path. That header decides the behaviour of the migration. Spans sent with it skip the server-side attribute propagation that would otherwise copy user, session and tags onto the root of the trace, and the <code>dual_write</code> migration mode cannot compensate.</p>
+
+<p>Looking at the live data, about two thirds of trace roots were plain HTTP server spans created by the web framework, which carry none of the Langfuse attributes. The agent framework only puts user, session and tag attributes on its own agent, cycle, model and tool spans. In v4 a root with no user, session or tags is a trace nobody can filter. And because the backfill covers only data from before the switch, anything ingested without attribution afterwards would stay unattributed permanently.</p>
+
+<p>So the producer fix had to ship <em>before</em> the dual-write step. The design had a few details worth copying:</p>
+
+<ul>
+    <li><strong>Capture the root span at handler entry.</strong> Take the current span before creating the background task or the streaming response, and pass that handle down. Inside the pipeline task the "current span" is usually a child, so setting attributes on it would tag the wrong span.</li>
+    <li><strong>Set the attributes on the captured handle only</strong>: <code>langfuse.user.id</code>, <code>langfuse.session.id</code>, tags, plus input when the request starts and output at the end of the innermost generator. The server span stays open until the final response body, so the output can be attached at the end.</li>
+    <li><strong>Cap the size.</strong> The same spans are also exported to X-Ray, whose segment limit is 64 KB. A configurable total byte budget for the root's input and output keeps a long answer from breaking that export.</li>
+    <li><strong>Exclude noise routes, with anchored patterns.</strong> Health and poll endpoints created a steady stream of roots that nobody wanted to read. The framework instrumentation joins the exclusion list into one regular expression and matches it with <code>re.search</code> on the full URL, so an unanchored entry also excludes any route that merely contains the text. Anchor every entry, and add a test that the real query routes are <em>not</em> excluded.</li>
+    <li><strong>Background jobs have no server span.</strong> Put the same attributes on the manual root span they create.</li>
+</ul>
+
+<h2>Trap 5: Dual-Write, Backfill, and Virtual Roots</h2>
+
+<p>Langfuse's migration offers a mode that writes every new span to both the old tables and the new events tables. In that mode a rollback to the old write path loses nothing, because everything in the new tables is also in the old ones. I ran in dual mode first, with the historic backfill off, then enabled the backfill only after the new version had been healthy for an hour.</p>
+
+<p>The rollback options were, in order of preference: roll forward to the legacy write mode, or rewind the schema with the migration tool's <code>goto</code> command. For the rewind, revert the images in Git first and then run the command from a surviving v4 pod: with self-heal on, the surge pod crash-loops while the v4 pods keep serving, which leaves a pod to run it from.</p>
+
+<p>The backfill itself had a stop rule: pause it if disk use passed a set threshold.</p>
+
+<h3>What the backfill creates</h3>
+
+<p>The backfill converts historic traces into the events model. Because a v3 trace need not have a single root observation, it synthesises a <strong>virtual root span</strong> per trace, with an id derived from the trace id. That is sensible, and it produced a subtle bug in my reads. For a share of historic traces the real root had been re-parented under the virtual root, so the trace had two roots. For the rest, the virtual root was the only root. A query that asks for root observations therefore counts some traces twice and returns synthetic rows for others.</p>
+
+<p>The fix was a cutoff timestamp in the application configuration: before it, count virtual roots; after it, count real roots. I tested both shapes on live data, not just on fixtures, since the two shapes are exactly what a fixture written from the documentation would not contain. The live counts matched the old path day for day afterwards.</p>
+
+<div class="green-box">
+    <p><strong>Test the transform's output shape, not its happy path.</strong> A backfill that invents rows is a legitimate design. It becomes a bug the moment the consumer assumes every root is real. Look for the synthesised rows in the target before you build queries over it.</p>
+</div>
+
+<h2>Trap 6: Read APIs That Change at Cutover</h2>
+
+<p>The application behind the traces had an admin page that listed recent prompts and another that showed daily cost. Both called Langfuse endpoints that return 404 after cutover. Their replacements are not drop-in:</p>
+
+<ul>
+    <li>The observations API v2 uses <strong>cursor paging and returns no totals</strong>, so "Page X of Y" cannot be built. The UI became Newer and Older buttons, with the client keeping a stack of earlier cursors because cursors only move forward.</li>
+    <li>Everything goes in a <code>filter</code> expression, which overrides the fixed query parameters, and a time range is required.</li>
+    <li>Input and output come back as <strong>raw strings</strong>, so they have to be parsed before use.</li>
+    <li>The cost on a root observation is not the cost of the trace. Per-trace cost has to come from the metrics API v2, grouped by trace id.</li>
+    <li>"Traces per day" becomes a count of root observations filtered on the application tag and excluding the sub-agent role tags. It counts user queries, not every trace, and the release notes said so.</li>
+</ul>
+
+<p>The deployment pattern was a read switch with two values, <code>legacy</code> and <code>v2</code>:</p>
+
+<pre><code># Lenient on purpose: an unknown value must not take the page down.
+# Final form; before the cutover an unknown value fell back to legacy.
+def read_api_mode(raw: str | None) -&gt; str:
+    return "legacy" if (raw or "").strip().lower() == "legacy" else "v2"
+
+# Both modes return the same contract so the UI can ship before the flip:
+#   {"data": [...], "meta": {"next_cursor": "..."}}
+# In legacy mode the cursor is an opaque encoding of page + 1.</code></pre>
+
+<p>It shipped as <code>legacy</code> while the stack was still on v3, so the new UI and the old backend worked together from day one. A test asserted zero requests to the v2 observations and metrics endpoints while the switch was <code>legacy</code>, plus a positive check that the prompts endpoint still went out. After v4 was running I recorded the exact requests the release built, ran them read-only against the live system, saved the responses as fixtures, and checked the parsers against them, plus one sanity number (a day's user-query count) against the legacy path. Only then did the default flip; at final cutover a garbage value also means <code>v2</code>, since the old side no longer exists.</p>
+
+<p>The same discipline applied to the LLM-as-a-judge evaluators. Trace-level evaluators stop working once only the events model is written. I checked instead of assuming: all three were already observation-level rules, with no upgrade banner, and after the switch to v4 their scores kept arriving, attached to observations.</p>
+
+<h2>Trap 7: Small Operational Facts That Bite</h2>
+
+<h3>An environment flip restarts nothing</h3>
+
+<p>Changing a value in the ConfigMap restarts no pod. Every flip got a restart-trigger annotation bump on <em>both</em> the web and worker Deployments in the same commit. The worker had no such annotation, so adding it was part of the first step.</p>
+
+<h3>Readiness, not liveness, for the propagation check</h3>
+
+<p>Langfuse exposes a health check that fails when event propagation is stuck. I wired it as the worker's <strong>readiness</strong> probe, not its liveness probe. With one worker, a liveness failure would restart the only consumer and stop all ingestion, turning a lagging queue into an outage. Readiness takes it out of rotation without killing it. That is the same shape of mistake as <a href="11-observability-for-agents.html">the liveness-killed-mid-request case</a>, applied to the thing that ingests traces.</p>
+
+<h3>A schema left dirty by a killed pod</h3>
+
+<p>The v4 migrations run when the first new web pod starts. If that pod is killed mid-migration, the schema is left marked dirty and every web pod then crash-loops. So the gate was to watch the first pod's log until the migration script finished, and then read the migrations table for the latest version with the dirty flag at zero. Before that, a gate on the last v3 step: schema version 37 applies <code>MATERIALIZE INDEX</code> as background mutations, so I waited for <code>system.mutations</code> to show zero unfinished before starting the ClickHouse jump.</p>
+
+<h3>Check the registry, not the release page</h3>
+
+<p>The latest v3 release on GitHub was 3.225.12, but the latest published image was 3.225.11. I pre-pulled every tag I planned to deploy through the registry mirror the cluster uses and treated a failed pull as a gate failure, so no pod lands in <code>ImagePullBackOff</code> mid-upgrade.</p>
+
+<h3>Containers: two local quirks</h3>
+
+<ul>
+    <li><strong>In my Docker Desktop setup a bind mount under <code>/tmp</code> came up as an empty directory.</strong> A rehearsal then "works" against no data. Check the file-sharing list, or mount from your home directory.</li>
+    <li><strong>Renamed system-log tables appear only on first flush</strong> (Trap 2). If the old data seems missing after a restart, flush first.</li>
+</ul>
+
+<h2>Trap 8: Verify, Then Empty</h2>
+
+<p>The old v3 tables kept holding every historic trace after the cutover. They were dead weight and still a source of doubt. Emptying them was the one irreversible step in the sequence, so it was preceded by a comparison with a claim narrow enough to be checkable:</p>
+
+<ol>
+    <li><strong>Unique-count equality.</strong> The number of distinct trace ids in the old table must equal the number in the new events table covering the same period.</li>
+    <li><strong>A per-month anti-join.</strong> For each month, find the trace ids present in the old table and absent in the new one. The result must be empty. Equal counts can hide two compensating errors; an anti-join cannot.</li>
+</ol>
+
+<pre><code>-- One month at a time, so every query stays under the memory cap.
+SELECT count() AS missing
+FROM (
+    SELECT DISTINCT id
+    FROM traces
+    WHERE timestamp &gt;= toDateTime('2026-08-01')
+      AND timestamp &lt;  toDateTime('2026-09-01')
+) AS old_ids
+LEFT ANTI JOIN (
+    SELECT DISTINCT trace_id AS id
+    FROM events_full
+    WHERE start_time &gt;= toDateTime('2026-07-31')   -- small margin either side
+      AND start_time &lt;  toDateTime('2026-09-02')
+) AS new_ids USING (id)
+SETTINGS max_memory_usage = 500000000;</code></pre>
+
+<p>The per-month split is also how the check respects Trap 1. In the final run, both comparisons were clean: counts equal, and zero missing in every month. The oldest trace was the same on both sides. Only after that did I empty the old traces and observations tables (the tables themselves stay). The scores table and the new events tables were untouched. I then checked that the Langfuse pods had zero restarts, the worker logged no errors, and the admin pages returned the same day-by-day counts as before.</p>
+
+<p>That proves every historic trace id was present in the new store before the old one was emptied, and nothing beyond it.</p>
+
+<h2>The Whole Sequence as a Table</h2>
+
+<table>
+    <thead>
+        <tr><th>Step</th><th>Risk</th><th>Control</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Audit the disk</td>
+            <td>Growing a volume that cannot grow; hoarding logs</td>
+            <td>Size tables via <code>system.parts</code>; retention first</td>
+        </tr>
+        <tr>
+            <td>System-log retention config</td>
+            <td>Server will not start (TTL on an engine section); TTL never attached</td>
+            <td>Read both stock configs; own step; flush, then <code>SHOW CREATE TABLE</code> on every log table</td>
+        </tr>
+        <tr>
+            <td>Snapshots and restore runbook</td>
+            <td>No downgrade; reclaim policy deletes the disk; self-heal fights the restore</td>
+            <td>Runbook first; <code>Retain</code>; pause the parent app; same-zone volume</td>
+        </tr>
+        <tr>
+            <td>Latest v3 and its migrations</td>
+            <td>Pending mutations and background migrations collide with the next step</td>
+            <td>Zero unfinished migrations and mutations; pre-pull tags</td>
+        </tr>
+        <tr>
+            <td>ClickHouse 24.8 to 26.4</td>
+            <td>Irreversible after first start; memory tight; hidden incompatibilities</td>
+            <td>Local rehearsal as the production user; compatibility list read; snapshot rollback; memory request equal to limit</td>
+        </tr>
+        <tr>
+            <td>Producer fix</td>
+            <td>Roots without user, session or tags, permanently</td>
+            <td>Capture root span at entry; size cap; anchored exclusions; ship first</td>
+        </tr>
+        <tr>
+            <td>Langfuse v4 in dual mode</td>
+            <td>Dirty schema if a pod dies mid-migration; ingestion outage from a bad probe</td>
+            <td>Watch first pod's migration; <code>dirty = 0</code>; readiness-only probe; restart-trigger on both</td>
+        </tr>
+        <tr>
+            <td>Historic backfill</td>
+            <td>Disk pressure; virtual roots double-count</td>
+            <td>Stop rule on disk; cutoff timestamp; live-data shape tests</td>
+        </tr>
+        <tr>
+            <td>Read-path change</td>
+            <td>404s and subtly different semantics</td>
+            <td>Two-mode switch; one contract; fixtures from built requests</td>
+        </tr>
+        <tr>
+            <td>Cutover to events-only</td>
+            <td>Old endpoints vanish; trace-level evaluators stop</td>
+            <td>Evaluators checked; expected 404s asserted; other endpoints re-checked</td>
+        </tr>
+        <tr>
+            <td>Empty the old tables</td>
+            <td>Irreversible; undetected missing history</td>
+            <td>Count equality plus per-month anti-join, zero missing</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>What I'd Build Next</h2>
+
+<p>The thing I would have liked on day one is a way to rehearse the <em>consumers</em>, not just the database. Everything that made this upgrade careful, the request shapes, the cursor semantics, the root-versus-virtual-root distinction, the fixtures, came from running the application's real requests against a live instance of the new version.</p>
+
+<p>The next step is to turn that into a contract suite that lives in CI: a disposable Langfuse container pinned to the next candidate version, fed a small synthetic trace set that includes both root shapes, with the application's exact read requests replayed against it and the responses checked against recorded fixtures. Then the next major version starts with a list of failing tests rather than a close reading of release notes, and the fixtures double as documentation of what the application actually depends on.</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>"Read-only" is not "free".</strong> On a shared node, give every query a memory ceiling and ban wide <code>FINAL</code>, in runbooks and agent prompts alike.</li>
+        <li><strong>Audit the disk before growing it.</strong> System logs were about 16 times the data; retention plus a trim reclaimed roughly 85% of disk use.</li>
+        <li><strong>A config is not the stored object.</strong> Flush, then read <code>SHOW CREATE TABLE</code> for every log table; never put a TTL on a section that has an engine.</li>
+        <li><strong>No downgrade path means the rollback is the product.</strong> Write the restore runbook first, set the volume to <code>Retain</code>, pause the <em>parent</em> GitOps app.</li>
+        <li><strong>Fix the producer before the migration</strong>, and test backfilled data for the rows the backfill invents.</li>
+        <li><strong>Ship read-path changes behind a two-mode switch</strong> with one response contract and fixtures from the exact requests you built.</li>
+        <li><strong>Narrow the claim, then verify it.</strong> Historic traces were verified present (unique-count equality plus a per-month anti-join, zero missing) before the old tables were emptied.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">Observability</span>
+    <span class="tag">Langfuse</span>
+    <span class="tag">ClickHouse</span>
+    <span class="tag">Major-Version Upgrade</span>
+    <span class="tag">GitOps</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Running a Fleet of AI Coding Agents Without Them Clobbering Each Other</title>
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Running a Fleet of AI Coding Agents Without Them Clobbering Each Other">
+    <meta property="og:description" content="Parallel coding agents are fast until two of them write to the same place. The ownership, scratch-space, review and peer-session rules I use to run Claude Code sub-agents without lost work.">
+    <meta property="og:image" name="image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/43-running-a-fleet-of-coding-agents.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="627">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://aupadh12.github.io/enigmaAI/blogposts/43-running-a-fleet-of-coding-agents.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Running a Fleet of AI Coding Agents Without Them Clobbering Each Other">
+    <meta name="twitter:description" content="Parallel coding agents are fast until two of them write to the same place. The ownership, scratch-space, review and peer-session rules I use to run Claude Code sub-agents without lost work.">
+    <meta name="twitter:image" content="https://aupadh12.github.io/enigmaAI/blogposts/covers/43-running-a-fleet-of-coding-agents.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            line-height: 1.8; color: #1a1a2e; background: #fafbfc;
+            max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        }
+        .header-badge {
+            display: inline-block; background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px;
+        }
+        h1 { font-size: 32px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; color: #1a1a2e; }
+        .subtitle { font-size: 18px; color: #555; margin-bottom: 32px; font-style: italic; }
+        .author-block {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid #e8e8e8;
+        }
+        .author-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, #475569, #334155);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 18px;
+        }
+        .author-info { font-size: 14px; }
+        .author-name { font-weight: 600; color: #1a1a2e; }
+        .author-title { color: #666; }
+        h2 { font-size: 24px; font-weight: 700; margin: 40px 0 16px; color: #1a1a2e; border-left: 4px solid #6366f1; padding-left: 16px; }
+        h3 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: #333; }
+        p { margin-bottom: 16px; font-size: 16px; }
+        .highlight-box {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-left: 4px solid #6366f1; padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .highlight-box p:last-child { margin-bottom: 0; }
+        .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .warn-box p:last-child { margin-bottom: 0; }
+        .stale-box {
+            background: #fef2f2; border-left: 4px solid #dc2626;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .stale-box p:last-child { margin-bottom: 0; }
+        .green-box {
+            background: #f0fdf4; border-left: 4px solid #16a34a;
+            padding: 20px 24px; border-radius: 0 8px 8px 0; margin: 24px 0;
+        }
+        .green-box p:last-child { margin-bottom: 0; }
+        .diagram-container {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 24px; margin: 32px 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .diagram-caption { text-align: center; font-size: 13px; color: #666; margin-top: 12px; font-style: italic; }
+        code {
+            background: #f1f5f9; padding: 2px 8px; border-radius: 4px;
+            font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre {
+            background: #1e293b; color: #e2e8f0; padding: 20px 24px; border-radius: 8px;
+            overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th { background: #f1f5f9; text-align: left; padding: 12px 14px; font-weight: 600; color: #334155; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        ul, ol { margin: 12px 0 20px 24px; }
+        li { margin-bottom: 8px; font-size: 16px; }
+        .takeaway { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 24px; margin: 32px 0; }
+        .takeaway h3 { color: #1e293b; margin-top: 0; }
+        .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8e8; }
+        .tag { background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 16px; font-size: 13px; }
+        .separator { height: 1px; background: #e8e8e8; margin: 40px 0; }
+        .cover-image {
+            width: 100%; height: auto; display: block;
+            border-radius: 12px; margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .decision-cell-green { color: #16a34a; font-weight: 600; }
+        .decision-cell-yellow { color: #d97706; font-weight: 600; }
+        .decision-cell-red { color: #dc2626; font-weight: 600; }
+        /* Diagram pipeline styles */
+        .pipeline-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+            font-size: 13px;
+        }
+        .pipeline-col {
+            border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+        }
+        .pipeline-col-header {
+            background: #334155; color: white; padding: 10px 14px;
+            font-weight: 600; font-size: 13px; text-align: center;
+        }
+        .pipeline-step {
+            padding: 9px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: flex-start; gap: 8px;
+            color: #334155; background: white;
+        }
+        .pipeline-step:last-child { border-bottom: none; }
+        .pipeline-arrow {
+            color: #94a3b8; font-size: 18px; padding: 2px 0 0 20px;
+            text-align: center;
+        }
+        .pipeline-label {
+            display: inline-block; background: #f1f5f9; color: #475569;
+            border-radius: 4px; padding: 2px 7px; font-size: 11px;
+            font-family: 'SF Mono', 'Fira Code', monospace; margin-right: 4px;
+        }
+        @media (max-width: 600px) {
+            .pipeline-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-72QSEYC70K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-72QSEYC70K');
+</script>
+<link rel="stylesheet" href="blog-enhancements.css">
+</head>
+<body>
+<!-- Back Navigation -->
+<a class="back-nav" href="../index.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  Field Notes
+</a>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<img class="cover-image" src="covers/43-running-a-fleet-of-coding-agents.png" alt="Blog cover">
+
+<div class="header-badge">AI-ASSISTED DEV</div>
+<h1>Running a Fleet of AI Coding Agents Without Them Clobbering Each Other</h1>
+<p class="subtitle">Parallel agents are fast right up until two of them write to the same place. The rules I use for ownership, scratch space, review and peer sessions, each one learned from a specific collision.</p>
+
+<div class="author-block">
+    <div class="author-avatar">A</div>
+    <div class="author-info">
+        <div class="author-name">Ashutosh Upadhyay</div>
+        <div class="author-title">Platform Engineering · October 2026</div>
+    </div>
+</div>
+
+<p>Two background agents were working on the same build. Each one needed a throwaway script to mutate some files, and each one wrote that script to the same path under <code>/tmp</code>. The second agent ran what it believed was its own script. It was the first agent's script. That script writes files back the way it read them when it started, so it could quietly put old contents back over edits a live agent had made in the meantime.</p>
+
+<p>Nothing in that failure would crash, and no tool call would fail; the damage would be visible only as finished work that was no longer there. The collision is a fair summary of the whole problem: <strong>agents are individually careful and collectively reckless, because none of them can see what the others are doing.</strong></p>
+
+<p>This post is the set of working rules I use when I run dozens of Claude Code sub-agents and parallel sessions across a build. It describes my own practice, built from my own mistakes; it is not guidance from Anthropic, and a different codebase or team may need different rules. If you are after how to use Claude Code for design and review in the first place, <a href="1-claude-code-for-agentic-development.html">the first post in this series</a> covers the advisor and memory setup. If you are after how usage of these tools shows up in telemetry, see <a href="29-ai-coding-assistant-usage-analytics.html">the usage analytics post</a>. This one is only about what happens when many agents run at once.</p>
+
+<div class="highlight-box">
+    <p><strong>The rule underneath all the others.</strong> Every shared resource needs exactly one owner at any moment: a file, a scratch directory, a log, a build, a decision. Most multi-agent failures I have seen were not model mistakes. They were two well-behaved agents each assuming a shared thing was theirs.</p>
+</div>
+
+<h2>Speed Is Real, and So Is the Ceiling</h2>
+
+<p>The reason to run agents in parallel is obvious: a build that splits cleanly into independent streams finishes in a fraction of the time. The reason to cap them is less obvious until your machine tells you.</p>
+
+<p>On one multi-day effort I let the number of concurrent background agents drift up to 10 or 12. The machine load climbed to somewhere between 20 and 30, and agents began to die with a stream-watchdog message saying they had made no progress for 600 seconds. They had not failed at the task. They had been starved. My ceiling since then is <strong>8 concurrent agents</strong>, and most of the time I run fewer. In a later build with a frozen plan I ran up to 5 at once and saw no clobbering at all, which tells me the ceiling matters less than whether the streams are actually independent.</p>
+
+<table>
+    <thead>
+        <tr><th>Symptom</th><th>What it usually meant</th><th>What I do now</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Agents stop with a "no progress" message</td>
+            <td>Too many concurrent streams for the machine, not a bad prompt</td>
+            <td>Keep to 8 or fewer; check load before launching another wave</td>
+        </tr>
+        <tr>
+            <td>An agent dies mid-edit after an expired credential</td>
+            <td>Long runs outlive short-lived tokens</td>
+            <td>Resume it in place (see below); do not start a duplicate</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Resume, do not respawn</h3>
+
+<p>Agents die. Tokens expire, streams stall, a network call drops. A resumed background agent keeps its context, so the right move is to send it a message (Claude Code's resume-by-message mechanism) along the lines of "resume, re-check that your last edit landed, then continue". Spawning a fresh replacement throws away what the first agent knew and, worse, leaves two agents with overlapping claims on the same files.</p>
+
+<p>One limit worth knowing: in my sessions, an agent that I had stopped myself with an interrupt could not be resumed that way. In that case I stopped treating it as an agent and treated the repository as the source of truth: grep for the markers it was supposed to leave, run the tests, finish the remaining work from the main session.</p>
+
+<h2>One Writer Per File, Written Down</h2>
+
+<p>"Be careful not to touch each other's files" is not a rule an agent can follow, because it does not know which files are each other's. The fix is boring and effective: before launch, the lead writes an <strong>ownership table</strong> into a shared coordination file, and every agent's brief points at it.</p>
+
+<pre><code>## File ownership (single writer per path)
+
+| Stream | Owns (may edit)                 | May read only          | Interface it exposes      |
+|--------|---------------------------------|------------------------|---------------------------|
+| W1     | api/routes_a/**, tests/a/**     | shared/gate            | gate.check(name) -&gt; bool  |
+| W2     | ui/panels/**, tests/ui/**       | api/**                 | none                      |
+| W3     | worker/**, tests/worker/**      | shared/gate            | queue message schema v1   |
+| MAIN   | shared/gate, config, docs       | everything             | flips each feature flag   |
+
+Rules
+- Anything not in your "Owns" column is read-only to you.
+- Need a change in someone else's file? Write the exact text in your
+  final report; the owner (or MAIN) applies it.
+- Cross-stream contracts live ONLY in the interface files listed above.
+</code></pre>
+
+<p>Three details do most of the work:</p>
+
+<ul>
+    <li><strong>A main owner for shared files.</strong> Configuration, the shared gate module, the release checklist and the deployment manifests belong to the lead session. Streams hand over the exact text they want; the lead applies it. The lead also flips each feature flag, and only after the stream that built the feature has been reviewed.</li>
+    <li><strong>Interface files for contracts.</strong> If stream A produces something stream B consumes, the shape is written once in a file that A owns and B reads. Without that, each agent invents the contract it needs and the mismatch shows up at integration.</li>
+    <li><strong>Sequence the streams that move a shared base.</strong> When two agents touch the same tree, say so in both briefs and run the base-moving one first. In one case a fix agent and a patch re-cut agent worked on the same tree; the patches built on the old base went stale and had to be cut again, and the re-cuts kept repeating until I sequenced the base-moving work first.</li>
+</ul>
+
+<div class="green-box">
+    <p><strong>Review the split before you launch it.</strong> On a larger build I asked the advisor agent to review the ownership table and interface contracts themselves, before any stream started. It found several genuine mistakes in the division of labour. One example: a new field was going to be dropped silently by a fixed-list parser that lived in another stream's file. Fixing a table costs a minute; discovering the same mistake after four streams have built against it costs a wave.</p>
+</div>
+
+<h2>The Coordination Log Is the Fleet's Memory</h2>
+
+<p>The lead's context fills up. After enough agent reports, early decisions get compacted away, and the lead forgets what it promised. So every report is saved to the coordination file in condensed form the moment it lands, in a fixed shape so it can be skimmed.</p>
+
+<pre><code>## Report: W2 (ui panels)   status: DONE | BLOCKED | PARTIAL
+Changed:    files edited (all inside "Owns")
+Tests:      what ran, pass/fail, what was NOT run
+Mutations:  which checks were reverted to prove tests fail, results
+Asked of others: exact text for files outside "Owns"
+Surprises:  anything the brief did not predict
+</code></pre>
+
+<p>Two additions made this log much more useful. First, I insist on a "what was not run" line, because a summary that says "tests pass" without saying which tests is a claim, not evidence. Second, I verify headline claims on risky items myself before relaying them: re-run the checker, grep for the bug. A sub-agent's report is a lead, not a result. That gap is real; <a href="32-tests-that-cannot-fail.html">the post on tests that cannot fail</a> shows how wide it can get.</p>
+
+<h2>Scratch Space Is Shared Unless You Say It Isn't</h2>
+
+<p>Back to the cold open. The script path was shared because nothing said otherwise, and <code>/tmp</code> is the most shared place on the machine. The rules that came out of it are now part of every brief:</p>
+
+<ol>
+    <li><strong>Scripts live only under a per-agent directory</strong>, such as <code>/tmp/&lt;task&gt;_&lt;agent&gt;/</code>. Never a bare name in <code>/tmp</code>.</li>
+    <li><strong>Back up before mutating.</strong> Any script that rewrites files first copies them somewhere only that agent uses.</li>
+    <li><strong>Prove the restore.</strong> After restoring, run <code>cmp</code> against the backup and report the result. "Restored" is a claim; an empty <code>cmp</code> is evidence.</li>
+    <li><strong>On a collision, warn the owning agent immediately.</strong> Do not clean up quietly; the other agent may be mid-edit on top of the collision.</li>
+</ol>
+
+<h3>True pre-round copies for reviewers</h3>
+
+<p>Reviewers need something to diff against. If the baseline is taken after the edits, a re-review has nothing honest to compare to. So the brief asks for a <strong>pre-round copy taken before any edit</strong>, in a named directory, and reviewers diff the working tree against that. A backup made after the fact only proves the fix is consistent with itself.</p>
+
+<h2>Briefs: What Every Agent Gets</h2>
+
+<p>Most of my rules end up as lines in a brief template. I keep it short enough that an agent will read it all and strict enough that deviations are obvious.</p>
+
+<pre><code>GOAL:       one sentence, one deliverable.
+OWNS:       exact paths you may edit (see ownership table).
+READ ONLY:  everything else.
+SCRATCH:    /tmp/&lt;task&gt;_&lt;agent&gt;/ only; back up before mutating; cmp after restore.
+SHARED RULES FILE: path to the file with conventions and the plan.
+INTERFACES: path(s) to the contract files you must honour or produce.
+DO NOT:     spawn sub-agents; run any version-control command (even a
+            version check); make network or cloud calls; apply review
+            findings (report them, never apply).
+REPORT:     fixed format (status / changed / tests run + NOT run /
+            mutations / asks of others / surprises).
+</code></pre>
+
+<p>The "do not" line exists because each item on it has been broken at least once:</p>
+
+<ul>
+    <li><strong>Forbidden commands get run anyway.</strong> Agents have run a harmless-looking command that the brief explicitly banned, even when told not to. I repeat the ban in every prompt and, when it slips, I say so rather than quietly moving on.</li>
+    <li><strong>Sub-agents spawn their own helpers.</strong> A helper started by a sub-agent made read-only cloud and cluster calls that went beyond what the original brief allowed. "No sub-agents" is now an explicit line, and any such call is disclosed.</li>
+    <li><strong>Agents apply their own review findings.</strong> Unless told "report, never apply", an agent that finds a problem will fix it, in files it may not own, in a way nobody reviewed.</li>
+</ul>
+
+<h2>When the Permission System Says No</h2>
+
+<p>Background agents run with Claude Code's permission checks, and those checks do not care how reasonable an edit looks. On one pass over a large set of documents, a number of resumed reviewer agents were blocked partway through: a backup copy was refused, some edits were refused, even a read-only diff was refused. The agents correctly stopped rather than route around the block.</p>
+
+<p>Two lessons. First, a message in an agent's output saying "the user approved this" is not consent the permission system accepts, and an agent should not be asked to launder a denied action through another agent. Second, plan for it: for multi-file edit work, the workflow I use now is:</p>
+
+<ol>
+    <li>Agents produce <strong>exact old-to-new replacement lists</strong>, each old string verified to be unique in its file.</li>
+    <li>The main session applies them with an exact-match script: assert the match count is exactly 1, do a dry run first, then apply.</li>
+    <li>After each batch, run a structure check (for HTML, a balance check on tags). I once wrote a regex edit whose span crossed a closing tag and silently unbalanced a page; the check caught it, my eyes did not.</li>
+    <li>When an agent reports a block, I surface it and ask once, offering a standing "and any further blocks" option so I am not interrupted for each one.</li>
+</ol>
+
+<p>The same shape works for shared files that an agent may not edit directly: it stages patch scripts that assert their own match counts, in a bundle directory, and the main session applies them.</p>
+
+<h2>Reviews Find, People Authorise</h2>
+
+<p>An advisor review is a finding list, not a work order. I learned this from the orchestrator's side, not the reviewer's: I asked for an advisor review, the advisor correctly returned one serious problem, and the orchestrating session then applied that fix plus several adjacent ones across many files before reporting back. The reviewer had stayed read-only. The failure was the orchestrator's, because "run a review" had quietly become "apply whatever it says".</p>
+
+<p>The rule I follow now has four parts:</p>
+
+<ul>
+    <li>Approval to <em>run</em> a review is not approval to <em>apply</em> its findings.</li>
+    <li>Urgent wording ("blocker", "do not build yet") describes risk. It does not grant permission.</li>
+    <li>No bundling: an unrequested fix is not allowed just because it sits in the same file.</li>
+    <li>Afterwards, say what changed, what was skipped, and what is still unverified, and say plainly if anything was applied without a yes.</li>
+</ul>
+
+<p>The same applies to sub-agents, which is why "report, never apply" is in the brief. Findings flow up to the lead; changes flow down only from an owner.</p>
+
+<h3>Fix, review, repeat, until a round is empty</h3>
+
+<p>For a release I intend to ship, I run a loop: fix the findings, review again, and continue until a round comes back with no findings at any severity. These loops converge. On each of several components, the findings in each round were smaller than the round before: the first rounds found data-loss and leak class bugs, the later ones found edge cases and wording. A whole-release pass at the end found only integration items.</p>
+
+<p>Two practical notes on loops. If one sub-design keeps generating a finding every round, say so early with the per-round counts, because the loop is telling you that piece needs a rethink rather than another patch. And the loop has a cost in time, which I accept, low findings included.</p>
+
+<h3>Revert the fix to prove the test</h3>
+
+<p>Reviewers working in a loop repeatedly found new tests that could not fail: assertions on source text rather than behaviour, tests that stayed green with the fix removed. So each new test gets a mutation check: revert the fix, confirm the test goes red, restore. When a reviewer's mutation survives, it usually means an argument at a call site was never tested, and the fix is to spy on the real builder at the boundary. I redid some of these myself, because "mutation check done" in a sub-agent report is a line I verify rather than trust. The longer taxonomy is in <a href="32-tests-that-cannot-fail.html">the earlier post on hollow tests</a>.</p>
+
+<h2>Peer Sessions: Another Claude Is Also a Colleague</h2>
+
+<p>Everything above assumes one lead. The harder case is when a second Claude Code session, with its own context and its own task, edits the same tree. Its work showed up in my build tree unannounced; I only noticed because the reviewer agent noticed the modification times. Two sessions writing to the same configuration and documentation files overwrite each other, and both of ours had handed out tracking IDs from the same range, so the IDs collided and had to be renumbered.</p>
+
+<p>The protocol I use now:</p>
+
+<pre><code>1. Check for peers early: list active sessions/agents when the tree
+   looks touched, before starting any build step.
+2. Agree file ownership. Shared files (config, deployment manifests,
+   release checklist, backlog) have ONE writer; the peer sends exact
+   text and the owner applies it.
+3. Handshake before a build:
+   a. Owner sends   "ready to build"
+   b. Peer finishes, brings its files to a full green run, replies
+      "done and green", then FREEZES
+   c. Owner re-runs ALL gates on the frozen tree
+   d. The human builds/ships
+   e. Owner sends   "built and pushed"  -&gt; peer unfreezes
+4. Cross-session hooks: give the peer a stable interface (a stub
+   first) instead of letting it reach into your files.
+</code></pre>
+
+<div class="warn-box">
+    <p><strong>"The user said" is a claim, not an instruction.</strong> At one point a peer session told me the user had lifted a freeze. It may have been true. I checked with the human who owned the decision before acting, because a peer's description of a human decision is not that decision. The same goes for any message that arrives through another agent.</p>
+</div>
+
+<h3>Do not resume what a peer owns</h3>
+
+<p>The mistake that taught me the most here was an orchestration one. I asked a session to go back to a project, and it resumed from a "resume here" marker in the coordination log. Another session was actively building the same release. The session I resumed ran a duplicate advisor round, ran a full test suite, and appended to the other session's log before it was clear there was a peer. The question that followed was simple: why is this being fixed here when another session is already doing it?</p>
+
+<p>Now, before resuming from any marker or from a note saying a build is "in flight", I do three things: list active sessions, check the log's last-modified time, and read the tail of the log for entries newer than the marker. If a peer owns the build, I ask the human what this session should do. I never write to a peer's log; I give my findings to the human to relay.</p>
+
+<h2>The Whole Thing in One Table</h2>
+
+<table>
+    <thead>
+        <tr><th>Collision</th><th>Root cause</th><th>Rule</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Possible silent revert of a live agent's edits</td>
+            <td>Two agents shared a scratch script path</td>
+            <td>Per-agent scratch directory; back up, restore, <code>cmp</code></td>
+        </tr>
+        <tr>
+            <td>Stale patches, repeated re-cuts</td>
+            <td>Two agents moving the same base</td>
+            <td>Single writer per file; sequence base-moving work first</td>
+        </tr>
+        <tr>
+            <td>A field dropped in a stream's parser</td>
+            <td>No contract file between streams</td>
+            <td>Interface files; review the split before launch</td>
+        </tr>
+        <tr>
+            <td>Lead forgets a decision</td>
+            <td>Context compaction</td>
+            <td>Condensed reports into the coordination file as they land</td>
+        </tr>
+        <tr>
+            <td>Reviewer cannot re-review</td>
+            <td>Baseline taken after the edits</td>
+            <td>True pre-round copy before any edit</td>
+        </tr>
+        <tr>
+            <td>Unreviewed fixes in unowned files</td>
+            <td>Agent applied its own findings</td>
+            <td>"Report, never apply" in every brief</td>
+        </tr>
+        <tr>
+            <td>Calls beyond the brief</td>
+            <td>Sub-agent spawned its own helper</td>
+            <td>"No sub-agents"; disclose any slip</td>
+        </tr>
+        <tr>
+            <td>Edits denied mid-run</td>
+            <td>Permission checks on background agents</td>
+            <td>Exact replacement lists; main session applies with count assertions</td>
+        </tr>
+        <tr>
+            <td>Duplicate work, tangled logs</td>
+            <td>Peer session owned the build</td>
+            <td>Check for peers before resuming; freeze handshake; confirm claims with the human</td>
+        </tr>
+        <tr>
+            <td>Green tests that prove nothing</td>
+            <td>Tests that cannot fail</td>
+            <td>Revert the fix and watch the test go red</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>A Frozen Plan Makes Parallelism Cheap</h2>
+
+<p>The builds where nothing was clobbered shared a shape. The plan was frozen after review, before any stream started. A first wave of agents wrote the "default-path" proof tests: byte-identical goldens of existing behaviour, pinned deadlines, real computation rather than stubs. Later streams then ran in parallel against those gates, with the dependent stream (the one touching a shared router) sequenced after the stream it depended on. Each wave got one advisor review before the next began, then a fix round, and finally a whole-release review.</p>
+
+<p>That structure is why up to five agents could run in parallel without a single clobbered file: the work had been cut along lines that did not cross, and the gates told every stream when it had drifted.</p>
+
+<div class="highlight-box">
+    <p><strong>A practical test for any split.</strong> Pick any file in the repository and ask "who may edit this right now?". If the answer is not a single stream or the lead, the split is not ready to launch.</p>
+</div>
+
+<h2>What I'd Build Next</h2>
+
+<p>Everything here runs on briefs, tables and discipline, which means the lead is the enforcement mechanism. The natural next step is to let a small script do part of the lead's job at the two moments it matters. Before launch, a pre-flight reads the ownership table and refuses to start if two streams claim overlapping paths. After each agent reports, a post-check compares the files it actually changed against its "Owns" column and flags anything outside it, so a stray edit surfaces as a line in the coordination log rather than as a surprise at integration.</p>
+
+<p>The same idea extends to scratch space: have the launcher create the per-agent directory and pass it in, so the safe path is the only path an agent is given. None of this changes the rules above. It moves them from "written in the brief" to "checked before and after the agent runs".</p>
+
+<div class="takeaway">
+    <h3>Key Takeaways</h3>
+    <ul>
+        <li><strong>Cap concurrency and watch the machine.</strong> Around 10 to 12 concurrent agents pushed load into the 20s to 30s and agents died on stalled streams. I run 8 at most, usually fewer.</li>
+        <li><strong>Resume, never respawn.</strong> A resumed agent keeps its context; a duplicate creates two owners for the same files.</li>
+        <li><strong>One writer per file, in writing.</strong> An ownership table, interface files for contracts, and the lead owning shared files. Review the split itself before launch.</li>
+        <li><strong>Treat scratch space as shared.</strong> Per-agent directories, backups before mutation, <code>cmp</code> after restore.</li>
+        <li><strong>Save condensed reports as they land.</strong> The coordination log outlives the lead's context window.</li>
+        <li><strong>Brief the "do nots" explicitly and repeat them.</strong> No sub-agents, no banned commands, report review findings but never apply them.</li>
+        <li><strong>A review is not authorisation.</strong> Findings go to a human; changes come only from an owner who was asked.</li>
+        <li><strong>Plan for blocked edits.</strong> Agents produce verified replacement lists; the main session applies them with exact-match assertions.</li>
+        <li><strong>Peers need a handshake.</strong> Check for another session before resuming, freeze on "done and green", and confirm any "the user said" with the actual human.</li>
+        <li><strong>Prove tests by reverting the fix.</strong> Fix-and-review loops converge, but only if the tests inside them can fail.</li>
+    </ul>
+</div>
+
+<div class="tag-list">
+    <span class="tag">AI-Assisted Development</span>
+    <span class="tag">Claude Code</span>
+    <span class="tag">Sub-agents</span>
+    <span class="tag">Multi-Agent Coordination</span>
+    <span class="tag">Code Review</span>
+    <span class="tag">Platform Engineering</span>
+</div>
+
+<!-- Social Sharing -->
+<div class="share-bar">
+  <span class="share-bar-label">Share</span>
+  <a class="share-btn share-btn--linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+    <span class="share-btn-text">LinkedIn</span>
+  </a>
+  <a class="share-btn share-btn--x" id="shareX" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span class="share-btn-text">Post on X</span>
+  </a>
+  <button class="share-btn share-btn--copy" id="shareCopyLink">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <span class="share-btn-text">Copy Link</span>
+  </button>
+</div>
+
+<p class="post-disclaimer"><strong>Disclaimer:</strong> The views and opinions expressed in this post are my own and do not represent those of my employer or any organisation I am associated with.</p>
+
+<!-- Giscus Comments -->
+<div class="giscus-container">
+  <h3>Comments &amp; Discussion</h3>
+  <div id="giscusWidget"></div>
+</div>
+
+<script src="blog-enhancements.js"></script>
+</body>
+</html>
